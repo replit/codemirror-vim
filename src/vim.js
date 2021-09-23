@@ -1,3 +1,5 @@
+// @ts-check
+
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/LICENSE
 
@@ -34,37 +36,28 @@
  *  9. Ex command implementations.
  */
 
-(function(mod) {
-  if (typeof exports == "object" && typeof module == "object") // CommonJS
-    mod(require("../lib/codemirror"), require("../addon/search/searchcursor"), require("../addon/dialog/dialog"), require("../addon/edit/matchbrackets.js"));
-  else if (typeof define == "function" && define.amd) // AMD
-    define(["../lib/codemirror", "../addon/search/searchcursor", "../addon/dialog/dialog", "../addon/edit/matchbrackets"], mod);
-  else // Plain browser env
-    mod(CodeMirror);
-})(function(CodeMirror) {
-  'use strict';
 
-  var Pos = CodeMirror.Pos;
+import {CodeMirror} from "./cm_adapter"
 
   function transformCursor(cm, range) {
-    var vim = cm.state.vim;
+    var vim = cm.state.vim
     if (!vim || vim.insertMode) return range.head;
     var head = vim.sel.head;
     if (!head)  return range.head;
-
+    
     if (vim.visualBlock) {
       if (range.head.line != head.line) {
-        return;
+        return
       }
     }
     if (range.from() == range.anchor && !range.empty()) {
       if (range.head.line == head.line && range.head.ch != head.ch)
-        return new Pos(range.head.line, range.head.ch - 1);
+        return new Pos(range.head.line, range.head.ch - 1)
     }
-
+    
     return range.head;
   }
-
+  
   var defaultKeymap = [
     // Key to key mapping. This goes first to make it possible to override
     // existing mappings.
@@ -175,7 +168,6 @@
     { keys: 'C', type: 'operator', operator: 'change', operatorArgs: { linewise: true }, context: 'visual'},
     { keys: '~', type: 'operatorMotion', operator: 'changeCase', motion: 'moveByCharacters', motionArgs: { forward: true }, operatorArgs: { shouldMoveCursor: true }, context: 'normal'},
     { keys: '~', type: 'operator', operator: 'changeCase', context: 'visual'},
-    { keys: '<C-u>', type: 'operatorMotion', operator: 'delete', motion: 'moveToStartOfLine', context: 'insert' },
     { keys: '<C-w>', type: 'operatorMotion', operator: 'delete', motion: 'moveByWords', motionArgs: { forward: false, wordEnd: false }, context: 'insert' },
     //ignore C-w in normal mode
     { keys: '<C-w>', type: 'idle', context: 'normal' },
@@ -270,7 +262,9 @@
     { name: 'global', shortName: 'g' }
   ];
 
-  var Vim = function() {
+  var Pos = CodeMirror.Pos;
+
+   
     function enterVimMode(cm) {
       cm.setOption('disableInput', true);
       cm.setOption('showCursorWhenSelecting', false);
@@ -278,6 +272,7 @@
       cm.on('cursorActivity', onCursorActivity);
       maybeInitVimState(cm);
       CodeMirror.on(cm.getInputField(), 'paste', getOnPasteFn(cm));
+      cm.options.$transformCursor = transformCursor;
     }
 
     function leaveVimMode(cm) {
@@ -285,13 +280,15 @@
       cm.off('cursorActivity', onCursorActivity);
       CodeMirror.off(cm.getInputField(), 'paste', getOnPasteFn(cm));
       cm.state.vim = null;
-      if (highlightTimeout) clearTimeout(highlightTimeout);
+      cm.options.$transformCursor = null;
     }
 
     function detachVimMap(cm, next) {
       if (this == CodeMirror.keyMap.vim) {
-        cm.options.$customCursor = null;
         CodeMirror.rmClass(cm.getWrapperElement(), "cm-fat-cursor");
+        if (cm.getOption("inputStyle") == "contenteditable" && document.body.style.caretColor != null) {
+          cm.getInputField().style.caretColor = "";
+        }
       }
 
       if (!next || next.attach != attachVimMap)
@@ -299,9 +296,10 @@
     }
     function attachVimMap(cm, prev) {
       if (this == CodeMirror.keyMap.vim) {
-        if (cm.curOp) cm.curOp.selectionChanged = true;
-        cm.options.$customCursor = transformCursor;
         CodeMirror.addClass(cm.getWrapperElement(), "cm-fat-cursor");
+        if (cm.getOption("inputStyle") == "contenteditable" && document.body.style.caretColor != null) {
+          cm.getInputField().style.caretColor = "transparent";
+        }
       }
 
       if (!prev || prev.attach != attachVimMap)
@@ -738,7 +736,7 @@
         exCommandDispatcher.map(lhs, rhs, ctx);
       },
       unmap: function(lhs, ctx) {
-        return exCommandDispatcher.unmap(lhs, ctx);
+        exCommandDispatcher.unmap(lhs, ctx);
       },
       // Non-recursive map function.
       // NOTE: This will not create mappings to key maps that aren't present
@@ -2259,7 +2257,7 @@
           text = cm.getSelection();
           var replacement = fillArray('', ranges.length);
           cm.replaceSelections(replacement);
-          finalHead = cursorMin(ranges[0].head, ranges[0].anchor);
+          finalHead = ranges[0].anchor;
         }
         vimGlobalState.registerController.pushText(
             args.registerName, 'delete', text,
@@ -2479,7 +2477,7 @@
           } else {
             head = new Pos(
                 Math.min(sel.head.line, sel.anchor.line),
-                Math.max(sel.head.ch, sel.anchor.ch) + 1);
+                Math.max(sel.head.ch + 1, sel.anchor.ch));
             height = Math.abs(sel.head.line - sel.anchor.line) + 1;
           }
         } else if (insertAt == 'inplace') {
@@ -3228,7 +3226,7 @@
             fromCh = anchor.ch,
             bottom = Math.max(anchor.line, head.line),
             toCh = head.ch;
-        if (fromCh < toCh) { toCh += 1 }
+        if (fromCh < toCh) { toCh += 1 } 
         else { fromCh += 1 };
         var height = bottom - top + 1;
         var primary = head.line == top ? 0 : height - 1;
@@ -4135,41 +4133,23 @@
 
     // Translates a search string from ex (vim) syntax into javascript form.
     function translateRegex(str) {
-      // When these match, add a '\' if unescaped or remove one if escaped.
-      var specials = '|(){';
-      // Remove, but never add, a '\' for these.
-      var unescape = '}';
-      var escapeNextChar = false;
-      var out = [];
-      for (var i = -1; i < str.length; i++) {
-        var c = str.charAt(i) || '';
-        var n = str.charAt(i+1) || '';
-        var specialComesNext = (n && specials.indexOf(n) != -1);
-        if (escapeNextChar) {
-          if (c !== '\\' || !specialComesNext) {
-            out.push(c);
-          }
-          escapeNextChar = false;
-        } else {
-          if (c === '\\') {
-            escapeNextChar = true;
-            // Treat the unescape list as special for removing, but not adding '\'.
-            if (n && unescape.indexOf(n) != -1) {
-              specialComesNext = true;
-            }
-            // Not passing this test means removing a '\'.
-            if (!specialComesNext || n === '\\') {
-              out.push(c);
-            }
-          } else {
-            out.push(c);
-            if (specialComesNext && n !== '\\') {
-              out.push('\\');
-            }
-          }
-        }
-      }
-      return out.join('');
+      // switch escaping before {}|() unless it is a closing brace of quantifier group
+      // special handling of } is needed to allow the use of u flag in the generated regexp
+      /*
+        // regexp is generated by the following code
+        specials = '{}|()'
+        backSlash = '\\\\'
+        quantifierGroup = '({[\\d,]+)' + backSlash + '?' +'(})?'
+        regex = new RegExp(
+          backSlash + '(?:' + quantifierGroup + '|([' + specials.slice(1)  + '])|(.))|(' + specials + ')'     
+        )
+      */
+      return str.replace(/\\(?:({[\d,]+)\\?(})?|({[|()])|.)|([{}|()])/g, function(_, qStart, qEnd, escaped, unescaped) {
+        if (qStart) return qStart + (qEnd || "")
+        if (escaped) return escaped
+        if (unescaped) return "\\" + unescaped;
+        return _;
+      });
     }
 
     // Translates the replace part of a search and replace from ex (vim) syntax into
@@ -4309,7 +4289,7 @@
     }
 
     function showConfirm(cm, template) {
-      var pre = dom('pre', {$color: 'red', class: 'cm-vim-message'}, template);
+      var pre = dom('pre', {$color: 'red'}, template);
       if (cm.openNotification) {
         cm.openNotification(pre, {bottom: true, duration: 5000});
       } else {
@@ -4327,6 +4307,7 @@
     }
 
     function showPrompt(cm, options) {
+      var shortText = (options.prefix || '') + ' ' + (options.desc || '');
       var template = makePrompt(options.prefix, options.desc);
       if (cm.openDialog) {
         cm.openDialog(template, options.onClose, {
@@ -4335,9 +4316,6 @@
         });
       }
       else {
-        var shortText = '';
-        if (typeof options.prefix != "string" && options.prefix) shortText += options.prefix.textContent;
-        if (options.desc) shortText += " " + options.desc;
         options.onClose(prompt(shortText, ''));
       }
     }
@@ -4412,7 +4390,6 @@
     function highlightSearchMatches(cm, query) {
       clearTimeout(highlightTimeout);
       highlightTimeout = setTimeout(function() {
-        if (!cm.state.vim) return;
         var searchState = getSearchState(cm);
         var overlay = searchState.getOverlay();
         if (!overlay || query != overlay.query) {
@@ -4782,7 +4759,7 @@
           var commandName = lhs.substring(1);
           if (this.commandMap_[commandName] && this.commandMap_[commandName].user) {
             delete this.commandMap_[commandName];
-            return true;
+            return;
           }
         } else {
           // Key to Ex or key to key mapping
@@ -4791,10 +4768,11 @@
             if (keys == defaultKeymap[i].keys
                 && defaultKeymap[i].context === ctx) {
               defaultKeymap.splice(i, 1);
-              return true;
+              return;
             }
           }
         }
+        throw Error('No such mapping.');
       }
     };
 
@@ -4821,11 +4799,13 @@
       vmap: function(cm, params) { this.map(cm, params, 'visual'); },
       unmap: function(cm, params, ctx) {
         var mapArgs = params.args;
-        if (!mapArgs || mapArgs.length < 1 || !exCommandDispatcher.unmap(mapArgs[0], ctx)) {
+        if (!mapArgs || mapArgs.length < 1) {
           if (cm) {
             showConfirm(cm, 'No such mapping: ' + params.input);
           }
+          return;
         }
+        exCommandDispatcher.unmap(mapArgs[0], ctx);
       },
       move: function(cm, params) {
         commandDispatcher.processCommand(cm, cm.state.vim, {
@@ -5711,8 +5691,8 @@
     }
 
     resetVimGlobalState();
-    return vimApi;
-  };
+
   // Initialize Vim and make it available as an API.
-  CodeMirror.Vim = Vim();
-});
+  vimApi = vimApi;
+
+export {CodeMirror, vimApi as Vim};

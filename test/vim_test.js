@@ -1,3 +1,21 @@
+
+export default function Tests(CodeMirror, test, ist) {
+
+var eqCursorPos = function(a, b) { 
+  ist(
+    JSON.stringify([a.line, a.ch]),
+    JSON.stringify([b.line, b.ch])
+  ) 
+}
+var eq = function(a, b) {
+   ist(a, b) 
+};
+var is = function(a) {
+  ist(a)
+}
+var verbose = true
+
+
 var Pos = CodeMirror.Pos;
 CodeMirror.Vim.suppressErrorLogging = true;
 
@@ -124,12 +142,6 @@ function expectFail(fn) {
     throw new Error("Expected to throw an error");
 }
 
-function vimKeyToKeyName(key) {
-  return key.replace(/[CS]-|CR|BS/g, function(part) {
-    return {"C-": "Ctrl-", "S-": "Shift", CR: "Return", BS: "Backspace"}[part];
-  });
-}
-
 function testVim(name, run, opts, expectedFail) {
   var vimOpts = {
     lineNumbers: true,
@@ -144,35 +156,49 @@ function testVim(name, run, opts, expectedFail) {
   }
   return test('vim_' + name, function() {
     var place = document.getElementById("testground");
-    place.style.visibility = "visible";
     var cm = CodeMirror(place, vimOpts);
     var vim = CodeMirror.Vim.maybeInitVimState_(cm);
 
-    cm.focus();
-    // workaround for cm5 slow polling in blurred window
-    Object.defineProperty(cm.state, "focused", {
-        set: function(e) {},
-        get: function() {
-            return document.activeElement == cm.getInputField();
-        }
-    });
-
     function doKeysFn(cm) {
-      return function() {
-        var args = arguments[0]
+      return function(args) {
         if (!Array.isArray(args)) { args = arguments; }
         for (var i = 0; i < args.length; i++) {
-          var key = args[i];
-          if (key.length > 1 && key[0] == "<" && key.slice(-1) == ">") {
-              key = vimKeyToKeyName(key.slice(1, -1));
+          var result = CodeMirror.Vim.handleKey(cm, args[i]);
+          if (!result && cm.state.vim.insertMode) {
+            cm.replaceSelections(fillArray(args[i], cm.listSelections().length));
           }
-          typeKey(key);
+        }
+      }
+    }
+    function doInsertModeKeysFn(cm) {
+      return function(args) {
+        if (!Array.isArray(args)) { args = arguments; }
+        function executeHandler(handler) {
+          if (typeof handler == 'string') {
+            CodeMirror.commands[handler](cm);
+          } else {
+            handler(cm);
+          }
+          return true;
+        }
+        for (var i = 0; i < args.length; i++) {
+          var key = args[i];
+          // Find key in keymap and handle.
+          var handled = CodeMirror.lookupKey(key, cm.getOption('keyMap'), executeHandler, cm);
+          // Record for insert mode.
+          if (handled == "handled" && cm.state.vim.insertMode && args[i] != 'Esc') {
+            var lastChange = CodeMirror.Vim.getVimGlobalState_().macroModeState.lastInsertModeChanges;
+            if (lastChange && (key.indexOf('Delete') != -1 || key.indexOf('Backspace') != -1)) {
+              lastChange.changes.push(new CodeMirror.Vim.InsertModeKey(key));
+            }
+          }
         }
       }
     }
     function doExFn(cm) {
       return function(command) {
-        helpers.doKeys(':', command, '\n');
+        cm.openDialog = helpers.fakeOpenDialog(command);
+        helpers.doKeys(':');
       }
     }
     function assertCursorAtFn(cm) {
@@ -186,25 +212,44 @@ function testVim(name, run, opts, expectedFail) {
         eqCursorPos(cm.getCursor(), pos);
       }
     }
+    function fakeOpenDialog(result) {
+      return function(template, callback) {
+        return callback(result);
+      }
+    }
+    function fakeOpenNotification(matcher) {
+      return function(template) {
+        matcher(template.innerHTML);
+      }
+    }
     var helpers = {
       doKeys: doKeysFn(cm),
+      // Warning: Only emulates keymap events, not character insertions. Use
+      // replaceRange to simulate character insertions.
+      // Keys are in CodeMirror format, NOT vim format.
+      doInsertModeKeys: doInsertModeKeysFn(cm),
       doEx: doExFn(cm),
       assertCursorAt: assertCursorAtFn(cm),
+      fakeOpenDialog: fakeOpenDialog,
+      fakeOpenNotification: fakeOpenNotification,
       getRegisterController: function() {
         return CodeMirror.Vim.getRegisterController();
-      },
-      getNotificationText: function() {
-        return cm.getWrapperElement().querySelector(".cm-vim-message").textContent;
       }
     }
     CodeMirror.Vim.resetVimGlobalState_();
     var successful = false;
+    var savedOpenNotification = cm.openNotification;
+    var savedOpenDialog = cm.openDialog;
     try {
       run(cm, vim, helpers);
       successful = true;
     } finally {
-      if (successful && !verbose) {
-        cm.getWrapperElement().remove();
+      cm.openNotification = savedOpenNotification;
+      cm.openDialog = savedOpenDialog;
+      if (!successful || verbose) {
+        place.style.visibility = "visible";
+      } else {
+        place.removeChild(cm.getWrapperElement());
       }
     }
   }, expectedFail);
@@ -235,11 +280,12 @@ var jumplistScene = ''+
   '}word\n'+
   'word\n'+
   'word\n';
-function testJumplist(name, keys, endPos, startPos) {
+function testJumplist(name, keys, endPos, startPos, dialog) {
   endPos = makeCursor(endPos[0], endPos[1]);
   startPos = makeCursor(startPos[0], startPos[1]);
   testVim(name, function(cm, vim, helpers) {
     CodeMirror.Vim.resetVimGlobalState_();
+    if(dialog)cm.openDialog = helpers.fakeOpenDialog('word');
     cm.setCursor(startPos);
     helpers.doKeys.apply(null, keys);
     helpers.assertCursorAt(endPos);
@@ -264,8 +310,8 @@ testJumplist('jumplist_N', ['#', 'N', '<C-o>'], [1,1], [2,3]);
 testJumplist('jumplist_repeat_<c-o>', ['*', '*', '*', '3', '<C-o>'], [2,3], [2,3]);
 testJumplist('jumplist_repeat_<c-i>', ['*', '*', '*', '3', '<C-o>', '2', '<C-i>'], [5,0], [2,3]);
 testJumplist('jumplist_repeated_motion', ['3', '*', '<C-o>'], [2,3], [2,3]);
-testJumplist('jumplist_/', ['/', 'dialog\n', '<C-o>'], [2,3], [2,3]);
-testJumplist('jumplist_?', ['?', 'dialog\n', '<C-o>'], [2,3], [2,3]);
+testJumplist('jumplist_/', ['/', '<C-o>'], [2,3], [2,3], 'dialog');
+testJumplist('jumplist_?', ['?', '<C-o>'], [2,3], [2,3], 'dialog');
 testJumplist('jumplist_skip_deleted_mark<c-o>',
              ['*', 'n', 'n', 'k', 'd', 'k', '<C-o>', '<C-o>', '<C-o>'],
              [0,2], [0,2]);
@@ -571,14 +617,14 @@ testVim('paragraph_motions', function(cm, vim, helpers) {
   // ip inside empty space
   cm.setCursor(10, 0);
   helpers.doKeys('v', 'i', 'p');
-  eqCursorPos(new Pos(7, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(12, 0), cm.getCursor('head'));
+  eqCursorPos(Pos(7, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(12, 0), cm.getCursor('head'));
   helpers.doKeys('i', 'p');
-  eqCursorPos(new Pos(7, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(13, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(7, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(13, 1), cm.getCursor('head'));
   helpers.doKeys('2', 'i', 'p');
-  eqCursorPos(new Pos(7, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(16, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(7, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(16, 1), cm.getCursor('head'));
 
   // should switch to visualLine mode
   cm.setCursor(14, 0);
@@ -587,31 +633,31 @@ testVim('paragraph_motions', function(cm, vim, helpers) {
 
   cm.setCursor(14, 0);
   helpers.doKeys('<Esc>', 'V', 'i', 'p');
-  eqCursorPos(new Pos(16, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(16, 1), cm.getCursor('head'));
 
   // ap inside empty space
   cm.setCursor(10, 0);
   helpers.doKeys('<Esc>', 'v', 'a', 'p');
-  eqCursorPos(new Pos(7, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(13, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(7, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(13, 1), cm.getCursor('head'));
   helpers.doKeys('a', 'p');
-  eqCursorPos(new Pos(7, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(16, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(7, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(16, 1), cm.getCursor('head'));
 
   cm.setCursor(13, 0);
   helpers.doKeys('v', 'a', 'p');
-  eqCursorPos(new Pos(13, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(14, 0), cm.getCursor('head'));
+  eqCursorPos(Pos(13, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(14, 0), cm.getCursor('head'));
 
   cm.setCursor(16, 0);
   helpers.doKeys('v', 'a', 'p');
-  eqCursorPos(new Pos(14, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(16, 1), cm.getCursor('head'));
+  eqCursorPos(Pos(14, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(16, 1), cm.getCursor('head'));
 
   cm.setCursor(0, 0);
   helpers.doKeys('v', 'a', 'p');
-  eqCursorPos(new Pos(0, 0), cm.getCursor('anchor'));
-  eqCursorPos(new Pos(4, 0), cm.getCursor('head'));
+  eqCursorPos(Pos(0, 0), cm.getCursor('anchor'));
+  eqCursorPos(Pos(4, 0), cm.getCursor('head'));
 
   cm.setCursor(0, 0);
   helpers.doKeys('d', 'i', 'p');
@@ -1106,23 +1152,6 @@ testVim('I_visual_block_replay', function(cm, vim, helpers) {
   eq('12+-34\n5+-6+-78\na+-b+-cdefg\nx+-yz', cm.getValue());
 }, {value: '1234\n5678\nabcdefg\nxyz'});
 
-testVim('visual_block_backwards', function(cm, vim, helpers) {
-  cm.setCursor(0, 0);
-  helpers.doKeys('3', 'l');
-  helpers.doKeys('<C-v>', '2', 'j', '2', '<Left>');
-  eq('123\n678\nbcd', cm.getSelection());
-  helpers.doKeys('A');
-  helpers.assertCursorAt(0, 4);
-  helpers.doKeys('A', '<Esc>');
-  helpers.assertCursorAt(0, 4);
-  helpers.doKeys('g', 'v');
-  eq('123\n678\nbcd', cm.getSelection());
-  helpers.doKeys('x');
-  helpers.assertCursorAt(0, 1);
-  helpers.doKeys('g', 'v');
-  eq('A4 \nA9 \nAef', cm.getSelection());
-}, {value: '01234 line 1\n56789 line 2\nabcdefg line 3\nline 4'});
-
 testVim('d_visual_block', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
   helpers.doKeys('<C-v>', '2', 'j', 'l', 'l', 'l', 'd');
@@ -1178,7 +1207,7 @@ testVim('on_mode_change', function(cm, vim, helpers) {
   test('<Esc>', 'normal');
   test('v', 'visual');
   test(':', ''); // Event for Command-line mode not implemented.
-  test('y\n', 'normal');
+  test('y', 'normal');
 });
 
 // Swapcase commands edit in place and do not modify registers.
@@ -1228,7 +1257,7 @@ testVim('gu_and_gU', function(cm, vim, helpers) {
   var register = helpers.getRegisterController().getRegister();
   eq('', register.toString());
   is(!register.linewise);
-
+  
   cm.setCursor(curStart);
   cm.setValue('abc efg\nxyz');
   helpers.doKeys('g', 'U', 'g', 'U');
@@ -1473,7 +1502,7 @@ testSelection('vi{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'vi{', '\n\tbar\n\t');
 testSelection('va{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'va{', '{\n\tbar\n\t}');
 
 testVim('mouse_select', function(cm, vim, helpers) {
-  cm.setSelection(new Pos(0, 2), new Pos(0, 4), {origin: '*mouse'});
+  cm.setSelection(Pos(0, 2), Pos(0, 4), {origin: '*mouse'});
   is(cm.state.vim.visualMode);
   is(!cm.state.vim.visualLine);
   is(!cm.state.vim.visualBlock);
@@ -1565,19 +1594,6 @@ testVim('<C-x>/<C-a> search forward', function(cm, vim, helpers) {
     helpers.assertCursorAt(0, 11);
   });
 }, {value: '__jmp1 jmp2 jmp'});
-testVim('insert_ctrl_u', function(cm, vim, helpers) {
-  var curStart = makeCursor(0, 10);
-  cm.setCursor(curStart);
-  helpers.doKeys('a');
-  helpers.doKeys('<C-u>');
-  eq('', cm.getValue());
-  var register = helpers.getRegisterController().getRegister();
-  eq('word1/word2', register.toString());
-  is(!register.linewise);
-  var curEnd = makeCursor(0, 0);
-  eqCursorPos(curEnd, cm.getCursor());
-  eq('vim-insert', cm.getOption('keyMap'));
-}, { value: 'word1/word2' });
 testVim('insert_ctrl_w', function(cm, vim, helpers) {
   var curStart = makeCursor(0, 10);
   cm.setCursor(curStart);
@@ -1637,7 +1653,7 @@ testVim('i_repeat_delete', function(cm, vim, helpers) {
   cm.setCursor(0, 4);
   helpers.doKeys('2', 'i');
   helpers.doKeys('z')
-  helpers.doKeys('Backspace', 'Backspace');
+  helpers.doInsertModeKeys('Backspace', 'Backspace');
   helpers.doKeys('<Esc>');
   eq('abe', cm.getValue());
   helpers.assertCursorAt(0, 1);
@@ -1656,7 +1672,7 @@ testVim('insert', function(cm, vim, helpers) {
 testVim('i_backspace', function(cm, vim, helpers) {
   cm.setCursor(0, 10);
   helpers.doKeys('i');
-  helpers.doKeys('Backspace');
+  helpers.doInsertModeKeys('Backspace');
   helpers.assertCursorAt(0, 9);
   eq('012345678', cm.getValue());
 }, { value: '0123456789'});
@@ -1664,20 +1680,20 @@ testVim('i_overwrite_backspace', function(cm, vim, helpers) {
   cm.setCursor(0, 10);
   helpers.doKeys('i');
   helpers.doKeys('<Ins>');
-  helpers.doKeys('Backspace');
-  helpers.assertCursorAt(new Pos(0, 9, "after"));
+  helpers.doInsertModeKeys('Backspace');
+  helpers.assertCursorAt(Pos(0, 9, "after"));
   eq('0123456789', cm.getValue());
 }, { value: '0123456789'});
 testVim('i_forward_delete', function(cm, vim, helpers) {
   cm.setCursor(0, 3);
   helpers.doKeys('i');
-  helpers.doKeys('Delete');
+  helpers.doInsertModeKeys('Delete');
   helpers.assertCursorAt(0, 3);
   eq('A124\nBCD', cm.getValue());
-  helpers.doKeys('Delete');
+  helpers.doInsertModeKeys('Delete');
   helpers.assertCursorAt(0, 3);
   eq('A12\nBCD', cm.getValue());
-  helpers.doKeys('Delete');
+  helpers.doInsertModeKeys('Delete');
   helpers.assertCursorAt(0, 3);
   eq('A12BCD', cm.getValue());
 }, { value: 'A1234\nBCD'});
@@ -1929,7 +1945,8 @@ testVim('mark\'', function(cm, vim, helpers) {
   helpers.doKeys('`', '`');
   helpers.assertCursorAt(1, 3);
   // motions that update jumplist
-  helpers.doKeys('/', '=', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('=');
+  helpers.doKeys('/');
   helpers.assertCursorAt(6, 20);
   helpers.doKeys('`', '`');
   helpers.assertCursorAt(1, 3);
@@ -2225,20 +2242,20 @@ testVim('visual_crossover_left', function(cm, vim, helpers) {
 testVim('visual_crossover_up', function(cm, vim, helpers) {
   cm.setCursor(3, 2);
   helpers.doKeys('v', 'j', 'k', 'k');
-  eqCursorPos(new Pos(2, 2), cm.getCursor('head'));
-  eqCursorPos(new Pos(3, 3), cm.getCursor('anchor'));
+  eqCursorPos(Pos(2, 2), cm.getCursor('head'));
+  eqCursorPos(Pos(3, 3), cm.getCursor('anchor'));
   helpers.doKeys('k');
-  eqCursorPos(new Pos(1, 2), cm.getCursor('head'));
-  eqCursorPos(new Pos(3, 3), cm.getCursor('anchor'));
+  eqCursorPos(Pos(1, 2), cm.getCursor('head'));
+  eqCursorPos(Pos(3, 3), cm.getCursor('anchor'));
 }, { value: 'cross\ncross\ncross\ncross\ncross\n'});
 testVim('visual_crossover_down', function(cm, vim, helpers) {
   cm.setCursor(1, 2);
   helpers.doKeys('v', 'k', 'j', 'j');
-  eqCursorPos(new Pos(2, 3), cm.getCursor('head'));
-  eqCursorPos(new Pos(1, 2), cm.getCursor('anchor'));
+  eqCursorPos(Pos(2, 3), cm.getCursor('head'));
+  eqCursorPos(Pos(1, 2), cm.getCursor('anchor'));
   helpers.doKeys('j');
-  eqCursorPos(new Pos(3, 3), cm.getCursor('head'));
-  eqCursorPos(new Pos(1, 2), cm.getCursor('anchor'));
+  eqCursorPos(Pos(3, 3), cm.getCursor('head'));
+  eqCursorPos(Pos(1, 2), cm.getCursor('anchor'));
 }, { value: 'cross\ncross\ncross\ncross\ncross\n'});
 testVim('visual_exit', function(cm, vim, helpers) {
   helpers.doKeys('<C-v>', 'l', 'j', 'j', '<Esc>');
@@ -2393,14 +2410,14 @@ testVim('reselect_visual_block', function(cm, vim, helpers) {
   helpers.doKeys('<C-v>', 'k', 'h', '<C-v>');
   cm.setCursor(2, 1);
   helpers.doKeys('v', 'l', 'g', 'v');
-  eqCursorPos(new Pos(1, 2), vim.sel.anchor);
-  eqCursorPos(new Pos(0, 1), vim.sel.head);
+  eqCursorPos(Pos(1, 2), vim.sel.anchor);
+  eqCursorPos(Pos(0, 1), vim.sel.head);
   // Ensure selection is done with visual block mode rather than one
   // continuous range.
   eq(cm.getSelections().join(''), '23oo')
   helpers.doKeys('g', 'v');
-  eqCursorPos(new Pos(2, 1), vim.sel.anchor);
-  eqCursorPos(new Pos(2, 2), vim.sel.head);
+  eqCursorPos(Pos(2, 1), vim.sel.anchor);
+  eqCursorPos(Pos(2, 2), vim.sel.head);
   helpers.doKeys('<Esc>');
   // Ensure selection of deleted range
   cm.setCursor(1, 1);
@@ -2435,14 +2452,14 @@ testVim('o_visual', function(cm, vim, helpers) {
 testVim('o_visual_block', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
   helpers.doKeys('<C-v>','3','j','l','l', 'o');
-  eqCursorPos(new Pos(3, 3), vim.sel.anchor);
-  eqCursorPos(new Pos(0, 1), vim.sel.head);
+  eqCursorPos(Pos(3, 3), vim.sel.anchor);
+  eqCursorPos(Pos(0, 1), vim.sel.head);
   helpers.doKeys('O');
-  eqCursorPos(new Pos(3, 1), vim.sel.anchor);
-  eqCursorPos(new Pos(0, 3), vim.sel.head);
+  eqCursorPos(Pos(3, 1), vim.sel.anchor);
+  eqCursorPos(Pos(0, 3), vim.sel.head);
   helpers.doKeys('o');
-  eqCursorPos(new Pos(0, 3), vim.sel.anchor);
-  eqCursorPos(new Pos(3, 1), vim.sel.head);
+  eqCursorPos(Pos(0, 3), vim.sel.anchor);
+  eqCursorPos(Pos(3, 1), vim.sel.head);
 }, { value: 'abcd\nefgh\nijkl\nmnop'});
 testVim('changeCase_visual', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
@@ -2497,8 +2514,10 @@ testVim('v_paste_from_register', function(cm, vim, helpers) {
   helpers.doKeys('"', 'a', 'y', 'w');
   cm.setCursor(1, 0);
   helpers.doKeys('v', 'p');
-  helpers.doEx('registers');
-  is(/a\s+register/.test(helpers.getNotificationText()));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+register/.test(text));
+  });
 }, { value: 'register contents\nare not erased'});
 testVim('S_normal', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
@@ -2568,14 +2587,17 @@ testVim('S_visual', function(cm, vim, helpers) {
 }, { value: 'aa\nbb\ncc'});
 
 testVim('d_/', function(cm, vim, helpers) {
-  helpers.doKeys('2', 'd', '/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('2', 'd', '/');
   helpers.assertCursorAt(0, 0);
   eq('match \n next', cm.getValue());
-  helpers.doKeys('d', ':', '2', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('2');
+  helpers.doKeys('d', ':');
   // TODO eq(' next', cm.getValue());
 }, { value: 'text match match \n next' });
 testVim('/ and n/N', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 11);
   helpers.doKeys('n');
   helpers.assertCursorAt(1, 6);
@@ -2583,11 +2605,12 @@ testVim('/ and n/N', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 11);
 
   cm.setCursor(0, 0);
-  helpers.doKeys('2', '/', 'match', '\n');
+  helpers.doKeys('2', '/');
   helpers.assertCursorAt(1, 6);
 }, { value: 'match nope match \n nope Match' });
 testVim('/ and gn selects the appropriate word', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 11);
 
   // gn should highlight the the current word while it is within a match.
@@ -2612,7 +2635,8 @@ testVim('/ and gn selects the appropriate word', function(cm, vim, helpers) {
   eq('match nope ', cm.getValue());
 }, { value: 'match nope match \n nope Match' });
 testVim('/ and gN selects the appropriate word', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 11);
 
   // gN when cursor is at beginning of match
@@ -2634,7 +2658,8 @@ testVim('/ and gN selects the appropriate word', function(cm, vim, helpers) {
   eq(' \n nope Match', cm.getValue());
 }, { value: 'match nope match \n nope Match' })
 testVim('/ and gn with an associated operator', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 11);
 
   helpers.doKeys('c', 'gn', 'changed', '<Esc>');
@@ -2651,7 +2676,8 @@ testVim('/ and gn with an associated operator', function(cm, vim, helpers) {
   eq('changed nope changed \n nope changed', cm.getValue());
 }, { value: 'match nope match \n nope Match' });
 testVim('/ and gN with an associated operator', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 11);
 
   helpers.doKeys('c', 'gN', 'changed', '<Esc>');
@@ -2668,25 +2694,29 @@ testVim('/ and gN with an associated operator', function(cm, vim, helpers) {
   eq('changed nope changed \n nope changed', cm.getValue());
 }, { value: 'match nope match \n nope Match' });
 testVim('/_case', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'Match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('Match');
+  helpers.doKeys('/');
   helpers.assertCursorAt(1, 6);
 }, { value: 'match nope match \n nope Match' });
 testVim('/_2_pcre', function(cm, vim, helpers) {
   CodeMirror.Vim.setOption('pcre', true);
-  helpers.doKeys('/', '(word){2}', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('(word){2}');
+  helpers.doKeys('/');
   helpers.assertCursorAt(1, 9);
   helpers.doKeys('n');
   helpers.assertCursorAt(2, 1);
 }, { value: 'word\n another wordword\n wordwordword\n' });
 testVim('/_2_nopcre', function(cm, vim, helpers) {
   CodeMirror.Vim.setOption('pcre', false);
-  helpers.doKeys('/', '\\(word\\)\\{2}', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('\\(word\\)\\{2}');
+  helpers.doKeys('/');
   helpers.assertCursorAt(1, 9);
   helpers.doKeys('n');
   helpers.assertCursorAt(2, 1);
 }, { value: 'word\n another wordword\n wordwordword\n' });
 testVim('/_nongreedy', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'aa', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('aa');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 4);
   helpers.doKeys('n');
   helpers.assertCursorAt(1, 3);
@@ -2694,7 +2724,8 @@ testVim('/_nongreedy', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
 }, { value: 'aaa aa \n a aa'});
 testVim('?_nongreedy', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'aa', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('aa');
+  helpers.doKeys('?');
   helpers.assertCursorAt(1, 3);
   helpers.doKeys('n');
   helpers.assertCursorAt(0, 4);
@@ -2702,7 +2733,8 @@ testVim('?_nongreedy', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 1);
 }, { value: 'aaa aa \n a aa'});
 testVim('/_greedy', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'a+', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('a+');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 4);
   helpers.doKeys('n');
   helpers.assertCursorAt(1, 1);
@@ -2712,7 +2744,8 @@ testVim('/_greedy', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
 }, { value: 'aaa aa \n a aa'});
 testVim('?_greedy', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'a+', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('a+');
+  helpers.doKeys('?');
   helpers.assertCursorAt(1, 3);
   helpers.doKeys('n');
   helpers.assertCursorAt(1, 1);
@@ -2722,7 +2755,8 @@ testVim('?_greedy', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
 }, { value: 'aaa aa \n a aa'});
 testVim('/_greedy_0_or_more', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'a*', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('a*');
+  helpers.doKeys('/');
   helpers.assertCursorAt(0, 3);
   helpers.doKeys('n');
   helpers.assertCursorAt(0, 4);
@@ -2736,7 +2770,8 @@ testVim('/_greedy_0_or_more', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
 }, { value: 'aaa  aa\n aa'});
 testVim('?_greedy_0_or_more', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'a*', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('a*');
+  helpers.doKeys('?');
   helpers.assertCursorAt(1, 1);
   helpers.doKeys('n');
   helpers.assertCursorAt(1, 0);
@@ -2748,7 +2783,8 @@ testVim('?_greedy_0_or_more', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
 }, { value: 'aaa  aa\n aa'});
 testVim('? and n/N', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?');
   helpers.assertCursorAt(1, 6);
   helpers.doKeys('n');
   helpers.assertCursorAt(0, 11);
@@ -2756,11 +2792,12 @@ testVim('? and n/N', function(cm, vim, helpers) {
   helpers.assertCursorAt(1, 6);
 
   cm.setCursor(0, 0);
-  helpers.doKeys('2', '?', 'match', '\n');
+  helpers.doKeys('2', '?');
   helpers.assertCursorAt(0, 11);
 }, { value: 'match nope match \n nope Match' });
 testVim('? and gn selects the appropriate word', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n', 'n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?', 'n');
   helpers.assertCursorAt(0, 11);
 
   // gn should highlight the the current word while it is within a match.
@@ -2784,7 +2821,8 @@ testVim('? and gn selects the appropriate word', function(cm, vim, helpers) {
   eq(' \n nope Match', cm.getValue());
 }, { value: 'match nope match \n nope Match' });
 testVim('? and gN selects the appropriate word', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n', 'n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?', 'n');
   helpers.assertCursorAt(0, 11);
 
   // gN when cursor is at beginning of match
@@ -2806,7 +2844,8 @@ testVim('? and gN selects the appropriate word', function(cm, vim, helpers) {
   eq('match nope ', cm.getValue());
 }, { value: 'match nope match \n nope Match' })
 testVim('? and gn with an associated operator', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n', 'n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?', 'n');
   helpers.assertCursorAt(0, 11);
 
   helpers.doKeys('c', 'gn', 'changed', '<Esc>');
@@ -2823,7 +2862,8 @@ testVim('? and gn with an associated operator', function(cm, vim, helpers) {
   eq('changed nope changed \n nope changed', cm.getValue());
 }, { value: 'match nope match \n nope Match' });
 testVim('? and gN with an associated operator', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n', 'n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?', 'n');
   helpers.assertCursorAt(0, 11);
 
   helpers.doKeys('c', 'gN', 'changed', '<Esc>');
@@ -2953,7 +2993,8 @@ testVim('macro_f_search', function(cm, vim, helpers) {
 testVim('macro_slash_search', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('q', 'c');
-  helpers.doKeys('/', 'e', '\n', 'q');
+  cm.openDialog = helpers.fakeOpenDialog('e');
+  helpers.doKeys('/', 'q');
   helpers.assertCursorAt(0, 2);
   helpers.doKeys('@', 'c');
   helpers.assertCursorAt(0, 7);
@@ -2963,8 +3004,10 @@ testVim('macro_slash_search', function(cm, vim, helpers) {
 testVim('macro_multislash_search', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('q', 'd');
-  helpers.doKeys('/', 'e', '\n');
-  helpers.doKeys('/', 't', '\n', 'q');
+  cm.openDialog = helpers.fakeOpenDialog('e');
+  helpers.doKeys('/');
+  cm.openDialog = helpers.fakeOpenDialog('t');
+  helpers.doKeys('/', 'q');
   helpers.assertCursorAt(0, 12);
   helpers.doKeys('@', 'd');
   helpers.assertCursorAt(0, 15);
@@ -3044,60 +3087,79 @@ testVim('yank_register', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('"', 'a', 'y', 'y');
   helpers.doKeys('j', '"', 'b', 'y', 'y');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+foo/.test(text));
-  is(/b\s+bar/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+foo/.test(text));
+    is(/b\s+bar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('yank_visual_block', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
   helpers.doKeys('<C-v>', 'l', 'j', '"', 'a', 'y');
-  helpers.doEx('registers');
-  is(/a\s+oo\nar/.test(helpers.getNotificationText()));
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+oo\nar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('yank_append_line_to_line_register', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('"', 'a', 'y', 'y');
   helpers.doKeys('j', '"', 'A', 'y', 'y');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+foo\nbar/.test(text));
-  is(/"\s+foo\nbar/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+foo\nbar/.test(text));
+    is(/"\s+foo\nbar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('yank_append_word_to_word_register', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('"', 'a', 'y', 'w');
   helpers.doKeys('j', '"', 'A', 'y', 'w');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+foobar/.test(text));
-  is(/"\s+foobar/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+foobar/.test(text));
+    is(/"\s+foobar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('yank_append_line_to_word_register', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('"', 'a', 'y', 'w');
   helpers.doKeys('j', '"', 'A', 'y', 'y');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+foo\nbar/.test(text));
-  is(/"\s+foo\nbar/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+foo\nbar/.test(text));
+    is(/"\s+foo\nbar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('yank_append_word_to_line_register', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('"', 'a', 'y', 'y');
   helpers.doKeys('j', '"', 'A', 'y', 'w');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+foo\nbar/.test(text));
-  is(/"\s+foo\nbar/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+foo\nbar/.test(text));
+    is(/"\s+foo\nbar/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: 'foo\nbar'});
 testVim('black_hole_register', function(cm,vim,helpers) {
   helpers.doKeys('g', 'g', 'y', 'G');
-  helpers.doEx('registers');
-  var registersText = helpers.getNotificationText();
+  var registersText;
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    registersText = text;
+  });
+  helpers.doKeys(':');
   helpers.doKeys('"', '_', 'd', 'G');
-  helpers.doEx('registers');
-  eq(registersText, helpers.getNotificationText(), 'One or more registers were modified');
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    eq(registersText, text, 'One or more registers were modified');
+  });
+  helpers.doKeys(':');
   helpers.doKeys('"', '_', 'p');
   eq('', cm.getValue());
 }, { value: 'foo\nbar'});
@@ -3111,92 +3173,175 @@ testVim('macro_register', function(cm, vim, helpers) {
   helpers.doKeys('style')
   helpers.doKeys('<Esc>');
   helpers.doKeys('q');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/a\s+i/.test(text));
-  is(/b\s+o/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/a\s+i/.test(text));
+    is(/b\s+o/.test(text));
+  });
+  helpers.doKeys(':');
 }, { value: ''});
 testVim('._register', function(cm,vim,helpers) {
   cm.setCursor(0,0);
   helpers.doKeys('i');
   helpers.doKeys('foo')
   helpers.doKeys('<Esc>');
-  helpers.doEx('registers');
-  is(/\.\s+foo/.test(helpers.getNotificationText()));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/\.\s+foo/.test(text));
+  });
+  helpers.doKeys(':');
 }, {value: ''});
 testVim(':_register', function(cm,vim,helpers) {
   helpers.doEx('bar');
-  helpers.doEx('registers');
-  is(/:\s+bar/.test(helpers.getNotificationText()));
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/:\s+bar/.test(text));
+  });
+  helpers.doKeys(':');
 }, {value: ''});
 testVim('registers_html_encoding', function(cm,vim,helpers) {
   helpers.doKeys('y', 'y');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/"\s+&lt;script&gt;throw "&amp;amp;"&lt;\/script&gt;/.test(text));
+  });
   helpers.doEx('registers');
-  is(/"\s+<script>throw "&amp;"<\/script>/.test(helpers.getNotificationText()));
 }, {value: '<script>throw "&amp;"</script>'});
 testVim('search_register_escape', function(cm, vim, helpers) {
   // Check that the register is restored if the user escapes rather than confirms.
-  helpers.doKeys('/', 'waldo', '\n');
-  helpers.doKeys('/', 'foo', '<Esc>');
-  helpers.doEx('registers');
-  var text = helpers.getNotificationText();
-  is(/waldo/.test(text));
-  is(!/foo/.test(text));
+  cm.openDialog = helpers.fakeOpenDialog('waldo');
+  helpers.doKeys('/');
+  var onKeyDown;
+  var onKeyUp;
+  cm.openDialog = function(template, callback, options) {
+    onKeyDown = options.onKeyDown;
+    onKeyUp = options.onKeyUp;
+  };
+  var close = function() {};
+  helpers.doKeys('/');
+  // Fake some keyboard events coming in.
+  onKeyDown({key: "f"}, '', close);
+  onKeyUp({key: "f"}, '', close);
+  onKeyDown({key: "o"}, 'f', close);
+  onKeyUp({key: "o"}, 'f', close);
+  onKeyDown({key: "o"}, 'fo', close);
+  onKeyUp({key: "o"}, 'fo', close);
+  onKeyDown({key: "Esc"}, 'foo', close);
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/waldo/.test(text));
+    is(!/foo/.test(text));
+  });
+  helpers.doKeys(':');
 }, {value: ''});
 testVim('search_register', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'foo', '\n');
-  helpers.doEx('registers');
-  is(/\/\s+foo/.test(helpers.getNotificationText()));
+  cm.openDialog = helpers.fakeOpenDialog('foo');
+  helpers.doKeys('/');
+  cm.openDialog = helpers.fakeOpenDialog('registers');
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    is(/\/\s+foo/.test(text));
+  });
+  helpers.doKeys(':');
 }, {value: ''});
 testVim('search_history', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'this', '\n');
-  helpers.doKeys('/', 'checks', '\n');
-  helpers.doKeys('/', 'search', '\n');
-  helpers.doKeys('/', 'history', '\n');
-  helpers.doKeys('/', 'checks', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('this');
   helpers.doKeys('/');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'checks');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'history');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'search');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'this');
-  helpers.doKeys('Down');
-  eq(document.activeElement.value, 'search');
+  cm.openDialog = helpers.fakeOpenDialog('checks');
+  helpers.doKeys('/');
+  cm.openDialog = helpers.fakeOpenDialog('search');
+  helpers.doKeys('/');
+  cm.openDialog = helpers.fakeOpenDialog('history');
+  helpers.doKeys('/');
+  cm.openDialog = helpers.fakeOpenDialog('checks');
+  helpers.doKeys('/');
+  var onKeyDown;
+  var onKeyUp;
+  var query = '';
+  cm.openDialog = function(template, callback, options) {
+    onKeyUp = options.onKeyUp;
+    onKeyDown = options.onKeyDown;
+  };
+  var close = function(newVal) {
+    if (typeof newVal == 'string') query = newVal;
+  }
+  helpers.doKeys('/');
+  onKeyDown({key: "Up"}, query, close);
+  onKeyUp({key: "Up"}, query, close);
+  eq(query, 'checks');
+  onKeyDown({key: "Up"}, query, close);
+  onKeyUp({key: "Up"}, query, close);
+  eq(query, 'history');
+  onKeyDown({key: "Up"}, query, close);
+  onKeyUp({key: "Up"}, query, close);
+  eq(query, 'search');
+  onKeyDown({key: "Up"}, query, close);
+  onKeyUp({key: "Up"}, query, close);
+  eq(query, 'this');
+  onKeyDown({key: "Down"}, query, close);
+  onKeyUp({key: "Down"}, query, close);
+  eq(query, 'search');
 }, {value: ''});
 testVim('exCommand_history', function(cm, vim, helpers) {
-  helpers.doEx('registers');
-  helpers.doEx('sort');
-  helpers.doEx('map');
-  helpers.doEx('invalid');
+  cm.openDialog = helpers.fakeOpenDialog('registers');
   helpers.doKeys(':');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'invalid');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'map');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'sort');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'registers');
-  helpers.doKeys('<Esc>', ':');
-  helpers.doKeys('s');
-  eq(document.activeElement.value, 's');
-  helpers.doKeys('Up');
-  eq(document.activeElement.value, 'sort');
+  cm.openDialog = helpers.fakeOpenDialog('sort');
+  helpers.doKeys(':');
+  cm.openDialog = helpers.fakeOpenDialog('map');
+  helpers.doKeys(':');
+  cm.openDialog = helpers.fakeOpenDialog('invalid');
+  helpers.doKeys(':');
+  var onKeyDown;
+  var onKeyUp;
+  var input = '';
+  cm.openDialog = function(template, callback, options) {
+    onKeyUp = options.onKeyUp;
+    onKeyDown = options.onKeyDown;
+  };
+  var close = function(newVal) {
+    if (typeof newVal == 'string') input = newVal;
+  }
+  helpers.doKeys(':');
+  onKeyDown({key: "Up"}, input, close);
+  eq(input, 'invalid');
+  onKeyDown({key: "Up"}, input, close);
+  eq(input, 'map');
+  onKeyDown({key: "Up"}, input, close);
+  eq(input, 'sort');
+  onKeyDown({key: "Up"}, input, close);
+  eq(input, 'registers');
+  onKeyDown({key: "s"}, '', close);
+  input = 's';
+  onKeyDown({key: "Up"}, input, close);
+  eq(input, 'sort');
 }, {value: ''});
 testVim('search_clear', function(cm, vim, helpers) {
-  helpers.doKeys('/', 'foo');
-  eq(document.activeElement.value, 'foo');
-  helpers.doKeys('<C-u>');
-  eq(document.activeElement.value, '');
+  var onKeyDown;
+  var input = '';
+  cm.openDialog = function(template, callback, options) {
+    onKeyDown = options.onKeyDown;
+  };
+  var close = function(newVal) {
+    if (typeof newVal == 'string') input = newVal;
+  }
+  helpers.doKeys('/');
+  input = 'foo';
+  onKeyDown({key: "Ctrl"}, input, close);
+  onKeyDown({key: "u", ctrlKey: true}, input, close);
+  eq(input, '');
 });
 testVim('exCommand_clear', function(cm, vim, helpers) {
-  helpers.doKeys(':', 'foo');
-  eq(document.activeElement.value, 'foo');
-  helpers.doKeys('<C-u>');
-  eq(document.activeElement.value, '');
+  var onKeyDown;
+  var input = '';
+  cm.openDialog = function(template, callback, options) {
+    onKeyDown = options.onKeyDown;
+  };
+  var close = function(newVal) {
+    if (typeof newVal == 'string') input = newVal;
+  }
+  helpers.doKeys(':');
+  input = 'foo';
+  onKeyDown({key: "Ctrl"}, input, close);
+  onKeyDown({key: "u", ctrlKey: true}, input, close);
+  eq(input, '');
 });
 testVim('.', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
@@ -3219,8 +3364,8 @@ testVim('._insert', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 6);
   helpers.doKeys('O');
   helpers.doKeys('xyz')
-  helpers.doKeys('Backspace');
-  helpers.doKeys('Down');
+  helpers.doInsertModeKeys('Backspace');
+  helpers.doInsertModeKeys('Down');
   helpers.doKeys('<Esc>');
   helpers.doKeys('.');
   eq('xy\nxy\ntestestt', cm.getValue());
@@ -3296,7 +3441,7 @@ testVim('._insert_cw_repeat', function(cm, vim, helpers) {
 testVim('._delete', function(cm, vim, helpers) {
   cm.setCursor(0, 5);
   helpers.doKeys('i');
-  helpers.doKeys('Backspace');
+  helpers.doInsertModeKeys('Backspace');
   helpers.doKeys('<Esc>');
   helpers.doKeys('.');
   eq('zace', cm.getValue());
@@ -3305,7 +3450,7 @@ testVim('._delete', function(cm, vim, helpers) {
 testVim('._delete_repeat', function(cm, vim, helpers) {
   cm.setCursor(0, 6);
   helpers.doKeys('i');
-  helpers.doKeys('Backspace');
+  helpers.doInsertModeKeys('Backspace');
   helpers.doKeys('<Esc>');
   helpers.doKeys('2', '.');
   eq('zzce', cm.getValue());
@@ -3522,7 +3667,6 @@ testVim('Ty,;', function(cm, vim, helpers) {
   eq('01230123456789', cm.getValue());
 }, { value: '0123456789'});
 testVim('HML', function(cm, vim, helpers) {
-  cm.refresh();
   var lines = 35;
   var textHeight = cm.defaultTextHeight();
   cm.setSize(600, lines*textHeight);
@@ -3547,7 +3691,6 @@ forEach(['zb','zz','zt','z-','z.','z<CR>'], function(e, idx){
   var lineNum = 250;
   var lines = 35;
   testVim(e, function(cm, vim, helpers) {
-    cm.refresh();
     var k1 = e[0];
     var k2 = e.substring(1);
     var textHeight = cm.defaultTextHeight();
@@ -3560,23 +3703,21 @@ forEach(['zb','zz','zt','z-','z.','z<CR>'], function(e, idx){
   })()});
 });
 testVim('zb_to_bottom', function(cm, vim, helpers){
-  cm.refresh();
   var lineNum = 250;
   cm.setSize(600, 35*cm.defaultTextHeight());
   cm.setCursor(lineNum, 0);
   helpers.doKeys('z', 'b');
   var scrollInfo = cm.getScrollInfo();
-  eq(scrollInfo.top + scrollInfo.clientHeight, cm.charCoords(new Pos(lineNum, 0), 'local').bottom);
+  eq(scrollInfo.top + scrollInfo.clientHeight, cm.charCoords(Pos(lineNum, 0), 'local').bottom);
 }, { value: (function(){
   return new Array(500).join('\n');
 })()});
 testVim('zt_to_top', function(cm, vim, helpers){
-  cm.refresh();
   var lineNum = 250;
   cm.setSize(600, 35*cm.defaultTextHeight());
   cm.setCursor(lineNum, 0);
   helpers.doKeys('z', 't');
-  eq(cm.getScrollInfo().top, cm.charCoords(new Pos(lineNum, 0), 'local').top);
+  eq(cm.getScrollInfo().top, cm.charCoords(Pos(lineNum, 0), 'local').top);
 }, { value: (function(){
   return new Array(500).join('\n');
 })()});
@@ -3601,7 +3742,8 @@ var moveTillCharacterSandbox =
 testVim('moveTillCharacter', function(cm, vim, helpers){
   cm.setCursor(0, 0);
   // Search for the 'q'.
-  helpers.doKeys('/', 'q', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('q');
+  helpers.doKeys('/');
   eq(4, cm.getCursor().ch);
   // Jump to just before the first o in the list.
   helpers.doKeys('t');
@@ -3636,7 +3778,8 @@ testVim('searchForPipe', function(cm, vim, helpers){
   CodeMirror.Vim.setOption('pcre', false);
   cm.setCursor(0, 0);
   // Search for the '|'.
-  helpers.doKeys('/', '|', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('|');
+  helpers.doKeys('/');
   eq(4, cm.getCursor().ch);
 }, { value: 'this|that'});
 
@@ -3939,8 +4082,10 @@ testVim('ex_global', function(cm, vim, helpers) {
   eq('two one\n two one\n two one', cm.getValue());
   helpers.doEx('1,2g/two/s//one');
   eq('one one\n one one\n two one', cm.getValue());
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    eq(' one one\n two one', text);
+  });
   helpers.doEx('g/^ /');
-  eq(' one one\n two one', helpers.getNotificationText());
 }, {value: 'one one\n one one\n one one'});
 testVim('ex_global_substitute_join', function(cm, vim, helpers) {
   helpers.doEx('g/o/s/\\n/;');
@@ -3952,20 +4097,33 @@ testVim('ex_global_substitute_split', function(cm, vim, helpers) {
 }, {value: 'one\ntwo\nthree\nfour\nfive\n'});
 testVim('ex_global_confirm', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
-  helpers.doEx('g/one/s//two/gc');
-  helpers.doKeys('n');
-  helpers.doKeys('y');
-  helpers.doKeys('a');
-  helpers.doKeys('q');
-  helpers.doKeys('y');
+  var onKeyDown;
+  var openDialogSave = cm.openDialog;
+  // Intercept the ex command, 'global'
+  cm.openDialog = function(template, callback, options) {
+    // Intercept the prompt for the embedded ex command, 'substitute'
+    cm.openDialog = function(template, callback, options) {
+      onKeyDown = options.onKeyDown;
+    };
+    callback('g/one/s//two/gc');
+  };
+  helpers.doKeys(':');
+  var close = function() {};
+  onKeyDown({key: "n"}, '', close);
+  onKeyDown({key: "y"}, '', close);
+  onKeyDown({key: "a"}, '', close);
+  onKeyDown({key: "q"}, '', close);
+  onKeyDown({key: "y"}, '', close);
   eq('one two\n two two\n one one\n two one\n one one', cm.getValue());
 }, {value: 'one one\n one one\n one one\n one one\n one one'});
 // test for :vglobal command
 testVim('ex_vglobal', function(cm, vim, helpers) {
   helpers.doEx('v/e/s/o/e');
   eq('one\n twe\n three\n feur\n five\n', cm.getValue());
+  cm.openNotification = helpers.fakeOpenNotification(function(text) {
+    eq('one\n three\n feur\n', text);
+  });
   helpers.doEx('v/[vw]');
-  eq('one\n three\n feur\n', helpers.getNotificationText());
 }, {value: 'one\n two\n three\n four\n five\n'});
 // Basic substitute tests.
 testVim('ex_substitute_same_line', function(cm, vim, helpers) {
@@ -4036,15 +4194,14 @@ testVim('ex_substitute_visual_range', function(cm, vim, helpers) {
   cm.setCursor(1, 0);
   // Set last visual mode selection marks '< and '> at lines 2 and 4
   helpers.doKeys('V', '2', 'j', 'v');
-  helpers.doKeys(':');
-  eq(document.activeElement.value, "'<,'>");
-  helpers.doKeys('s/\\d/0/g', '\n');
+  helpers.doEx('\'<,\'>s/\\d/0/g');
   eq('1\n0\n0\n0\n5', cm.getValue());
 }, { value: '1\n2\n3\n4\n5' });
 testVim('ex_substitute_empty_query', function(cm, vim, helpers) {
   // If the query is empty, use last query.
   cm.setCursor(1, 0);
-  helpers.doKeys('/', '1\n');
+  cm.openDialog = helpers.fakeOpenDialog('1');
+  helpers.doKeys('/');
   helpers.doEx('s//b/g');
   eq('abb ab2 ab3', cm.getValue());
 }, { value: 'a11 a12 a13' });
@@ -4256,12 +4413,46 @@ testSubstitute('ex_substitute_empty_or_match', {
   noPcreExpr: '%s/\\(..\\|$\\)/<\\1>/g'});
 function testSubstituteConfirm(name, command, initialValue, expectedValue, keys, finalPos) {
   testVim(name, function(cm, vim, helpers) {
-    helpers.doEx(command);
-    for (var i = 0; i < keys.length; i++) {
-      helpers.doKeys(keys.charAt(i))
+    var savedOpenDialog = cm.openDialog;
+    var savedKeyName = CodeMirror.keyName;
+    var onKeyDown;
+    var recordedCallback;
+    var closed = true; // Start out closed, set false on second openDialog.
+    function close() {
+      closed = true;
     }
-    eq(expectedValue, cm.getValue());
-    helpers.assertCursorAt(finalPos);
+    // First openDialog should save callback.
+    cm.openDialog = function(template, callback, options) {
+      recordedCallback = callback;
+    }
+    // Do first openDialog.
+    helpers.doKeys(':');
+    // Second openDialog should save keyDown handler.
+    cm.openDialog = function(template, callback, options) {
+      onKeyDown = options.onKeyDown;
+      closed = false;
+    };
+    // Return the command to Vim and trigger second openDialog.
+    recordedCallback(command);
+    // The event should really use keyCode, but here just mock it out and use
+    // key and replace keyName to just return key.
+    CodeMirror.keyName = function (e) { return e.key; }
+    keys = keys.toUpperCase();
+    for (var i = 0; i < keys.length; i++) {
+      is(!closed);
+      onKeyDown({ key: keys.charAt(i) }, '', close);
+    }
+    try {
+      eq(expectedValue, cm.getValue());
+      helpers.assertCursorAt(finalPos);
+      is(closed);
+    } catch(e) {
+      throw e
+    } finally {
+      // Restore overridden functions.
+      CodeMirror.keyName = savedKeyName;
+      cm.openDialog = savedOpenDialog;
+    }
   }, { value: initialValue });
 }
 testSubstituteConfirm('ex_substitute_confirm_emptydoc',
@@ -4294,7 +4485,8 @@ testSubstituteConfirm('ex_substitute_confirm_range_last',
     '1,3s/a/b/cg', 'aa\na \na\na', 'bb\nb \na\na', 'yyl', makeCursor(1, 0));
 //:noh should clear highlighting of search-results but allow to resume search through n
 testVim('ex_noh_clearSearchHighlight', function(cm, vim, helpers) {
-  helpers.doKeys('?', 'match', '\n');
+  cm.openDialog = helpers.fakeOpenDialog('match');
+  helpers.doKeys('?');
   helpers.doEx('noh');
   eq(vim.searchState_.getOverlay(),null,'match-highlighting wasn\'t cleared');
   helpers.doKeys('n');
@@ -4491,8 +4683,9 @@ testVim('ex_unmap_key2key', function(cm, vim, helpers) {
   CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 testVim('ex_unmap_key2key_does_not_remove_default', function(cm, vim, helpers) {
-  helpers.doEx('unmap a');
-  is(/No such mapping: unmap a/.test(helpers.getNotificationText()));
+  expectFail(function() {
+    helpers.doEx('unmap a');
+  });
   helpers.doKeys('a');
   eq('vim-insert', cm.getOption('keyMap'));
   CodeMirror.Vim.mapclear();
@@ -4663,10 +4856,10 @@ testVim('noremap_swap', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   // 'a' should act like 'i'.
   helpers.doKeys('a');
-  eqCursorPos(new Pos(0, 0), cm.getCursor());
+  eqCursorPos(Pos(0, 0), cm.getCursor());
   // ...and 'i' should act like 'a'.
   helpers.doKeys('<Esc>', 'i');
-  eqCursorPos(new Pos(0, 1), cm.getCursor());
+  eqCursorPos(Pos(0, 1), cm.getCursor());
   // unmap all mappings
   CodeMirror.Vim.mapclear();
 }, { value: 'foo' });
@@ -4677,13 +4870,13 @@ testVim('noremap_map_interaction', function(cm, vim, helpers) {
   CodeMirror.Vim.map('l', 'j');
   cm.setCursor(0, 0);
   helpers.doKeys(';');
-  eqCursorPos(new Pos(0, 1), cm.getCursor());
+  eqCursorPos(Pos(0, 1), cm.getCursor());
   helpers.doKeys('l');
-  eqCursorPos(new Pos(1, 1), cm.getCursor());
+  eqCursorPos(Pos(1, 1), cm.getCursor());
   // map should be able to point to a noremap
   CodeMirror.Vim.map('m', ';');
   helpers.doKeys('m');
-  eqCursorPos(new Pos(1, 2), cm.getCursor());
+  eqCursorPos(Pos(1, 2), cm.getCursor());
   // unmap all mappings
   CodeMirror.Vim.mapclear();
 }, { value: 'wOrd1\nwOrd2' });
@@ -4694,9 +4887,9 @@ testVim('noremap_map_interaction2', function(cm, vim, helpers) {
   CodeMirror.Vim.noremap(';', 'h');
   cm.setCursor(0, 0);
   helpers.doKeys('l');
-  eqCursorPos(new Pos(0, 1), cm.getCursor());
+  eqCursorPos(Pos(0, 1), cm.getCursor());
   helpers.doKeys('m');
-  eqCursorPos(new Pos(0, 0), cm.getCursor());
+  eqCursorPos(Pos(0, 0), cm.getCursor());
   // unmap all mappings
   CodeMirror.Vim.mapclear();
 }, { value: 'wOrd1\nwOrd2' });
@@ -4955,186 +5148,4 @@ testVim('increment_hexadecimal', function(cm, vim, helpers) {
   eq('0x00', cm.getValue());
 }, { value: '0x0' });
 
-var typeKey = function() {
-  var keyCodeToKey = {};
-  var keyCodeToCode = {};
-
-  var alias = {};
-  alias.Ctrl = "Control";
-  alias.Option = "Alt";
-  alias.Cmd = alias.Super = alias.Meta = "Command";
-
-  var controlKeys = {
-    Shift: 16, Control: 17, Alt: 18, Meta: 224, Command: 224,
-    Backspace:8, Tab:9, Return: 13, Enter: 13,
-    Pause: 19, Escape: 27, PageUp: 33, PageDown: 34, End: 35, Home: 36,
-    Left: 37, Up: 38, Right: 39, Down: 40, Insert: 45, Delete: 46,
-    ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40,
-  };
-  var shiftedKeys = {};
-  var printableKeys = {};
-  var specialKeys = {
-    Backquote: [192, "`", "~"], Minus: [189, "-", "_"], Equal: [187, "=", "+"],
-    BracketLeft: [219, "[", "{"], Backslash: [220, "\\", "|"], BracketRight: [221, "]", "}"],
-    Semicolon: [186, ";", ":"], Quote: [222, "'", '"'], Comma: [188, ",", "<"],
-    Period: [190, ".", ">"], Slash: [191, "/", "?"], Space: [32, " "], NumpadAdd: [107, "+"],
-    NumpadDecimal: [110, "."], NumpadSubtract: [109, "-"], NumpadDivide: [111, "/"], NumpadMultiply: [106, "*"]
-  };
-  for (var i in specialKeys) {
-    var key = specialKeys[i];
-    printableKeys[i] = printableKeys[key[1]] = shiftedKeys[key[2]] = key[0];
-    keyCodeToCode[key[0]] = i;
-  }
-  for (var i = 0; i < 10; i++) {
-    printableKeys[i] = shiftedKeys["!@#$%^&*()"[i]] = 48 + i;
-    keyCodeToCode[48 + i] = "Digit" + i;
-  }
-  for (var i = 65; i < 90; i++) {
-    var chr = String.fromCharCode(i + 32);
-    printableKeys[chr] = shiftedKeys[chr.toUpperCase()] = i;
-    keyCodeToCode[i] = "Key" + chr.toUpperCase();
-  }
-  for (var i = 1; i < 13; i++) {
-    controlKeys["F" + i] = 111 + i;
-  }
-
-  for (var i in controlKeys) {
-    keyCodeToKey[controlKeys[i]] = i;
-    keyCodeToCode[controlKeys[i]] = i;
-  }
-  controlKeys["\n"] = controlKeys.Return;
-  controlKeys.Del = controlKeys.Delete;
-  controlKeys.Esc = controlKeys.Escape;
-  controlKeys.Ins = controlKeys.Insert;
-
-  var shift = false;
-  var ctrl = false;
-  var meta = false;
-  var alt = false;
-  function reset() {
-    shift = ctrl = meta = alt = false;
-  }
-  function updateModifierStates(keyCode) {
-    if (keyCode == controlKeys.Shift)
-      return shift = true;
-    if (keyCode == controlKeys.Control)
-      return ctrl = true;
-    if (keyCode == controlKeys.Meta)
-      return meta = true;
-    if (keyCode == controlKeys.Alt)
-      return alt = true;
-  }
-
-  function sendKey(letter, timeout) {
-    var keyCode = controlKeys[letter] || printableKeys[letter] || shiftedKeys[letter];
-    var isModifier = updateModifierStates(keyCode);
-
-    var text = letter;
-    var isTextInput = true;
-    if (ctrl || alt || meta || controlKeys[letter]) {
-      isTextInput = false;
-    } else if (shift) {
-      text = text.toUpperCase();
-    }
-
-    var target = document.activeElement;
-    var prevented = emit("keydown", true);
-    if (isModifier) return;
-    if (!prevented && isTextInput) prevented = emit("keypress", true);
-    if (!prevented && ctrl && !alt && !meta && letter == "c") emitClipboard("copy");
-    if (!prevented) updateTextInput();
-    emit("keyup", true);
-
-    function emitClipboard(type) {
-      var data = {bubbles: true, cancelable:true};
-      var event = new KeyboardEvent(type, data);
-      event.clipboardData = {
-        setData: function() {},
-        getData: function() {},
-        clearData: function() {},
-      };
-      target.dispatchEvent(event);
-    }
-    function emit(type, bubbles) {
-      var el = document.activeElement;
-      var data = {bubbles: bubbles, cancelable:true};
-      data.charCode = text.charCodeAt(0);
-      data.keyCode = type == "keypress" ? data.charCode : keyCode;
-      data.which = data.keyCode;
-      data.shiftKey = shift || shiftedKeys[text];
-      data.ctrlKey = ctrl;
-      data.altKey = alt;
-      data.metaKey = meta;
-      data.key = text || keyCodeToKey[keyCode];
-      data.code = keyCodeToCode[keyCode];
-      var event = new KeyboardEvent(type, data);
-
-      var el = document.activeElement;
-      el.dispatchEvent(event);
-      return event.defaultPrevented;
-    }
-    function updateTextInput() {
-      if (!isTextInput && keyCode == controlKeys.Return) {
-        text = "\n";
-      }
-      if (target._handleInputEventForTest) {
-        return target._handleInputEventForTest(text);
-      }
-      var isTextarea = "selectionStart" in target && typeof target.value == "string";
-      if (!isTextarea) return;
-
-      var start = target.selectionStart;
-      var end = target.selectionEnd;
-      var value = target.value;
-
-      if (!isTextInput) {
-        if (keyCode == controlKeys.Backspace) {
-          if (start != end) start = Math.max(start - 1, 0);
-        } else if (keyCode == controlKeys.Delete) {
-          if (start != end) end = Math.min(end + 1, value.length);
-        } else {
-          return;
-        }
-      }
-      var newValue = value.slice(0, start) + text + value.slice(end);
-      var newStart = start + text.length;
-      var newEnd = newStart;
-      if (newValue != value || newStart != start || newEnd != end) {
-        target.value = newValue;
-        target.setSelectionRange(newStart, newEnd);
-        emit("input", false);
-      }
-    }
-  }
-
-  function type() {
-    var keys = Array.prototype.slice.call(arguments);
-    for (var i = 0; i < keys.length; i++) {
-      var key = keys[i];
-      if (Array.isArray(key)) {
-        type.apply(null, key);
-        continue;
-      }
-      reset();
-      if (key.length > 1) {
-        var isKeyName = controlKeys[key] || printableKeys[key] || shiftedKeys[key];
-        if (!isKeyName) {
-          var parts = key.split("-");
-          var modifier = alias[parts[0]] || parts[0];
-          if (!updateModifierStates(controlKeys[modifier])) {
-            type.apply(null, key.split(""));
-            continue;
-          }
-          key = parts.pop();
-          parts.forEach(function(part) {
-            var keyCode = controlKeys[part];
-            updateModifierStates(keyCode);
-          });
-        }
-      }
-      sendKey(key);
-    }
-  }
-
-  return type;
-}();
+}

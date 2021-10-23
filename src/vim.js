@@ -37,22 +37,22 @@
  */
 
 
-import {CodeMirror} from "./cm_adapter"
+import {CodeMirror} from "./cm_adapter";
 
   function transformCursor(cm, range) {
-    var vim = cm.state.vim
+    var vim = cm.state.vim;
     if (!vim || vim.insertMode) return range.head;
     var head = vim.sel.head;
     if (!head)  return range.head;
     
     if (vim.visualBlock) {
       if (range.head.line != head.line) {
-        return
+        return;
       }
     }
     if (range.from() == range.anchor && !range.empty()) {
       if (range.head.line == head.line && range.head.ch != head.ch)
-        return new Pos(range.head.line, range.head.ch - 1)
+        return new Pos(range.head.line, range.head.ch - 1);
     }
     
     return range.head;
@@ -168,6 +168,7 @@ import {CodeMirror} from "./cm_adapter"
     { keys: 'C', type: 'operator', operator: 'change', operatorArgs: { linewise: true }, context: 'visual'},
     { keys: '~', type: 'operatorMotion', operator: 'changeCase', motion: 'moveByCharacters', motionArgs: { forward: true }, operatorArgs: { shouldMoveCursor: true }, context: 'normal'},
     { keys: '~', type: 'operator', operator: 'changeCase', context: 'visual'},
+    { keys: '<C-u>', type: 'operatorMotion', operator: 'delete', motion: 'moveToStartOfLine', context: 'insert' },
     { keys: '<C-w>', type: 'operatorMotion', operator: 'delete', motion: 'moveByWords', motionArgs: { forward: false, wordEnd: false }, context: 'insert' },
     //ignore C-w in normal mode
     { keys: '<C-w>', type: 'idle', context: 'normal' },
@@ -272,7 +273,7 @@ import {CodeMirror} from "./cm_adapter"
       cm.on('cursorActivity', onCursorActivity);
       maybeInitVimState(cm);
       CodeMirror.on(cm.getInputField(), 'paste', getOnPasteFn(cm));
-      cm.options.$transformCursor = transformCursor;
+      cm.options.$customCursor = transformCursor;
     }
 
     function leaveVimMode(cm) {
@@ -280,7 +281,8 @@ import {CodeMirror} from "./cm_adapter"
       cm.off('cursorActivity', onCursorActivity);
       CodeMirror.off(cm.getInputField(), 'paste', getOnPasteFn(cm));
       cm.state.vim = null;
-      cm.options.$transformCursor = null;
+      if (highlightTimeout) clearTimeout(highlightTimeout);
+      cm.options.$customCursor = null;
     }
 
     function detachVimMap(cm, next) {
@@ -709,6 +711,7 @@ import {CodeMirror} from "./cm_adapter"
 
     var lastInsertModeKeyTimer;
     var vimApi= {
+      enterVimMode: enterVimMode,
       buildKeyMap: function() {
         // TODO: Convert keymap into dictionary format for fast lookup.
       },
@@ -736,7 +739,7 @@ import {CodeMirror} from "./cm_adapter"
         exCommandDispatcher.map(lhs, rhs, ctx);
       },
       unmap: function(lhs, ctx) {
-        exCommandDispatcher.unmap(lhs, ctx);
+        return exCommandDispatcher.unmap(lhs, ctx);
       },
       // Non-recursive map function.
       // NOTE: This will not create mappings to key maps that aren't present
@@ -933,7 +936,7 @@ import {CodeMirror} from "./cm_adapter"
           else if (match.type == 'partial') { return true; }
 
           vim.inputState.keyBuffer = '';
-          var keysMatcher = /^(\d*)(.*)$/.exec(keys);
+          keysMatcher = /^(\d*)(.*)$/.exec(keys);
           if (keysMatcher[1] && keysMatcher[1] != '0') {
             vim.inputState.pushRepeatDigit(keysMatcher[1]);
           }
@@ -1999,7 +2002,7 @@ import {CodeMirror} from "./cm_adapter"
         }
         var orig = cm.charCoords(head, 'local');
         motionArgs.repeat = repeat;
-        var curEnd = motions.moveByDisplayLines(cm, head, motionArgs, vim);
+        curEnd = motions.moveByDisplayLines(cm, head, motionArgs, vim);
         if (!curEnd) {
           return null;
         }
@@ -2257,7 +2260,7 @@ import {CodeMirror} from "./cm_adapter"
           text = cm.getSelection();
           var replacement = fillArray('', ranges.length);
           cm.replaceSelections(replacement);
-          finalHead = ranges[0].anchor;
+          finalHead = cursorMin(ranges[0].head, ranges[0].anchor);
         }
         vimGlobalState.registerController.pushText(
             args.registerName, 'delete', text,
@@ -2266,22 +2269,30 @@ import {CodeMirror} from "./cm_adapter"
       },
       indent: function(cm, args, ranges) {
         var vim = cm.state.vim;
-        var startLine = ranges[0].anchor.line;
-        var endLine = vim.visualBlock ?
-          ranges[ranges.length - 1].anchor.line :
-          ranges[0].head.line;
-        // In visual mode, n> shifts the selection right n times, instead of
-        // shifting n lines right once.
-        var repeat = (vim.visualMode) ? args.repeat : 1;
-        if (args.linewise) {
-          // The only way to delete a newline is to delete until the start of
-          // the next line, so in linewise mode evalInput will include the next
-          // line. We don't want this in indent, so we go back a line.
-          endLine--;
-        }
-        for (var i = startLine; i <= endLine; i++) {
+        if (cm.indentMore) {
+          var repeat = (vim.visualMode) ? args.repeat : 1;
           for (var j = 0; j < repeat; j++) {
-            cm.indentLine(i, args.indentRight);
+            if (args.indentRight) cm.indentMore();
+            else cm.indentLess();
+          }
+        } else {
+          var startLine = ranges[0].anchor.line;
+          var endLine = vim.visualBlock ?
+            ranges[ranges.length - 1].anchor.line :
+            ranges[0].head.line;
+          // In visual mode, n> shifts the selection right n times, instead of
+          // shifting n lines right once.
+          var repeat = (vim.visualMode) ? args.repeat : 1;
+          if (args.linewise) {
+            // The only way to delete a newline is to delete until the start of
+            // the next line, so in linewise mode evalInput will include the next
+            // line. We don't want this in indent, so we go back a line.
+            endLine--;
+          }
+          for (var i = startLine; i <= endLine; i++) {
+            for (var j = 0; j < repeat; j++) {
+              cm.indentLine(i, args.indentRight);
+            }
           }
         }
         return motions.moveToFirstNonWhiteSpaceCharacter(cm, ranges[0].anchor);
@@ -2477,7 +2488,7 @@ import {CodeMirror} from "./cm_adapter"
           } else {
             head = new Pos(
                 Math.min(sel.head.line, sel.anchor.line),
-                Math.max(sel.head.ch + 1, sel.anchor.ch));
+                Math.max(sel.head.ch, sel.anchor.ch) + 1);
             height = Math.abs(sel.head.line - sel.anchor.line) + 1;
           }
         } else if (insertAt == 'inplace') {
@@ -4133,24 +4144,43 @@ import {CodeMirror} from "./cm_adapter"
 
     // Translates a search string from ex (vim) syntax into javascript form.
     function translateRegex(str) {
-      // switch escaping before {}|() unless it is a closing brace of quantifier group
-      // special handling of } is needed to allow the use of u flag in the generated regexp
-      /*
-        // regexp is generated by the following code
-        specials = '{}|()'
-        backSlash = '\\\\'
-        quantifierGroup = '({[\\d,]+)' + backSlash + '?' +'(})?'
-        regex = new RegExp(
-          backSlash + '(?:' + quantifierGroup + '|([' + specials.slice(1)  + '])|(.))|(' + specials + ')'     
-        )
-      */
-      return str.replace(/\\(?:({[\d,]+)\\?(})?|({[|()])|.)|([{}|()])/g, function(_, qStart, qEnd, escaped, unescaped) {
-        if (qStart) return qStart + (qEnd || "")
-        if (escaped) return escaped
-        if (unescaped) return "\\" + unescaped;
-        return _;
-      });
+      // When these match, add a '\' if unescaped or remove one if escaped.
+      var specials = '|(){';
+      // Remove, but never add, a '\' for these.
+      var unescape = '}';
+      var escapeNextChar = false;
+      var out = [];
+      for (var i = -1; i < str.length; i++) {
+        var c = str.charAt(i) || '';
+        var n = str.charAt(i+1) || '';
+        var specialComesNext = (n && specials.indexOf(n) != -1);
+        if (escapeNextChar) {
+          if (c !== '\\' || !specialComesNext) {
+            out.push(c);
+          }
+          escapeNextChar = false;
+        } else {
+          if (c === '\\') {
+            escapeNextChar = true;
+            // Treat the unescape list as special for removing, but not adding '\'.
+            if (n && unescape.indexOf(n) != -1) {
+              specialComesNext = true;
+            }
+            // Not passing this test means removing a '\'.
+            if (!specialComesNext || n === '\\') {
+              out.push(c);
+            }
+          } else {
+            out.push(c);
+            if (specialComesNext && n !== '\\') {
+              out.push('\\');
+            }
+          }
+        }
+      }
+      return out.join('');
     }
+
 
     // Translates the replace part of a search and replace from ex (vim) syntax into
     // javascript form.  Similar to translateRegex, but additionally fixes back references
@@ -4289,7 +4319,7 @@ import {CodeMirror} from "./cm_adapter"
     }
 
     function showConfirm(cm, template) {
-      var pre = dom('pre', {$color: 'red'}, template);
+      var pre = dom('pre', {$color: 'red', class: 'cm-vim-message'}, template);
       if (cm.openNotification) {
         cm.openNotification(pre, {bottom: true, duration: 5000});
       } else {
@@ -4307,7 +4337,6 @@ import {CodeMirror} from "./cm_adapter"
     }
 
     function showPrompt(cm, options) {
-      var shortText = (options.prefix || '') + ' ' + (options.desc || '');
       var template = makePrompt(options.prefix, options.desc);
       if (cm.openDialog) {
         cm.openDialog(template, options.onClose, {
@@ -4316,6 +4345,9 @@ import {CodeMirror} from "./cm_adapter"
         });
       }
       else {
+        var shortText = '';
+        if (typeof options.prefix != "string" && options.prefix) shortText += options.prefix.textContent;
+        if (options.desc) shortText += " " + options.desc;
         options.onClose(prompt(shortText, ''));
       }
     }
@@ -4390,6 +4422,7 @@ import {CodeMirror} from "./cm_adapter"
     function highlightSearchMatches(cm, query) {
       clearTimeout(highlightTimeout);
       highlightTimeout = setTimeout(function() {
+        if (!cm.state.vim) return;
         var searchState = getSearchState(cm);
         var overlay = searchState.getOverlay();
         if (!overlay || query != overlay.query) {
@@ -4759,7 +4792,7 @@ import {CodeMirror} from "./cm_adapter"
           var commandName = lhs.substring(1);
           if (this.commandMap_[commandName] && this.commandMap_[commandName].user) {
             delete this.commandMap_[commandName];
-            return;
+            return true;
           }
         } else {
           // Key to Ex or key to key mapping
@@ -4768,11 +4801,10 @@ import {CodeMirror} from "./cm_adapter"
             if (keys == defaultKeymap[i].keys
                 && defaultKeymap[i].context === ctx) {
               defaultKeymap.splice(i, 1);
-              return;
+              return true;
             }
           }
         }
-        throw Error('No such mapping.');
       }
     };
 
@@ -4799,13 +4831,11 @@ import {CodeMirror} from "./cm_adapter"
       vmap: function(cm, params) { this.map(cm, params, 'visual'); },
       unmap: function(cm, params, ctx) {
         var mapArgs = params.args;
-        if (!mapArgs || mapArgs.length < 1) {
+        if (!mapArgs || mapArgs.length < 1 || !exCommandDispatcher.unmap(mapArgs[0], ctx)) {
           if (cm) {
             showConfirm(cm, 'No such mapping: ' + params.input);
           }
-          return;
         }
-        exCommandDispatcher.unmap(mapArgs[0], ctx);
       },
       move: function(cm, params) {
         commandDispatcher.processCommand(cm, cm.state.vim, {
@@ -5676,12 +5706,12 @@ import {CodeMirror} from "./cm_adapter"
           if (change instanceof InsertModeKey) {
             CodeMirror.lookupKey(change.keyName, 'vim-insert', keyHandler);
           } else if (typeof change == "string") {
-            var cur = cm.getCursor();
-            cm.replaceRange(change, cur, cur);
+            cm.replaceSelection(change)
           } else {
             var start = cm.getCursor();
             var end = offsetCursor(start, 0, change[0].length);
             cm.replaceRange(change[0], start, end);
+            cm.setCursor(end)
           }
         }
       }

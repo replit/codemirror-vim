@@ -1,20 +1,25 @@
-import { EditorSelection, EditorState, Text } from "@codemirror/state"
+import { 
+  EditorSelection, Text, MapMode, ChangeDesc, 
+} from "@codemirror/state"
 
 import {StringStream} from "@codemirror/stream-parser"
-import { EditorView } from "@codemirror/view"
-import { matchBrackets } from "@codemirror/matchbrackets"
-import  {RegExpCursor} from "@codemirror/search"
-import  {RangeSet} from "@codemirror/rangeset"
-import {insertNewlineAndIndent} from "@codemirror/commands"
+import {EditorView, ViewUpdate} from "@codemirror/view"
+import {matchBrackets} from "@codemirror/matchbrackets"
+import {RegExpCursor} from "@codemirror/search"
+import {
+  insertNewlineAndIndent, indentMore, indentLess, indentSelection,
+  deleteCharBackward, deleteCharForward, cursorCharLeft,
+} from "@codemirror/commands"
+import {foldCode} from "@codemirror/fold"
 import * as history from "@codemirror/history"
-
+import { indentUnit, syntaxTree } from "@codemirror/language"
 
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
-function posToOffset(doc: Text, pos: Pos): number {
+function indexFromPos(doc: Text, pos: Pos): number {
   var ch = pos.ch;
   var lineNumber = pos.line + 1;
-  if (lineNumber<1) {
+  if (lineNumber < 1) {
     lineNumber = 1
     ch = 0
   }
@@ -25,7 +30,7 @@ function posToOffset(doc: Text, pos: Pos): number {
   var line = doc.line(lineNumber)
   return Math.min(line.from + Math.max(0, ch), line.to)
 }
-function offsetToPos(doc: Text, offset: number): Pos {
+function posFromIndex(doc: Text, offset: number): Pos {
   let line = doc.lineAt(offset)
   return { line: line.number - 1, ch: offset - line.from }
 }
@@ -35,29 +40,18 @@ class Pos {
   }
 };
 
-
-var noHandlers: Function[] = [];
-
 function on(emitter:any, type:string, f:Function) {
   if (emitter.addEventListener) {
     emitter.addEventListener(type, f, false);
-  } else if (emitter.attachEvent) {
-    emitter.attachEvent("on" + type, f);
   } else {
     var map = emitter._handlers || (emitter._handlers = {});
-    map[type] = (map[type] || noHandlers).concat(f);
+    map[type] = (map[type] || []).concat(f);
   }
 };
-
-function getHandlers(emitter:any, type: string) {
-  return emitter._handlers && emitter._handlers[type] || noHandlers
-}
 
 function off(emitter: any, type: string, f: Function) {
   if (emitter.removeEventListener) {
     emitter.removeEventListener(type, f, false);
-  } else if (emitter.detachEvent) {
-    emitter.detachEvent("on" + type, f);
   } else {
     var map = emitter._handlers, arr = map && map[type];
     if (arr) {
@@ -68,46 +62,70 @@ function off(emitter: any, type: string, f: Function) {
   }
 }
 
-function signal(emitter: any, type: string, ...args) {
-  var handlers = getHandlers(emitter, type);
-  if (!handlers.length) { return }
-  for (var i = 0; i < handlers.length; ++i) { handlers[i].apply(null, args); }
+function signal(emitter: any, type: string, ...args: any[]) {
+  var handlers = emitter._handlers?.[type]
+  if (!handlers) return 
+  for (var i = 0; i < handlers.length; ++i) { handlers[i](...args); }
+}
+
+function signalTo(handlers: any, ...args: any[]) {
+  if (!handlers) return 
+  for (var i = 0; i < handlers.length; ++i) { handlers[i](...args); }
 }
 
 var specialKey: any = {
-  'Return': 'CR', Backspace: 'BS', 'Delete': 'Del', Escape: 'Esc',
+  Return: 'CR', Backspace: 'BS', 'Delete': 'Del', Escape: 'Esc', Insert: 'Ins',
   ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
-  home: 'Home', end: 'End', pageup: 'PageUp', pagedown: 'PageDown', Enter: 'CR'
+  Enter: 'CR'
 };
 var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1, CapsLock: 1 };
 
+
+let wordChar: RegExp
+try { 
+  wordChar = new RegExp("[\\w\\p{Alphabetic}\\p{Number}_]", "u") 
+} catch (_) {
+  wordChar = /[\w]/
+}
+
+interface Operation{
+  $d: number,
+  isVimOp?: boolean,
+  cursorActivityHandlers?: Function[],
+  cursorActivity?: boolean,
+  lastChange?: any,
+  change?: any,
+  changeHandlers?: Function[],
+}
 
 export class CodeMirror {
   // --------------------------
   static Pos = Pos;
   static StringStream = StringStream;
   static commands = {
+    cursorCharLeft: function (cm: CodeMirror) { cursorCharLeft(cm.cm6); },
     redo: function (cm: CodeMirror) { history.redo(cm.cm6); },
     undo: function (cm: CodeMirror) { history.undo(cm.cm6); },
     newlineAndIndent: function (cm: CodeMirror) {
       insertNewlineAndIndent(cm.cm6)
     },
     indentAuto: function(cm: CodeMirror) {
-      
+      indentSelection(cm.cm6)
     }
   }; 
   static defineOption = function (name: string, val: any, setter: Function) { };
-  static isWordChar = function (ch) {
-    return /^\w$/.test(ch);
+  static isWordChar = function (ch: string) {
+    return wordChar.test(ch);
   };
-  
-  static keyMap = {
-    default: function (key) {
-      return function (cm) {
-        var cmd = cm.ace.commands.commandKeyBinding[key.toLowerCase()];
-        return cmd && cm.ace.execCommand(cmd) !== false;
-      };
+  static keys: any = {
+    Backspace: function(cm: CodeMirror) {
+      deleteCharBackward(cm.cm6);
+    },
+    Delete: function(cm: CodeMirror) {
+      deleteCharForward(cm.cm6);
     }
+  };
+  static keyMap = {
   };
   static addClass = function () { };
   static rmClass = function () { }; 
@@ -118,13 +136,13 @@ export class CodeMirror {
     e?.stopPropagation?.()
     e?.preventDefault?.()
   };
-  static keyName = function (e) {
+  static keyName = function (e: KeyboardEvent) {
     var key = e.key;
     if (ignoredKeys[key]) return;
-    if (key.length > 1 && key[0] == "n") {
-      key = key.replace("Numpad", "");
+    if (key.length > 1) {
+      key = key.replace(/Numpad|Arrow/, "");
     }
-    key = specialKey[key] || key;
+    if (key.length == 1) key = key.toUpperCase();
     var name = '';
     if (e.ctrlKey) { name += 'Ctrl-'; }
     if (e.altKey) { name += 'Alt-'; }
@@ -149,8 +167,9 @@ export class CodeMirror {
     return name;
   } ;
 
-  static lookupKey = function lookupKey(key, map, handle) {
-    console.error(key, map, handle)
+  static lookupKey = function lookupKey(key: string, map: string, handle: Function) {
+    var result = CodeMirror.keys[key];
+    if (result) handle(result);
   };
 
   static on = on
@@ -166,22 +185,47 @@ export class CodeMirror {
 
   // --------------------------
   cm6: EditorView
-  state: {dialog?: any, vim: any} = {};
+  state: {
+    dialog?: Element|null, 
+    vim?: any, 
+    currentNotificationClose?: Function|null,
+    keyMap?: string,
+    overwrite?: boolean,
+  } = {};
   marks = Object.create(null);
-  $uid = 0;
-  curOp: any|null;
+  $mid = 0; // marker id counter
+  curOp: Operation|null|undefined;
+  options: any = {};
+  _handlers: any = {};
   constructor(cm6: EditorView) {
     this.cm6 = cm6;
     this.onChange = this.onChange.bind(this);
     this.onSelectionChange = this.onSelectionChange.bind(this);
-    this.onBeforeEndOperation = this.onBeforeEndOperation.bind(this);
-    // this.ace.on('change', this.onChange);
-    // this.ace.on('changeSelection', this.onSelectionChange);
-    // this.ace.on('beforeEndOperation', this.onBeforeEndOperation);
   };
 
   on(type: string, f: Function) {on(this, type, f)}
   off(type: string, f: Function) {off(this, type, f)}
+  signal(type: string, e: any, handlers?: any) {signal(this, type, e, handlers)}
+
+  indexFromPos(pos: Pos) {
+    return indexFromPos(this.cm6.state.doc, pos);
+  };
+  posFromIndex(offset: number) {
+    return posFromIndex(this.cm6.state.doc, offset);
+  };
+
+
+  foldCode(pos: Pos) {
+    let view = this.cm6
+    let ranges = view.state.selection.ranges
+    let doc = this.cm6.state.doc
+    let index = indexFromPos(doc, pos)
+    let tmpRanges = EditorSelection.create([EditorSelection.range(index, index)], 0).ranges;
+
+    (view.state.selection as any).ranges = tmpRanges;
+    foldCode(view);
+    (view.state.selection as any).ranges = ranges;
+  }
 
   firstLine() { return 0; };
   lastLine() { return this.cm6.state.doc.lines - 1; };
@@ -191,30 +235,40 @@ export class CodeMirror {
       ch = line.ch;
       line = line.line;
     }
-    var offset = posToOffset(this.cm6.state.doc, { line, ch })
-    this.cm6.dispatch({ selection: { anchor: offset } })
+    var offset = indexFromPos(this.cm6.state.doc, { line, ch })
+    this.cm6.dispatch({ selection: { anchor: offset } }, {scrollIntoView: !this.curOp})
+    if (this.curOp && !this.curOp.isVimOp)
+      this.onBeforeEndOperation();
   };
-  getCursor(p?: "head" | "anchor"): Pos {
+  getCursor(p?: "head" | "anchor" | "start" | "end"): Pos {
     var sel = this.cm6.state.selection.main;
 
-    var offset = sel[p || "head"]
-    var doc = this.cm6.state.doc;
-    return offsetToPos(doc, offset);
+    var offset =  p == "head" || !p
+      ? sel.head
+      : p == "anchor"
+      ? sel.anchor
+      : p == "start"
+      ? sel.from 
+      : p == "end"
+      ? sel.to
+      : null
+    if (offset == null) throw new Error("Invalid cursor type")
+    return this.posFromIndex(offset);
   };
 
   listSelections() {
     var doc = this.cm6.state.doc
     return this.cm6.state.selection.ranges.map(r => {
       return {
-        anchor: offsetToPos(doc, r.anchor),
-        head: offsetToPos(doc, r.head),
+        anchor: posFromIndex(doc, r.anchor),
+        head: posFromIndex(doc, r.head),
       };
     });
   };
   setSelections(p: CM5Range[], primIndex?: number) {
     var doc = this.cm6.state.doc
     var ranges = p.map(x => {
-      return EditorSelection.range(posToOffset(doc, x.anchor), posToOffset(doc, x.head))
+      return EditorSelection.range(indexFromPos(doc, x.anchor), indexFromPos(doc, x.head))
     })
     this.cm6.dispatch({
       selection: EditorSelection.create(ranges, primIndex)
@@ -222,7 +276,7 @@ export class CodeMirror {
   };
   setSelection(anchor: Pos, head: Pos, options?: any) {
     var doc = this.cm6.state.doc
-    var ranges = [EditorSelection.range(posToOffset(doc, anchor), posToOffset(doc, head))]
+    var ranges = [EditorSelection.range(indexFromPos(doc, anchor), indexFromPos(doc, head))]
     this.cm6.dispatch({
       selection: EditorSelection.create(ranges, 0)
     })
@@ -235,35 +289,40 @@ export class CodeMirror {
     if (row < 0 || row >= doc.lines) return "";
     return this.cm6.state.doc.line(row + 1).text;
   };
+  getLineHandle(row: number) {
+    return {text: this.getLine(row), row: row};
+  }
+  getLineNumber(handle: any) {
+    return handle.row;
+  }
   getRange(s: Pos, e: Pos) {
     var doc = this.cm6.state.doc;
     return this.cm6.state.sliceDoc(
-      posToOffset(doc, s),
-      posToOffset(doc, e)
+      indexFromPos(doc, s),
+      indexFromPos(doc, e)
     )
   };
   replaceRange(text: string, s: Pos, e: Pos) {
     if (!e) e = s;
     var doc = this.cm6.state.doc;
-    var from = posToOffset(doc, s);
-    var to = posToOffset(doc, e);
+    var from = indexFromPos(doc, s);
+    var to = indexFromPos(doc, e);
     this.cm6.dispatch({
       changes: { from, to, insert: text }
     });
   };
   replaceSelection(text: string) {
     this.cm6.dispatch(this.cm6.state.replaceSelection(text))
-  }
+  };
   replaceSelections(replacements: string[]) {
     var ranges = this.cm6.state.selection.ranges;
     var changes = ranges.map((r, i) => {
-      return {from: r.from, to: r.to, text: replacements[i] || ""}
-    })
+      return {from: r.from, to: r.to, insert: replacements[i] || ""}
+    });
     this.cm6.dispatch({changes});
   };
   getSelection() {
-    var main = this.cm6.state.selection.main
-    return this.cm6.state.sliceDoc(main.from, main.to);
+    return this.getSelections().join("\n");
   };
   getSelections() {
     var cm = this.cm6;
@@ -300,7 +359,8 @@ export class CodeMirror {
   setValue(text: string) {
     var cm = this.cm6;
     return cm.dispatch({
-      changes: {from: 0, to: cm.state.doc.length, insert: text}
+      changes: {from: 0, to: cm.state.doc.length, insert: text},
+      selection: EditorSelection.range(0, 0)
     })
   };
   
@@ -316,26 +376,33 @@ export class CodeMirror {
 
   findMatchingBracket(pos: Pos) {
     var state = this.cm6.state
-    var offset = posToOffset(state.doc, pos);
-    var m = matchBrackets(state, offset+1, -1)
-    if (m) {
-      return { to: m && offsetToPos(state.doc, m.start.from) };
+    var offset = indexFromPos(state.doc, pos);
+    var m = matchBrackets(state, offset + 1, -1)
+    if (m && m.end) {
+      return { to: m && posFromIndex(state.doc, m.end.from) };
     } 
     m = matchBrackets(this.cm6.state, offset, 1)
     if (m && m.end) {
-      return { to: m && offsetToPos(state.doc, m.end.from) };
+      return { to: m && posFromIndex(state.doc, m.end.from) };
     } 
     return { to: undefined };
   };
-  indentLine(line: number, method: boolean) {
-    if (method === true)
-      this.ace.session.indentRows(line, line, "\t");
-    else if (method === false)
-      this.ace.session.outdentRows(new Range(line, 0, line, 0));
+  scanForBracket(pos: Pos, dir: 1|-1, style: any, config: any) {
+    return scanForBracket(this, pos, dir, style, config);
   };
-  scanForBracket(pos, dir, _, options) {
-    console.error("not implemented")
-  }; 
+  
+  indentLine(line: number, more: boolean) {
+    // todo how to indent only one line instead of selection
+    if (more) this.indentMore()
+    else this.indentLess()
+  };
+
+  indentMore() {
+    indentMore(this.cm6);
+  };
+  indentLess() {
+    indentLess(this.cm6);
+  };
   
   execCommand(name: "indentAuto") {
     if (name == "indentAuto") CodeMirror.commands.indentAuto(this);
@@ -343,13 +410,11 @@ export class CodeMirror {
   };
   
   setBookmark(cursor: Pos, options?: {insertLeft: boolean}) {
-    var bm = new Marker(this, this.$uid++, cursor.line, cursor.ch);
-    if (!options || !options.insertLeft)
-      bm.$insertRight = true;
-    this.marks[bm.id] = bm;
+    var assoc = options?.insertLeft ? 1 : -1;
+    var offset = this.indexFromPos(cursor)
+    var bm = new Marker(this, offset, assoc);
     return bm;
   };
-
   
   addOverlay = function () {
     // console.error("not implemented")
@@ -366,11 +431,15 @@ export class CodeMirror {
     var lastCM5Result: CM5Result = null;
     
     if (pos.ch == undefined) pos.ch = Number.MAX_VALUE;
-    var firstOffset = posToOffset(cm.cm6.state.doc, pos);
+    var firstOffset = indexFromPos(cm.cm6.state.doc, pos);
     
+    var source = query.source.replace(/(\\.|{(?:\d+(?:,\d*)?|,\d+)})|[{}]/g, function(a, b) {
+      if (!b) return "\\" + a
+      return b;
+    });
     
     function rCursor(doc: Text, from=0, to = doc.length) {
-      return new RegExpCursor(doc, query.source, {ignoreCase: query.ignoreCase}, from, to);
+      return new RegExpCursor(doc, source, {ignoreCase: query.ignoreCase}, from, to);
     }
 
     function nextMatch(from: number) {
@@ -394,7 +463,7 @@ export class CodeMirror {
     return {
       findNext: function () { return this.find(false) },
       findPrevious: function () { return this.find(true) },
-      find: function (back?: boolean): CM5Result {
+      find: function (back?: boolean): string[]|null|undefined {
         var doc = cm.cm6.state.doc
         if (back) {
           let endAt = last ? (last.from == last.to ? last.to - 1 : last.from ) : firstOffset
@@ -403,18 +472,12 @@ export class CodeMirror {
           let startFrom = last ? (last.from == last.to ? last.to + 1 : last.to ) : firstOffset
           last = nextMatch(startFrom)
         }
-        if (last && last.from == last.to) {
-          let lineEl = doc.lineAt(last.to) 
-          if (lineEl.to == last.to) {
-            return this.find(back);
-          }
-        } 
         lastCM5Result = last && {
-          from: offsetToPos(doc, last.from),
-          to: offsetToPos(doc, last.to),
+          from: posFromIndex(doc, last.from),
+          to: posFromIndex(doc, last.to),
           match: last.match,
         }
-        return lastCM5Result
+        return last && last.match
       },
       from: function () { return lastCM5Result?.from },
       to: function () { return lastCM5Result?.to },
@@ -425,15 +488,12 @@ export class CodeMirror {
           });
           last.to = last.from + text.length
           if (lastCM5Result) {
-            lastCM5Result.to = offsetToPos(cm.cm6.state.doc, last.to);
+            lastCM5Result.to = posFromIndex(cm.cm6.state.doc, last.to);
           }
         }
       }
     };
-  };
-
-
-  
+  };  
   findPosV(start: Pos, amount: number, unit: "page"|"line", goalColumn?:number) {
     var doc = this.cm6.state.doc;
     if (unit == 'page') {
@@ -441,45 +501,43 @@ export class CodeMirror {
       console.error(unit)
     }
     if (unit == 'line') {
-      var startOffset = posToOffset(doc, start);
-      
-      var newSelection = this.cm6.moveVertically({head: startOffset}, amount > 0, Math.abs(amount));
+      var startOffset = indexFromPos(doc, start);
+      var range = EditorSelection.range(startOffset, startOffset, goalColumn);
+      var newSelection = this.cm6.moveVertically(range, amount > 0, Math.abs(amount));
       var newOffset = newSelection.head;
-      return offsetToPos(doc, newOffset);
+      return posFromIndex(doc, newOffset);
     } 
   };
   charCoords(pos: Pos, mode: "div"| "local") {
-    var offset = posToOffset(this.cm6.state.doc, pos)
+    var rect = this.cm6.contentDOM.getBoundingClientRect();
+    var offset = indexFromPos(this.cm6.state.doc, pos)
     var coords =  this.cm6.coordsAtPos(offset)
-    return coords || {left: 0, top: 0}
+    var d = this.cm6.scrollDOM.scrollTop - rect.top
+    return {left: (coords?.left || 0) - rect.left, top: (coords?.top || 0) + d, bottom: (coords?.bottom || 0) + d}
   };
   coordsChar(coords: {left:number,top:number}, mode: "div"| "local") {
-    var offset = this.cm6.posAtCoords({x:coords.left, y: coords.top }) || 0
-    return offsetToPos(this.cm6.state.doc, offset)
+    var rect = this.cm6.contentDOM.getBoundingClientRect() 
+     
+    var offset = this.cm6.posAtCoords({x:coords.left + rect.left, y: coords.top + rect.top }) || 0
+    return posFromIndex(this.cm6.state.doc, offset)
   };
-  // getUserVisibleLines() {
-  //  var ranges = this.cm6.visibleRanges;
-  //  ranges[0]
-  // }
-
   
   getScrollInfo() {
-    // console.error("not implemented")
-    return {
-      left: 0,
-      top: 0,
-      height: 300,
-      width:300,
-      clientHeight: 300,
-      clientWidth: 300,
-    };
+    var scroller = this.cm6.scrollDOM
+    return {left: scroller.scrollLeft, top: scroller.scrollTop,
+                height: scroller.scrollHeight  ,
+                width: scroller.scrollWidth  ,
+                clientHeight: scroller.clientHeight, clientWidth: scroller.clientWidth};
   };
-  scrollTo(x: number, y: number) {
-    
+  scrollTo(x?: number, y?: number) {
+    if (x != null)
+      this.cm6.scrollDOM.scrollLeft = x
+    if (y != null)
+      this.cm6.scrollDOM.scrollTop = y
   };
   scrollInfo () { return 0; };
   scrollIntoView(pos: Pos, margin: number) {
-    
+    this.cm6.dispatch({}, { scrollIntoView: true, userEvent: "scroll" });
   };
 
   getWrapperElement () {
@@ -490,77 +548,166 @@ export class CodeMirror {
   getMode () {
     return { name: this.getOption("mode") };
   };
-  setSize() {
-    
+  setSize(w: number, h: number) {
+    this.cm6.dom.style.width = w + 4 + "px"
+    this.cm6.dom.style.height = h + "px"
+    this.refresh()
+  }
+  refresh() {
+    (this.cm6 as any).measure()
   }
 
   // event listeners
   destroy() {
-   
     this.removeOverlay();
-  }; 
-  onChange(delta) {
-    // todo
+  };
+
+  // TODO change vim.js to not use obscure api
+  doc = {
+    history: {
+      done: [
+        {
+          changes: [
+            {
+              cm: this,
+              get to() {
+                return this.cm.posFromIndex(this.cm.$lastChangeEndOffset)
+              }
+            }
+          ]
+        }
+      ]
+    }
+  };
+  $lastChangeEndOffset = 0;
+  
+  onChange(update: ViewUpdate){
+    for (let i in this.marks) {
+      let m = this.marks[i];
+      m.update(update.changes)
+    }
+    var curOp = this.curOp = this.curOp || ({} as Operation);
+    update.changes.iterChanges((fromA: number, toA: number, fromB: number, toB: number, text: Text) => {
+      this.$lastChangeEndOffset = toB;
+      var change = {text: text.toJSON()};
+      if (!curOp.lastChange) {
+        curOp.lastChange = curOp.change = change;
+      } else {
+        curOp.lastChange.next = curOp.lastChange = change;
+      }
+    }, true);
+    if (!curOp.changeHandlers)
+      curOp.changeHandlers = this._handlers["change"] && this._handlers["change"].slice();
   };
   onSelectionChange() {
-    // todo
+    var curOp = this.curOp = this.curOp || ({} as Operation);
+    if (!curOp.cursorActivityHandlers)
+      curOp.cursorActivityHandlers = this._handlers["cursorActivity"] && this._handlers["cursorActivity"].slice();
+    this.curOp.cursorActivity = true;
   };
-  operation(fn, force) {
-    // todo
-    this.curOp = {}
+  operation(fn: Function) {
+    if (!this.curOp)
+      this.curOp = {$d: 0};
+    this.curOp.$d++;
     try {
       var result = fn()
     } finally {
-      this.curOp = null
+      if (this.curOp) {
+        this.curOp.$d--
+        if (!this.curOp.$d)
+          this.onBeforeEndOperation()
+      }
     }
     return result
   };
   onBeforeEndOperation() {
-    // todo
-  }; 
-  moveH(increment, unit) {
+    var op = this.curOp;
+    if (op) {
+      if (op.change) { signalTo(op.changeHandlers, this, op.change); }
+      if (op && op.cursorActivity) { signalTo(op.cursorActivityHandlers, this, null); }
+      this.curOp = null;
+    }
+  };
+  moveH(increment: number, unit: string) {
     if (unit == 'char') {
       // todo
+      var cur = this.getCursor();
+      this.setCursor(cur.line, cur.ch + increment);
     }
   };
 
-  
-  setOption(name, val) {
-  };
-  getOption(name, val) {
+  setOption(name: string, val: any) {
     switch (name) {
-      case "firstLineNumber": return 1;
-      case "tabSize": return this.cm6.state.tabSize;
-      case "readonly": return false;
-      case "indentWithTabs": return false; // TODO
+      case "keyMap":
+        this.state.keyMap = val;
+        break; 
+      // TODO cm6 doesn't provide any method to reconfigure these
+      case "tabSize":
+      case "indentWithTabs":
+        break
+
     }
   };
-  toggleOverwrite (on) {
-   
-    // return this.ace.setOverwrite(on);
+  getOption(name: string) {
+    switch (name) {
+      case "firstLineNumber": return 1;
+      case "tabSize": return this.cm6.state.tabSize || 4;
+      case "readonly": return this.cm6.state.readOnly;
+      case "indentWithTabs": return this.cm6.state.facet(indentUnit) == "\t"; // TODO
+      case "indentUnit": return this.cm6.state.facet(indentUnit).length || 2;
+      // for tests
+      case "keyMap": return this.state.keyMap || "vim";
+    }
   };
-  getTokenTypeAt(pos) {
+  toggleOverwrite (on: boolean) {
+    this.state.overwrite = on;
+  };
+  getTokenTypeAt(pos: Pos) {
     // only comment|string are needed
+    var offset = this.indexFromPos(pos)
+    var tree = syntaxTree(this.cm6.state)
+    var node = tree.resolveInner(offset)
+    var type = node?.type?.name || ""
+    if (/comment/i.test(type)) return "comment";
+    if (/string/i.test(type)) return "string";
+    return ""
   };
+
+  overWriteSelection(text: string) {
+    var doc = this.cm6.state.doc
+    var sel = this.cm6.state.selection;
+    var ranges = sel.ranges.map(x=> {
+      if (x.empty) {
+        var ch = x.to < doc.length ? doc.sliceString(x.from, x.to + 1) : ""
+        if (ch && !/\n/.test(ch))
+          return EditorSelection.range(x.from, x.to + 1)
+      }
+      return x;
+    });
+    this.cm6.dispatch({
+      selection: EditorSelection.create(ranges, sel.mainIndex)
+    })
+    this.replaceSelection(text)
+  }
 }; 
 
 
 /************* dialog *************/
 
 (function () {
-  function dialogDiv(cm, template, bottom) {
+  function dialogDiv(cm: CodeMirror, template: Node, bottom?: boolean) {
     var dialog = document.createElement("div");
     dialog.appendChild(template);
     return dialog;
   }
 
-  function closeNotification(cm, newVal) {
+  function closeNotification(cm: CodeMirror, newVal?: Function) {
     if (cm.state.currentNotificationClose)
       cm.state.currentNotificationClose();
     cm.state.currentNotificationClose = newVal;
   }
-
-  CodeMirror.defineExtension("openNotification", function (this: CodeMirror, template, options) {
+  interface NotificationOptions { bottom?: boolean, duration?: number }
+  CodeMirror.defineExtension("openNotification", function(this: CodeMirror, template: Node, options: NotificationOptions) {
     closeNotification(this, close);
     var dialog = dialogDiv(this, template, options && options.bottom);
     var closed = false;
@@ -591,11 +738,19 @@ export class CodeMirror {
 
   
   function showDialog(cm: CodeMirror, dialog: Element) {
-    if (cm.state.dialog !== dialog && cm.state.dialog) {
-      cm.state.dialog.remove()
-    }
+    var oldDialog = cm.state.dialog
     cm.state.dialog = dialog;
-    CodeMirror.signal(cm, "dialog")
+
+    if (dialog && oldDialog !== dialog) {
+      if (oldDialog && oldDialog.contains(document.activeElement))
+       cm.focus()
+      if (oldDialog && oldDialog.parentElement) {
+        oldDialog.parentElement.replaceChild(dialog, oldDialog)
+      } else if (oldDialog) {
+        oldDialog.remove()
+      }
+      CodeMirror.signal(cm, "dialog")
+    }
   }
   
   function hideDialog(cm: CodeMirror, dialog: Element) {
@@ -609,25 +764,22 @@ export class CodeMirror {
     var me = this;
     if (!options) options = {};
 
-    closeNotification(me, null);
+    closeNotification(me, undefined);
 
     var dialog = dialogDiv(me, template, options.bottom);
     var closed = false;
     showDialog(me, dialog);
 
-    function close(newVal?: string|Event) {
+    function close(newVal?: string) {
       if (typeof newVal == 'string') {
         inp.value = newVal;
       } else {
         if (closed) return;
 
-        if (newVal && newVal.type == "blur") {
-          if (document.activeElement === inp)
-            return;
-        }
         closed = true;
         hideDialog(me, dialog)
-        me.focus();
+        if (!me.state.dialog)
+          me.focus();
 
         if (options.onClose) options.onClose(dialog);
       }
@@ -641,11 +793,11 @@ export class CodeMirror {
       }
 
       if (options.onInput)
-        CodeMirror.on(inp, "input", function (e) { options.onInput(e, inp.value, close); });
+        CodeMirror.on(inp, "input", function (e: KeyboardEvent) { options.onInput(e, inp.value, close); });
       if (options.onKeyUp)
-        CodeMirror.on(inp, "keyup", function (e) { options.onKeyUp(e, inp.value, close); });
+        CodeMirror.on(inp, "keyup", function (e: KeyboardEvent) { options.onKeyUp(e, inp.value, close); });
 
-      CodeMirror.on(inp, "keydown", function (e) {
+      CodeMirror.on(inp, "keydown", function (e: KeyboardEvent) {
         if (options && options.onKeyDown && options.onKeyDown(e, inp.value, close)) { return; }
         if (e.keyCode == 13) callback(inp.value);
         if (e.keyCode == 27 || (options.closeOnEnter !== false && e.keyCode == 13)) {
@@ -655,42 +807,76 @@ export class CodeMirror {
         }
       });
 
-      if (options.closeOnBlur !== false) CodeMirror.on(inp, "blur", close);
-
-      inp.focus();
-    } else if (button = dialog.getElementsByTagName("button")[0]) {
-      CodeMirror.on(button, "click", function () {
-        close();
-        me.focus();
+      if (options.closeOnBlur !== false) CodeMirror.on(inp, "blur", function() {
+        setTimeout(function() {
+          if (document.activeElement === inp)
+            return;
+          close()
+        })
       });
 
-      if (options.closeOnBlur !== false) CodeMirror.on(button, "blur", close);
-
-      button.focus();
+      inp.focus();
     }
     return close;
   })
 })();
 
+var matching: any = {"(": ")>", ")": "(<", "[": "]>", "]": "[<", "{": "}>", "}": "{<", "<": ">>", ">": "<<"};
+
+  function bracketRegex(config: any) {
+    return config && config.bracketRegex || /[(){}[\]]/
+  }
+
+function scanForBracket(cm: CodeMirror, where: Pos, dir: -1|1, style: any, config: any) {
+  var maxScanLen = (config && config.maxScanLineLength) || 10000;
+  var maxScanLines = (config && config.maxScanLines) || 1000;
+
+  var stack = [];
+  var re = bracketRegex(config)
+  var lineEnd = dir > 0 ? Math.min(where.line + maxScanLines, cm.lastLine() + 1)
+                        : Math.max(cm.firstLine() - 1, where.line - maxScanLines);
+  for (var lineNo = where.line; lineNo != lineEnd; lineNo += dir) {
+    var line = cm.getLine(lineNo);
+    if (!line) continue;
+    var pos = dir > 0 ? 0 : line.length - 1, end = dir > 0 ? line.length : -1;
+    if (line.length > maxScanLen) continue;
+    if (lineNo == where.line) pos = where.ch - (dir < 0 ? 1 : 0);
+    for (; pos != end; pos += dir) {
+      var ch = line.charAt(pos);
+      if (re.test(ch) /*&& (style === undefined ||
+                          (cm.getTokenTypeAt(new Pos(lineNo, pos + 1)) || "") == (style || ""))*/) {
+        var match = matching[ch];
+        if (match && (match.charAt(1) == ">") == (dir > 0)) stack.push(ch);
+        else if (!stack.length) return {pos: new Pos(lineNo, pos), ch: ch};
+        else stack.pop();
+      }
+    }
+  }
+  return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
+}
 
 
 
-
-class Marker{
+class Marker {
   cm: CodeMirror;
   id: number;
-  row: number;
-  column: number;
-  offset: number;
+  offset: number|null;
+  assoc: number;
 
-  constructor (cm: CodeMirror, id: number, row: number, column: number) {
+  constructor (cm: CodeMirror, offset: number, assoc: number) {
     this.cm = cm;
-    this.id = id;
-    this.row = row;
-    this.column = column;
-    this.offset = 0 // TODO 
+    this.id = cm.$mid++;
+    this.offset = offset;
+    this.assoc = assoc;
     cm.marks[this.id] = this;
   };
   clear() { delete this.cm.marks[this.id] };
-  find() { return new Pos(this.row, this.column) };
+  find(): Pos|null {
+    if (this.offset == null) return null;
+    return this.cm.posFromIndex(this.offset) 
+  };
+  update(change: ChangeDesc) {
+    if (this.offset != null)
+      this.offset = change.mapPos(this.offset, this.assoc, MapMode.TrackDel)
+  }
 }

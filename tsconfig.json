@@ -1,0 +1,26 @@
+{
+    "compilerOptions": {
+        // "module": "commonjs",
+        // "noImplicitAny": true,
+        // "emitDeclarationOnly": true,
+        // "declaration": true,
+        // "lib": ["es2019", "DOM"]
+
+        "allowJs": true,
+        "lib": ["es6", "dom", "scripthost"],
+        "types": ["mocha"],
+        "stripInternal": true,
+        "typeRoots": ["./node_modules/@types"],
+        "noUnusedLocals": true,
+        "strict": true,
+        "target": "es6",
+        "module": "es2020",
+        "newLine": "lf",
+        "moduleResolution": "node",
+    },
+    "include": [
+        "src/*.js",
+        "src/*.ts",
+        "test/*.js"
+    ]
+}

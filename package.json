@@ -4,7 +4,7 @@
   "description": "Vim mode for Codemirror 6",
   "scripts": {
     "dev": "vite ./dev",
-    "test": "echo 'No tests'",
+    "test": "cm-runtests",
     "build": "cm-buildhelper src/index.ts"
   },
   "keywords": [

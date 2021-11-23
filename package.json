@@ -1,10 +1,11 @@
 {
-  "name": "@codemirror/vim",
+  "name": "@replit/codemirror-vim",
   "version": "0.18.0",
-  "description": "Rectangular selection for the CodeMirror code editor",
+  "description": "Vim mode for Codemirror 6",
   "scripts": {
+    "dev": "vite ./dev",
     "test": "echo 'No tests'",
-    "prepare": "cm-buildhelper src/index.ts"
+    "build": "cm-buildhelper src/index.ts"
   },
   "keywords": [
     "editor",
@@ -25,13 +26,21 @@
   "module": "dist/index.js",
   "sideEffects": false,
   "license": "MIT",
-  "dependencies": {
+  "peerDependencies": {
     "@codemirror/state": "^0.18.0",
     "@codemirror/text": "^0.18.0",
-    "@codemirror/view": "^0.18.0"
+    "@codemirror/view": "^0.18.0",
+    "@codemirror/stream-parser": "^0.18.0"
   },
   "devDependencies": {
-    "@codemirror/buildhelper": "^0.1.0"
+    "@codemirror/buildhelper": "^0.1.0",
+    "@codemirror/stream-parser": "^0.18.0",
+    "@codemirror/state": "^0.18.0",
+    "@codemirror/text": "^0.18.0",
+    "@codemirror/view": "^0.18.0",
+    "@codemirror/basic-setup": "^0.18.0",
+    "@codemirror/lang-javascript": "^0.18.0",
+    "vite": "^2.3.8"
   },
   "repository": {
     "type": "git",

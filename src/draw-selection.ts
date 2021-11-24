@@ -1,5 +1,5 @@
-import {SelectionRange, Extension, Facet, combineConfig, Prec} from "@codemirror/state"
-import {ViewPlugin, ViewUpdate} from "@codemirror/view"
+import {SelectionRange, Prec} from "@codemirror/state"
+import {ViewUpdate} from "@codemirror/view"
 import {EditorView} from "@codemirror/view"
 import {Direction} from "@codemirror/view"
 import { CodeMirror } from "."

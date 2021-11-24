@@ -16,5 +16,5 @@ jobs:
           node-version: '16.4'
 
       - run: npm install
-
-      - run: npm test
+      - run: npm run build
+      - run: npm run test

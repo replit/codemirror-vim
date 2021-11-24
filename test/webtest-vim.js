@@ -1,13 +1,13 @@
 // @ts-check
 
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
-import { CodeMirror, Vim, vim} from ".."
+import { CodeMirror, Vim, vim} from "../src/index"
 import {html} from "@codemirror/lang-html"
 import {javascript} from "@codemirror/lang-javascript"
 import ist from "ist";
 import tests from "./vim_test.js"
 import { indentUnit } from "@codemirror/language";
-import {indentWithTab} from "@codemirror/commands"
+// import {indentWithTab} from "@codemirror/commands"
 import { keymap } from "@codemirror/view";
 
 
@@ -25,6 +25,10 @@ var disabled = {
 
     "vim_ex_global_substitute_join": 1,
     "vim_ex_global_substitute_split": 1,
+
+    "vim_zb_to_bottom": 1,
+    "vim_zt_to_top": 1,
+    "vim_scrollMotion": 1,
 };
 
 describe("Vim extension", () => {
@@ -57,7 +61,7 @@ describe("Vim extension", () => {
                 javascript(),
                 EditorState.tabSize.of(options.tabSize || 4),
                 indentUnit.of(options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)),
-                keymap.of([indentWithTab]),
+                // keymap.of([indentWithTab]),
             ]
         });
         

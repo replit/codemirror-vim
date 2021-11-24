@@ -12,7 +12,7 @@ import {
 } from "@codemirror/commands"
 import {foldCode} from "@codemirror/fold"
 import * as history from "@codemirror/history"
-import { indentUnit, syntaxTree } from "@codemirror/language"
+import { indentUnit, ensureSyntaxTree } from "@codemirror/language"
 
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
@@ -665,8 +665,8 @@ export class CodeMirror {
   getTokenTypeAt(pos: Pos) {
     // only comment|string are needed
     var offset = this.indexFromPos(pos)
-    var tree = syntaxTree(this.cm6.state)
-    var node = tree.resolveInner(offset)
+    var tree = ensureSyntaxTree(this.cm6.state, offset)
+    var node = tree.resolve(offset)
     var type = node?.type?.name || ""
     if (/comment/i.test(type)) return "comment";
     if (/string/i.test(type)) return "string";

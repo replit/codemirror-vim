@@ -1,5 +1,7 @@
-import {Vim} from "./vim"
+import {initVim} from "./vim"
 import { CodeMirror } from "./cm_adapter"
+
+const Vim = initVim(CodeMirror)
 
 import {DrawSelectionPlugin, hideNativeSelection} from "./draw-selection"
 

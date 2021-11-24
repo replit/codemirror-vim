@@ -2,11 +2,12 @@
     "compilerOptions": {
         // "module": "commonjs",
         // "noImplicitAny": true,
-        // "emitDeclarationOnly": true,
-        // "declaration": true,
+        // "noEmit": true,
+        // "declaration": false,
         // "lib": ["es2019", "DOM"]
 
-        "allowJs": true,
+        "allowJs": false,
+        "checkJs": false, 
         "lib": ["es6", "dom", "scripthost"],
         "types": ["mocha"],
         "stripInternal": true,
@@ -19,8 +20,6 @@
         "moduleResolution": "node",
     },
     "include": [
-        "src/*.js",
-        "src/*.ts",
-        "test/*.js"
+        "src/*.ts"
     ]
 }

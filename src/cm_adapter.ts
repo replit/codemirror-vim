@@ -569,7 +569,7 @@ export class CodeMirror {
         {
           changes: [
             {
-              cm: this,
+              cm: this as CodeMirror,
               get to() {
                 return this.cm.posFromIndex(this.cm.$lastChangeEndOffset)
               }
@@ -666,7 +666,7 @@ export class CodeMirror {
     // only comment|string are needed
     var offset = this.indexFromPos(pos)
     var tree = ensureSyntaxTree(this.cm6.state, offset)
-    var node = tree.resolve(offset)
+    var node = tree?.resolve(offset)
     var type = node?.type?.name || ""
     if (/comment/i.test(type)) return "comment";
     if (/string/i.test(type)) return "string";
@@ -785,7 +785,7 @@ export class CodeMirror {
       }
     }
 
-    var inp = dialog.getElementsByTagName("input")[0], button;
+    var inp = dialog.getElementsByTagName("input")[0];
     if (inp) {
       if (options.value) {
         inp.value = options.value;

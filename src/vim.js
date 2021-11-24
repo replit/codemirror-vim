@@ -1,5 +1,3 @@
-// @ts-check
-
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
 // Distributed under an MIT license: https://codemirror.net/LICENSE
 
@@ -37,7 +35,7 @@
  */
 
 
-import {CodeMirror} from "./cm_adapter";
+export function initVim(CodeMirror) {
 
   function transformCursor(cm, range) {
     var vim = cm.state.vim;
@@ -5723,6 +5721,6 @@ import {CodeMirror} from "./cm_adapter";
     resetVimGlobalState();
 
   // Initialize Vim and make it available as an API.
-  vimApi = vimApi;
-
-export {CodeMirror, vimApi as Vim};
+  return vimApi;
+}
+// export {CodeMirror, vimApi as Vim};

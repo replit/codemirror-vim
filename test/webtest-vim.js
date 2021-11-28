@@ -1,6 +1,6 @@
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
-import { CodeMirror, Vim, vim} from ".."
-import {html} from "@codemirror/lang-html"
+import { CodeMirror, Vim, vim} from "../src/index"
+import {xml} from "@codemirror/lang-xml"
 import {javascript} from "@codemirror/lang-javascript"
 import ist from "ist";
 import tests from "./vim_test.js"
@@ -13,13 +13,6 @@ import { keymap } from "@codemirror/view";
 var disabled = {
     "vim_ex_set_filetype": 1,
     "vim_ex_set_filetype_null": 1,
-    "vim_dat_open_tag": 1,
-    "vim_dat_noop": 1,
-    "vim_dat_inside_tag": 1,
-    "vim_dat_close_tag": 1,
-    "vim_dit_open_tag": 1,
-    "vim_dit_inside_tag": 1,
-    "vim_dit_close_tag": 1,
 
     "vim_ex_global_substitute_join": 1,
     "vim_ex_global_substitute_split": 1,
@@ -58,7 +51,7 @@ describe("Vim extension", () => {
             extensions: [
                 vim({}),
                 basicSetup,
-                javascript(),
+                options.mode == "xml" ? xml() : javascript(),
                 EditorState.tabSize.of(options.tabSize || 4),
                 indentUnit.of(options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)),
                 // keymap.of([indentWithTab]),

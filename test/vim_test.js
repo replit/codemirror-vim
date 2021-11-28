@@ -1318,13 +1318,12 @@ testVim('=', function(cm, vim, helpers) {
   eq(expectedValue, cm.getValue());
 }, { value: '   word1\n  word2\n  word3', indentUnit: 2 });
 
-// Edit tests - configureCm is an optional argument that gives caller
-// access to the cm object.
-function testEdit(name, before, pos, edit, after, configureCm) {
+
+// Edit tests
+function testEdit(name, before, pos, edit, after, opts) {
+  if (!opts) opts = {};
+  opts.value = before;
   return testVim(name, function(cm, vim, helpers) {
-             if (configureCm) {
-               configureCm(cm);
-             }
              var ch = before.search(pos)
              var line = before.substring(0, ch).split('\n').length - 1;
              if (line) {
@@ -1333,7 +1332,7 @@ function testEdit(name, before, pos, edit, after, configureCm) {
              cm.setCursor(line, ch);
              helpers.doKeys.apply(this, edit.split(''));
              eq(after, cm.getValue());
-           }, {value: before});
+           }, opts);
 }
 
 // These Delete tests effectively cover word-wise Change, Visual & Yank.
@@ -1431,24 +1430,24 @@ testEdit('da>_middle_spc', 'a\t<\n\tbar\n>b', /r/, 'da>', 'a\tb');
 
 // deleting tag objects
 testEdit('dat_noop', '<outer><inner>hello</inner></outer>', /n/, 'dat', '<outer><inner>hello</inner></outer>');
-testEdit('dat_open_tag', '<outer><inner>hello</inner></outer>', /n/, 'dat', '<outer></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dat_open_tag', '<outer><inner>hello</inner></outer>', /n/, 'dat', '<outer></outer>', {
+  mode: 'xml'
 });
-testEdit('dat_inside_tag', '<outer><inner>hello</inner></outer>', /l/, 'dat', '<outer></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dat_inside_tag', '<outer><inner>hello</inner></outer>', /l/, 'dat', '<outer></outer>', {
+  mode: 'xml'
 });
-testEdit('dat_close_tag', '<outer><inner>hello</inner></outer>', /\//, 'dat', '<outer></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dat_close_tag', '<outer><inner>hello</inner></outer>', /\//, 'dat', '<outer></outer>', {
+  mode: 'xml'
 });
 
-testEdit('dit_open_tag', '<outer><inner>hello</inner></outer>', /n/, 'dit', '<outer><inner></inner></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dit_open_tag', '<outer><inner>hello</inner></outer>', /n/, 'dit', '<outer><inner></inner></outer>', {
+  mode: 'xml'
 });
-testEdit('dit_inside_tag', '<outer><inner>hello</inner></outer>', /l/, 'dit', '<outer><inner></inner></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dit_inside_tag', '<outer><inner>hello</inner></outer>', /l/, 'dit', '<outer><inner></inner></outer>', {
+  mode: 'xml'
 });
-testEdit('dit_close_tag', '<outer><inner>hello</inner></outer>', /\//, 'dit', '<outer><inner></inner></outer>', function(cm) {
-  cm.setOption('mode', 'xml');
+testEdit('dit_close_tag', '<outer><inner>hello</inner></outer>', /\//, 'dit', '<outer><inner></inner></outer>', {
+  mode: 'xml'
 });
 
 function testSelection(name, before, pos, keys, sel) {

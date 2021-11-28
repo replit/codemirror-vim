@@ -1,5 +1,5 @@
 import { 
-  EditorSelection, Text, MapMode, ChangeDesc, 
+  EditorSelection, Text, MapMode, ChangeDesc, EditorState, 
 } from "@codemirror/state"
 
 import {StringStream} from "@codemirror/stream-parser"
@@ -12,7 +12,7 @@ import {
 } from "@codemirror/commands"
 import {foldCode} from "@codemirror/fold"
 import * as history from "@codemirror/history"
-import { indentUnit, ensureSyntaxTree } from "@codemirror/language"
+import { indentUnit, ensureSyntaxTree, syntaxTree } from "@codemirror/language"
 
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
@@ -183,6 +183,9 @@ export class CodeMirror {
     CodeMirror.prototype[name] = fn;
   };
 
+  static findMatchingTag = findMatchingTag;
+  static findEnclosingTag = findEnclosingTag;
+  
   // --------------------------
   cm6: EditorView
   state: {
@@ -379,11 +382,11 @@ export class CodeMirror {
     var offset = indexFromPos(state.doc, pos);
     var m = matchBrackets(state, offset + 1, -1)
     if (m && m.end) {
-      return { to: m && posFromIndex(state.doc, m.end.from) };
+      return { to: posFromIndex(state.doc, m.end.from) };
     } 
-    m = matchBrackets(this.cm6.state, offset, 1)
+    m = matchBrackets(state, offset, 1)
     if (m && m.end) {
-      return { to: m && posFromIndex(state.doc, m.end.from) };
+      return { to: posFromIndex(state.doc, m.end.from) };
     } 
     return { to: undefined };
   };
@@ -855,6 +858,52 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1|1, style: any, confi
   return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
 }
 
+function findMatchingTag(cm: CodeMirror, pos: Pos) {
+  var state = cm.cm6.state;
+  var offset = cm.indexFromPos(pos)
+  var doc = state.doc;
+  var m = matchBrackets(state, offset + 1, -1, {brackets: "\n\n"})
+  if (m) {
+    if (!m.end || !m.start) return;
+    return { 
+      open: convertRange(state.doc, m.end), 
+      close: convertRange(state.doc, m.start), 
+    };
+  } 
+  m = matchBrackets(state, offset, 1, {brackets: "\n\n"})
+  if (m) {
+    if (!m.end || !m.start) return;
+    return { 
+      open: convertRange(state.doc, m.start), 
+      close: convertRange(state.doc, m.end), 
+    };
+  }
+}
+
+function convertRange(doc: Text, cm6Range: {from: number, to: number}) {
+  return {
+    from: posFromIndex(doc, cm6Range.from),
+    to: posFromIndex(doc, cm6Range.to)
+  }
+}
+
+function findEnclosingTag(cm: CodeMirror, pos: Pos) {
+  var state = cm.cm6.state;
+  var offset = cm.indexFromPos(pos)
+  var text = state.sliceDoc(0, offset);
+  var i = offset;
+  debugger
+  while (i > 0) {
+    var m = matchBrackets(state, i, 1, {brackets: "\n\n"})
+    if (m && m.start && m.end) {
+      return { 
+        open: convertRange(state.doc, m.start), 
+        close: convertRange(state.doc, m.end), 
+      };
+    }
+    i = text.lastIndexOf(">", i - 1)
+  }
+}
 
 
 class Marker {

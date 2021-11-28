@@ -1,18 +1,17 @@
 import {initVim} from "./vim"
 import { CodeMirror } from "./cm_adapter"
 
-const Vim = initVim(CodeMirror)
-
 import {DrawSelectionPlugin, hideNativeSelection} from "./draw-selection"
-
 
 import { Extension } from "@codemirror/state"
 import { ViewPlugin, PluginValue, ViewUpdate } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
 
-
 import {showPanel} from "@codemirror/panel"
 import {StateField, StateEffect} from "@codemirror/state"
+
+const Vim = initVim(CodeMirror)
+
  
 
 const vimStyle = EditorView.theme({

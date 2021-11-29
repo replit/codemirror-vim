@@ -11,11 +11,6 @@
     "editor",
     "code"
   ],
-  "author": {
-    "name": "Marijn Haverbeke",
-    "email": "marijnh@gmail.com",
-    "url": "http://marijnhaverbeke.nl"
-  },
   "type": "module",
   "main": "dist/index.cjs",
   "exports": {

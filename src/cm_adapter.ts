@@ -177,10 +177,11 @@ export class CodeMirror {
   static signal = signal;
 
   // --------------------------
-  openDialog!: Function;
-  openNotification!: Function;
-  static defineExtension = function (name: "openDialog"|"openNotification", fn: Function) {
-    CodeMirror.prototype[name] = fn;
+  openDialog(template: Element, callback: Function, options: any) {
+    openDialog(this, template, callback, options);
+  };
+  openNotification(template: Node, options: NotificationOptions) {
+    openNotification(this, template, options);
   };
 
   static findMatchingTag = findMatchingTag;
@@ -539,7 +540,7 @@ export class CodeMirror {
       this.cm6.scrollDOM.scrollTop = y
   };
   scrollInfo () { return 0; };
-  scrollIntoView(pos: Pos, margin: number) {
+  scrollIntoView(pos?: Pos, margin?: number) {
     this.cm6.dispatch({}, { scrollIntoView: true, userEvent: "scroll" });
   };
 
@@ -704,7 +705,7 @@ export class CodeMirror {
 
 /************* dialog *************/
 
-(function () {
+ 
   function dialogDiv(cm: CodeMirror, template: Node, bottom?: boolean) {
     var dialog = document.createElement("div");
     dialog.appendChild(template);
@@ -717,13 +718,12 @@ export class CodeMirror {
     cm.state.currentNotificationClose = newVal;
   }
   interface NotificationOptions { bottom?: boolean, duration?: number }
-  CodeMirror.defineExtension("openNotification", function(this: CodeMirror, template: Node, options: NotificationOptions) {
-    closeNotification(this, close);
-    var dialog = dialogDiv(this, template, options && options.bottom);
+  function openNotification(cm: CodeMirror, template: Node, options: NotificationOptions) {
+    closeNotification(cm, close);
+    var dialog = dialogDiv(cm, template, options && options.bottom);
     var closed = false;
     var doneTimer: number;
     var duration = options && typeof options.duration !== "undefined" ? options.duration : 5000;
-    var cm = this;
 
     function close() {
       if (closed) return;
@@ -744,7 +744,7 @@ export class CodeMirror {
       doneTimer = setTimeout(close, duration);
 
     return close;
-  });
+  }
 
   
   function showDialog(cm: CodeMirror, dialog: Element) {
@@ -770,8 +770,7 @@ export class CodeMirror {
     }
   }
 
-  CodeMirror.defineExtension("openDialog", function (this: CodeMirror, template: Element, callback: Function, options: any) {
-    var me = this;
+  function openDialog(me: CodeMirror, template: Element, callback: Function, options: any) {
     if (!options) options = {};
 
     closeNotification(me, undefined);
@@ -828,8 +827,7 @@ export class CodeMirror {
       inp.focus();
     }
     return close;
-  })
-})();
+  } 
 
 var matching: any = {"(": ")>", ")": "(<", "[": "]>", "]": "[<", "{": "}>", "}": "{<", "<": ">>", ">": "<<"};
 
@@ -868,7 +866,6 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1|1, style: any, confi
 function findMatchingTag(cm: CodeMirror, pos: Pos) {
   var state = cm.cm6.state;
   var offset = cm.indexFromPos(pos)
-  var doc = state.doc;
   var m = matchBrackets(state, offset + 1, -1, {brackets: "\n\n"})
   if (m) {
     if (!m.end || !m.start) return;

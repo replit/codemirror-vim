@@ -160,6 +160,7 @@ export class CodeMirror {
     var name = '';
     if (e.ctrlKey) { name += 'C-'; }
     if (e.altKey) { name += 'A-'; }
+    if (e.metaKey) { name += 'M-'; }
     if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }
   
     name += key;

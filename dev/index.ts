@@ -21,9 +21,9 @@ new EditorView({
   parent: document.querySelector('#editor'),
 });
 
-`
+`;
 
-new EditorView({
+(window as any)._view = new EditorView({
   state: EditorState.create({
     doc,
     extensions: [vim(), basicSetup, javascript()],

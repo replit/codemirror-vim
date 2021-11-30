@@ -1,7 +1,7 @@
 import {initVim} from "./vim"
 import { CodeMirror } from "./cm_adapter"
 
-import {DrawSelectionPlugin, hideNativeSelection} from "./draw-selection"
+import {BlockCursorPlugin, hideNativeSelection} from "./block-cursor"
 
 import { Extension } from "@codemirror/state"
 import { ViewPlugin, PluginValue, ViewUpdate } from "@codemirror/view"
@@ -52,7 +52,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   public view: EditorViewExtended;
   public cm: CodeMirror;
   public status = ""
-  drawSelection: DrawSelectionPlugin
+  blockCursor: BlockCursorPlugin
   constructor(view: EditorView) {
     this.view = view as EditorViewExtended
     var cm = this.cm = new CodeMirror(view);
@@ -60,16 +60,16 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
 
     this.view.cm = this.cm
 
-    this.drawSelection = new DrawSelectionPlugin(view, cm)
+    this.blockCursor = new BlockCursorPlugin(view, cm)
     this.updateClass()
 
     this.cm.on('vim-command-done', () => {
       this.status = ""
       if (cm.state.vim) cm.state.vim.status = "";
-      this.drawSelection.scheduleRedraw();
+      this.blockCursor.scheduleRedraw();
     });
     this.cm.on('vim-mode-change', () => {
-      this.drawSelection.scheduleRedraw();
+      this.blockCursor.scheduleRedraw();
       this.updateClass()
     });
     
@@ -99,7 +99,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
       if (result || !cm.state.vim.insertMode) {
         e.preventDefault()
         e.stopPropagation()
-        this.drawSelection.scheduleRedraw();
+        this.blockCursor.scheduleRedraw();
       }
       cm.state.vim.status = this.status;
     }
@@ -124,7 +124,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
       this.cm.onBeforeEndOperation();
     }
 
-    this.drawSelection.update(update);
+    this.blockCursor.update(update);
     // debugger
     this.dom.textContent = this.status
   }
@@ -139,7 +139,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   destroy() {
     this.cm.state.vim = null;
     this.updateClass()
-    this.drawSelection.destroy();
+    this.blockCursor.destroy();
     this.dom.remove()
     this.view.contentDOM.removeEventListener("keydown", this.listener as EventListener, true)
   }

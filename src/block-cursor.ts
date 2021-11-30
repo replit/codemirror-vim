@@ -35,7 +35,7 @@ class Piece {
   }
 }
 
-export class DrawSelectionPlugin {
+export class BlockCursorPlugin {
   rangePieces: readonly Piece[] = []
   cursors: readonly Piece[] = []
   measureReq: {read: () => Measure, write: (value: Measure) => void}

@@ -284,7 +284,7 @@ export class CodeMirror {
       selection: EditorSelection.create(ranges, 0)
     })
     if (options && options.origin == '*mouse') {
-      // this.onBeforeEndOperation();
+      this.onBeforeEndOperation();
     }
   };
   getLine(row:number): string {
@@ -625,11 +625,18 @@ export class CodeMirror {
   };
   onBeforeEndOperation() {
     var op = this.curOp;
+    var scrollIntoView = false;
     if (op) {
       if (op.change) { signalTo(op.changeHandlers, this, op.change); }
-      if (op && op.cursorActivity) { signalTo(op.cursorActivityHandlers, this, null); }
+      if (op && op.cursorActivity) { 
+        signalTo(op.cursorActivityHandlers, this, null);
+        if (op.isVimOp)
+          scrollIntoView = true;
+      }
       this.curOp = null;
     }
+    if (scrollIntoView)
+      this.scrollIntoView();
   };
   moveH(increment: number, unit: string) {
     if (unit == 'char') {

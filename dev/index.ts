@@ -1,5 +1,5 @@
 import { basicSetup, EditorState } from '@codemirror/basic-setup';
-import { EditorView } from '@codemirror/view';
+import { EditorView, highlightActiveLine } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { vim } from "../src/"
 
@@ -26,7 +26,7 @@ new EditorView({
 (window as any)._view = new EditorView({
   state: EditorState.create({
     doc,
-    extensions: [vim(), basicSetup, javascript()],
+    extensions: [vim(), basicSetup, javascript(), highlightActiveLine() ],
   }),
   parent: document.querySelector('#editor'),
 });

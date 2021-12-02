@@ -10,8 +10,10 @@ type Measure = {cursors: Piece[]}
 
 class Piece {
   constructor(readonly left: number, readonly top: number,
-              readonly width: number, readonly height: number,
-              readonly className: string) {}
+              readonly height: number,
+              readonly className: string,
+              readonly letter: string,
+              readonly partial: boolean) {}
 
   draw() {
     let elt = document.createElement("div")
@@ -23,10 +25,12 @@ class Piece {
   adjust(elt: HTMLElement) {
     elt.style.left = this.left + "px"
     elt.style.top = this.top + "px"
-    if (this.width >= 0) elt.style.width = this.width + "px"
     elt.style.height = this.height + "px"
+    elt.style.lineHeight = this.height + "px"
+    elt.style.color = this.partial ? "transparent" : ""
 
     elt.className = this.className
+    elt.textContent = this.letter
   }
 
   eq(p: Piece) {
@@ -134,12 +138,12 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
   if (!pos) return null
   let base = getBase(view)
   if (fatCursor) {
-    let nextPos = head < view.state.doc.length && view.coordsAtPos(head + 1, cursor.assoc || 1)
-    let w = nextPos ? nextPos.left - pos.left : 0;
-    if (!w) w = view.defaultCharacterWidth;
+    let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1) 
+    if (!letter || letter == "\n"  || letter == "\r") letter = "\xa0"
     let h =  (pos.bottom - pos.top) 
-    return new Piece(pos.left - base.left, pos.top - base.top + h * (1-hCoeff), w, h * hCoeff,
-                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary")
+    return new Piece(pos.left - base.left, pos.top - base.top + h * (1-hCoeff), h * hCoeff,
+                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
+                     letter, hCoeff != 1)
   } else {
     return null;
   }

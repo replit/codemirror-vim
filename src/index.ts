@@ -22,6 +22,7 @@ const vimStyle = EditorView.theme({
     position: "absolute",
     background: "#ff9696",
     border: "none",
+    whiteSpace: "pre",
   },
   "&:not(.cm-focused) .cm-fat-cursor": {
     background: "none",

@@ -501,17 +501,18 @@ export class CodeMirror {
   };  
   findPosV(start: Pos, amount: number, unit: "page"|"line", goalColumn?:number) {
     var doc = this.cm6.state.doc;
+    let pixels = 0;
+    
     if (unit == 'page') {
-      // Todo pagedown
-      console.error(unit)
+      pixels = this.cm6.dom.clientHeight
+    } else if (unit == 'line') {
+      pixels = this.cm6.defaultLineHeight
     }
-    if (unit == 'line') {
-      var startOffset = indexFromPos(doc, start);
-      var range = EditorSelection.range(startOffset, startOffset, goalColumn);
-      var newSelection = this.cm6.moveVertically(range, amount > 0, Math.abs(amount));
-      var newOffset = newSelection.head;
-      return posFromIndex(doc, newOffset);
-    } 
+    var startOffset = indexFromPos(doc, start);
+    var range = EditorSelection.range(startOffset, startOffset, goalColumn);
+    var newSelection = this.cm6.moveVertically(range, amount > 0, pixels * Math.abs(amount));
+    var newOffset = newSelection.head;
+    return posFromIndex(doc, newOffset);
   };
   charCoords(pos: Pos, mode: "div"| "local") {
     var rect = this.cm6.contentDOM.getBoundingClientRect();

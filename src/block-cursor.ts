@@ -106,7 +106,17 @@ export class BlockCursorPlugin {
     "& ::selection": {backgroundColor: "transparent !important"},
     "&::selection": {backgroundColor: "transparent !important"},
     caretColor: "transparent !important",
-  }
+  },
+  ".cm-fat-cursor": {
+    position: "absolute",
+    background: "#ff9696",
+    border: "none",
+    whiteSpace: "pre",
+  },
+  "&:not(.cm-focused) .cm-fat-cursor": {
+    background: "none",
+    outline: "solid 1px #ff9696"
+  },
 }
 
 export const hideNativeSelection = Prec.override(EditorView.theme(themeSpec))

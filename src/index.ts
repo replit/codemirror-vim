@@ -18,21 +18,16 @@ const vimStyle = EditorView.theme({
   ".cm-vimMode .cm-cursorLayer:not(.cm-vimCursorLayer)": {
     display: "none",
   },
-  ".cm-selectionLayer": {
-    zIndex: -2,
-  },
-  ".cm-cursorLayer": {
-    zIndex: -1,
-  },
-  ".cm-activeLine": {
-    background: "transparent" // bug activeline hides markers
-  },
   ".cm-fat-cursor": {
     position: "absolute",
     background: "#ff9696",
     border: "none",
+    whiteSpace: "pre",
   },
-  
+  "&:not(.cm-focused) .cm-fat-cursor": {
+    background: "none",
+    outline: "solid 1px #ff9696"
+  },
   ".cm-vim-panel": {
     padding: "5px 10px",
     backgroundColor: "#fffa8f",

@@ -4,13 +4,13 @@ import {EditorView} from "@codemirror/view"
 import {Direction} from "@codemirror/view"
 import { CodeMirror } from "."
 
-
-
 type Measure = {cursors: Piece[]}
 
 class Piece {
   constructor(readonly left: number, readonly top: number,
               readonly height: number,
+              readonly fontFamily: string,
+              readonly fontSize: string,
               readonly className: string,
               readonly letter: string,
               readonly partial: boolean) {}
@@ -27,15 +27,17 @@ class Piece {
     elt.style.top = this.top + "px"
     elt.style.height = this.height + "px"
     elt.style.lineHeight = this.height + "px"
-    elt.style.color = this.partial ? "transparent" : ""
+    elt.style.fontFamily = this.fontFamily;
+    elt.style.fontSize = this.fontSize;
+    elt.style.color = this.partial ? "transparent" : "";
 
-    elt.className = this.className
-    elt.textContent = this.letter
+    elt.className = this.className;
+    elt.textContent = this.letter;
   }
 
   eq(p: Piece) {
-    return this.left == p.left && this.top == p.top && this.width == p.width && this.height == p.height &&
-      this.className == p.className
+    return this.left == p.left && this.top == p.top && this.height == p.height &&
+        this.fontFamily == p.fontFamily && this.fontSize == p.fontSize && this.className == p.className;
   }
 }
 
@@ -130,28 +132,37 @@ function getBase(view: EditorView) {
 }
 
 function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange, primary: boolean): Piece | null {
-  let head = cursor.head
-  var fatCursor = false
-  var hCoeff = 1;
-  var vim = cm.state.vim;
+  let head = cursor.head;
+  let fatCursor = false;
+  let hCoeff = 1;
+  let vim = cm.state.vim;
   if (vim && (!vim.insertMode || cm.state.overwrite)) {
-    fatCursor = true
+    fatCursor = true;
     if (vim.visualBlock && !primary)
       return null;
     if (cursor.anchor < cursor.head) head--;
-    if (cm.state.overwrite) hCoeff = 0.2
-    else if (vim.status) hCoeff = 0.5
+    if (cm.state.overwrite) hCoeff = 0.2;
+    else if (vim.status) hCoeff = 0.5;
   }
 
-  
-  let pos = view.coordsAtPos(head, cursor.assoc || 1)
-  if (!pos) return null
-  let base = getBase(view)
   if (fatCursor) {
-    let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1) 
-    if (!letter || letter == "\n"  || letter == "\r") letter = "\xa0"
-    let h =  (pos.bottom - pos.top) 
-    return new Piece(pos.left - base.left, pos.top - base.top + h * (1-hCoeff), h * hCoeff,
+    let pos = view.coordsAtPos(head, cursor.assoc || 1);
+    if (!pos) return null;
+    let base = getBase(view);
+    let domAtPos = view.domAtPos(head);
+    let node = domAtPos ? domAtPos.node : view.contentDOM;
+    if (!(node instanceof HTMLElement)) {
+      node = node.parentNode;
+    }
+    let style = getComputedStyle(node as HTMLElement);
+    let fontFamily = style.fontFamily;
+    let fontSize = style.fontSize;
+
+    let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
+    if (!letter || letter == "\n" || letter == "\r") letter = "\xa0";
+    let h = (pos.bottom - pos.top);
+    return new Piece(pos.left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
+        fontFamily, fontSize,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)
   } else {

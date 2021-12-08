@@ -81,7 +81,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
           CodeMirror.commands.cursorCharLeft(cm)
         }
       }
-      if (result || !cm.state.vim.insertMode) {
+      if (result) {
         e.preventDefault()
         e.stopPropagation()
         this.blockCursor.scheduleRedraw();

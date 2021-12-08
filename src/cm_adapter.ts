@@ -179,10 +179,10 @@ export class CodeMirror {
 
   // --------------------------
   openDialog(template: Element, callback: Function, options: any) {
-    openDialog(this, template, callback, options);
+    return openDialog(this, template, callback, options);
   };
   openNotification(template: Node, options: NotificationOptions) {
-    openNotification(this, template, options);
+    return openNotification(this, template, options);
   };
 
   static findMatchingTag = findMatchingTag;

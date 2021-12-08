@@ -11,6 +11,8 @@ class Piece {
               readonly height: number,
               readonly fontFamily: string,
               readonly fontSize: string,
+              readonly fontWeight: string,
+              readonly color: string,
               readonly className: string,
               readonly letter: string,
               readonly partial: boolean) {}
@@ -29,7 +31,8 @@ class Piece {
     elt.style.lineHeight = this.height + "px"
     elt.style.fontFamily = this.fontFamily;
     elt.style.fontSize = this.fontSize;
-    elt.style.color = this.partial ? "transparent" : "";
+    elt.style.fontWeight = this.fontWeight;
+    elt.style.color = this.partial ? "transparent" : this.color;
 
     elt.className = this.className;
     elt.textContent = this.letter;
@@ -37,7 +40,9 @@ class Piece {
 
   eq(p: Piece) {
     return this.left == p.left && this.top == p.top && this.height == p.height &&
-        this.fontFamily == p.fontFamily && this.fontSize == p.fontSize && this.className == p.className;
+        this.fontFamily == p.fontFamily && this.fontSize == p.fontSize &&
+        this.fontWeight == p.fontWeight && this.color == p.color &&
+        this.className == p.className;
   }
 }
 
@@ -151,18 +156,19 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);
     let node = domAtPos ? domAtPos.node : view.contentDOM;
+    while (domAtPos && domAtPos.node instanceof HTMLElement) {
+      node = domAtPos.node;
+      domAtPos = {node: domAtPos.node.childNodes[domAtPos.offset], offset: 0};
+    }
     if (!(node instanceof HTMLElement)) {
       node = node.parentNode;
     }
     let style = getComputedStyle(node as HTMLElement);
-    let fontFamily = style.fontFamily;
-    let fontSize = style.fontSize;
-
     let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
     if (!letter || letter == "\n" || letter == "\r") letter = "\xa0";
     let h = (pos.bottom - pos.top);
     return new Piece(pos.left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
-        fontFamily, fontSize,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)
   } else {

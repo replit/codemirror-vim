@@ -12,8 +12,6 @@ import {StateField, StateEffect} from "@codemirror/state"
 
 const Vim = initVim(CodeMirror)
 
- 
-
 const vimStyle = EditorView.theme({
   ".cm-vimMode .cm-cursorLayer:not(.cm-vimCursorLayer)": {
     display: "none",
@@ -40,7 +38,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   blockCursor: BlockCursorPlugin
   constructor(view: EditorView) {
     this.view = view as EditorViewExtended
-    var cm = this.cm = new CodeMirror(view);
+    const cm = this.cm = new CodeMirror(view);
     Vim.enterVimMode(this.cm);
 
     this.view.cm = this.cm
@@ -66,10 +64,10 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     });
 
     this.listener = (e: KeyboardEvent) => {
-      var key = CodeMirror.vimKey(e)
+      const key = CodeMirror.vimKey(e)
       if (!key) return
       this.status += key
-      var result = Vim.handleKey(this.cm, key, "user");
+      let result = Vim.handleKey(this.cm, key, "user");
 
       // insert mode
       if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
@@ -114,7 +112,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     this.dom.textContent = this.status
   }
   updateClass() {
-    var state = this.cm.state;
+    const state = this.cm.state;
     if (!state.vim || (state.vim.insertMode && !state.overwrite))
       this.view.scrollDOM.classList.remove("cm-vimMode")
     else 
@@ -127,11 +125,9 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     this.blockCursor.destroy();
     this.dom.remove()
     this.view.contentDOM.removeEventListener("keydown", this.listener as EventListener, true)
+    delete this.view.cm;
   }
 })
-
- 
-
 
 const showVimPanel = StateEffect.define<boolean>()
 
@@ -149,7 +145,7 @@ const vimPanelState = StateField.define<boolean>({
 function createVimPanel(view: EditorView) {
   let dom = document.createElement("div")
   dom.className = "cm-vim-panel"
-  var cm = (view as EditorViewExtended).cm;
+  let cm = (view as EditorViewExtended).cm;
   if (cm.state.dialog) {
     dom.appendChild(cm.state.dialog)
   }

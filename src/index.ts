@@ -31,11 +31,10 @@ type EditorViewExtended = EditorView&{cm:CodeMirror}
 
 const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   private dom: HTMLElement;
-  public listener:Function;
   public view: EditorViewExtended;
   public cm: CodeMirror;
   public status = ""
-  blockCursor: BlockCursorPlugin
+  blockCursor: BlockCursorPlugin 
   constructor(view: EditorView) {
     this.view = view as EditorViewExtended
     const cm = this.cm = new CodeMirror(view);
@@ -63,30 +62,6 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
       })
     });
 
-    this.listener = (e: KeyboardEvent) => {
-      const key = CodeMirror.vimKey(e)
-      if (!key) return
-      this.status += key
-      let result = Vim.handleKey(this.cm, key, "user");
-
-      // insert mode
-      if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
-        if (key.length == 1 && e.key && !/\n/.test(e.key)) {
-          result = true;
-          cm.overWriteSelection(e.key)
-        } else if (e.key == "Backspace") {
-          result = true;
-          CodeMirror.commands.cursorCharLeft(cm)
-        }
-      }
-      if (result) {
-        e.preventDefault()
-        e.stopPropagation()
-        this.blockCursor.scheduleRedraw();
-      }
-      cm.state.vim.status = this.status;
-    }
-    view.contentDOM.addEventListener("keydown", this.listener as EventListener, true)
     this.dom = view.dom.appendChild(document.createElement("div"))
     this.dom.style.cssText =
       "position: absolute; inset-block-start: 2px; inset-inline-end: 5px"
@@ -108,7 +83,6 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     }
 
     this.blockCursor.update(update);
-    // debugger
     this.dom.textContent = this.status
   }
   updateClass() {
@@ -124,8 +98,36 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     this.updateClass()
     this.blockCursor.destroy();
     this.dom.remove()
-    this.view.contentDOM.removeEventListener("keydown", this.listener as EventListener, true)
-    delete this.view.cm;
+    delete (this.view as any).cm;
+  }
+}, {
+  eventHandlers: {
+    keydown: function name(e: KeyboardEvent, view: EditorView) {
+      const key = CodeMirror.vimKey(e)
+      const cm = this.cm
+      if (!key) return
+      this.status += key
+      let result = Vim.handleKey(cm, key, "user");
+
+      // insert mode
+      if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
+        if (key.length == 1 && e.key && !/\n/.test(e.key)) {
+          result = true;
+          cm.overWriteSelection(e.key)
+        } else if (e.key == "Backspace") {
+          result = true;
+          CodeMirror.commands.cursorCharLeft(cm)
+        }
+      }
+      if (result) {
+        e.preventDefault()
+        e.stopPropagation()
+        this.blockCursor.scheduleRedraw();
+      }
+      cm.state.vim.status = this.status;
+
+      return !!result;
+    }
   }
 })
 

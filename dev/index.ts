@@ -45,8 +45,10 @@ function updateView() {
     state: EditorState.create({
       doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
       extensions: [
+        // make sure vim is included before all other keymaps
         vim(), 
-        basicSetup, 
+        // include the default keymap and all other keymaps you want to use in insert mode
+        basicSetup,
         htmlCheckbox.checked ? xml(): javascript(), 
         highlightActiveLine(),
         wrapCheckbox.checked && EditorView.lineWrapping,

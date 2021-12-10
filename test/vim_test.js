@@ -212,7 +212,8 @@ function testVim(name, run, opts, expectedFail) {
         return CodeMirror.Vim.getRegisterController();
       },
       getNotificationText: function() {
-        return cm.getWrapperElement().querySelector(".cm-vim-message").textContent;
+        var container = cm.getWrapperElement().querySelector(".cm-vim-message");
+        return container && container.textContent;
       }
     }
     CodeMirror.Vim.resetVimGlobalState_();
@@ -2900,7 +2901,9 @@ testVim('macro_insert', function(cm, vim, helpers) {
   helpers.doKeys('q', 'a', '0', 'i');
   helpers.doKeys('foo')
   helpers.doKeys('<Esc>');
+  eq(helpers.getNotificationText(), 'recording @a');
   helpers.doKeys('q', '@', 'a');
+  eq(helpers.getNotificationText(), null);
   eq('foofoo', cm.getValue());
 }, { value: ''});
 testVim('macro_insert_repeat', function(cm, vim, helpers) {

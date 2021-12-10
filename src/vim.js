@@ -34,15 +34,16 @@
  *  9. Ex command implementations.
  */
 
-
 export function initVim(CodeMirror) {
+
+  var Pos = CodeMirror.Pos;
 
   function transformCursor(cm, range) {
     var vim = cm.state.vim;
     if (!vim || vim.insertMode) return range.head;
     var head = vim.sel.head;
     if (!head)  return range.head;
-    
+
     if (vim.visualBlock) {
       if (range.head.line != head.line) {
         return;
@@ -52,10 +53,10 @@ export function initVim(CodeMirror) {
       if (range.head.line == head.line && range.head.ch != head.ch)
         return new Pos(range.head.line, range.head.ch - 1);
     }
-    
+
     return range.head;
   }
-  
+
   var defaultKeymap = [
     // Key to key mapping. This goes first to make it possible to override
     // existing mappings.
@@ -76,6 +77,8 @@ export function initVim(CodeMirror) {
     { keys: '<C-c>', type: 'keyToKey', toKeys: '<Esc>' },
     { keys: '<C-[>', type: 'keyToKey', toKeys: '<Esc>', context: 'insert' },
     { keys: '<C-c>', type: 'keyToKey', toKeys: '<Esc>', context: 'insert' },
+    { keys: '<C-Esc>', type: 'keyToKey', toKeys: '<Esc>' }, // ipad keyboard sends C-Esc instead of C-[
+    { keys: '<C-Esc>', type: 'keyToKey', toKeys: '<Esc>', context: 'insert' },
     { keys: 's', type: 'keyToKey', toKeys: 'cl', context: 'normal' },
     { keys: 's', type: 'keyToKey', toKeys: 'c', context: 'visual'},
     { keys: 'S', type: 'keyToKey', toKeys: 'cc', context: 'normal' },
@@ -85,6 +88,7 @@ export function initVim(CodeMirror) {
     { keys: '<PageUp>', type: 'keyToKey', toKeys: '<C-b>' },
     { keys: '<PageDown>', type: 'keyToKey', toKeys: '<C-f>' },
     { keys: '<CR>', type: 'keyToKey', toKeys: 'j^', context: 'normal' },
+    { keys: '<Ins>', type: 'keyToKey', toKeys: 'i', context: 'normal'},
     { keys: '<Ins>', type: 'action', action: 'toggleOverwrite', context: 'insert' },
     // Motions
     { keys: 'H', type: 'motion', motion: 'moveToTopLine', motionArgs: { linewise: true, toJumplist: true }},
@@ -261,9 +265,6 @@ export function initVim(CodeMirror) {
     { name: 'global', shortName: 'g' }
   ];
 
-  var Pos = CodeMirror.Pos;
-
-   
     function enterVimMode(cm) {
       cm.setOption('disableInput', true);
       cm.setOption('showCursorWhenSelecting', false);
@@ -271,7 +272,6 @@ export function initVim(CodeMirror) {
       cm.on('cursorActivity', onCursorActivity);
       maybeInitVimState(cm);
       CodeMirror.on(cm.getInputField(), 'paste', getOnPasteFn(cm));
-      cm.options.$customCursor = transformCursor;
     }
 
     function leaveVimMode(cm) {
@@ -280,15 +280,12 @@ export function initVim(CodeMirror) {
       CodeMirror.off(cm.getInputField(), 'paste', getOnPasteFn(cm));
       cm.state.vim = null;
       if (highlightTimeout) clearTimeout(highlightTimeout);
-      cm.options.$customCursor = null;
     }
 
     function detachVimMap(cm, next) {
       if (this == CodeMirror.keyMap.vim) {
+        cm.options.$customCursor = null;
         CodeMirror.rmClass(cm.getWrapperElement(), "cm-fat-cursor");
-        if (cm.getOption("inputStyle") == "contenteditable" && document.body.style.caretColor != null) {
-          cm.getInputField().style.caretColor = "";
-        }
       }
 
       if (!next || next.attach != attachVimMap)
@@ -296,10 +293,9 @@ export function initVim(CodeMirror) {
     }
     function attachVimMap(cm, prev) {
       if (this == CodeMirror.keyMap.vim) {
+        if (cm.curOp) cm.curOp.selectionChanged = true;
+        cm.options.$customCursor = transformCursor;
         CodeMirror.addClass(cm.getWrapperElement(), "cm-fat-cursor");
-        if (cm.getOption("inputStyle") == "contenteditable" && document.body.style.caretColor != null) {
-          cm.getInputField().style.caretColor = "transparent";
-        }
       }
 
       if (!prev || prev.attach != attachVimMap)
@@ -634,8 +630,8 @@ export function initVim(CodeMirror) {
           register.clear();
           this.latestRegister = registerName;
           if (cm.openDialog) {
-            this.onRecordingDone = cm.openDialog(
-                document.createTextNode('(recording)['+registerName+']'), null, {bottom:true});
+            var template = dom('span', {class: 'cm-vim-message'}, 'recording @' + registerName);
+            this.onRecordingDone = cm.openDialog(template, null, {bottom:true});
           }
           this.isRecording = true;
         }
@@ -932,6 +928,7 @@ export function initVim(CodeMirror) {
           var match = commandDispatcher.matchCommand(mainKey, defaultKeymap, vim.inputState, context);
           if (match.type == 'none') { clearInputState(cm); return false; }
           else if (match.type == 'partial') { return true; }
+          else if (match.type == 'clear') { clearInputState(cm); return true; } // ace_patch
 
           vim.inputState.keyBuffer = '';
           keysMatcher = /^(\d*)(.*)$/.exec(keys);
@@ -1236,7 +1233,7 @@ export function initVim(CodeMirror) {
         }
         if (bestMatch.keys.slice(-11) == '<character>') {
           var character = lastChar(keys);
-          if (!character) return {type: 'none'};
+          if (!character || character.length > 1) return {type: 'clear'};
           inputState.selectedCharacter = character;
         }
         return {type: 'full', command: bestMatch};
@@ -3235,7 +3232,7 @@ export function initVim(CodeMirror) {
             fromCh = anchor.ch,
             bottom = Math.max(anchor.line, head.line),
             toCh = head.ch;
-        if (fromCh < toCh) { toCh += 1 } 
+        if (fromCh < toCh) { toCh += 1 }
         else { fromCh += 1 };
         var height = bottom - top + 1;
         var primary = head.line == top ? 0 : height - 1;
@@ -4178,7 +4175,6 @@ export function initVim(CodeMirror) {
       }
       return out.join('');
     }
-
 
     // Translates the replace part of a search and replace from ex (vim) syntax into
     // javascript form.  Similar to translateRegex, but additionally fixes back references
@@ -5704,12 +5700,12 @@ export function initVim(CodeMirror) {
           if (change instanceof InsertModeKey) {
             CodeMirror.lookupKey(change.keyName, 'vim-insert', keyHandler);
           } else if (typeof change == "string") {
-            cm.replaceSelection(change)
+            cm.replaceSelection(change);
           } else {
             var start = cm.getCursor();
             var end = offsetCursor(start, 0, change[0].length);
             cm.replaceRange(change[0], start, end);
-            cm.setCursor(end)
+            cm.setCursor(end);
           }
         }
       }
@@ -5722,5 +5718,4 @@ export function initVim(CodeMirror) {
 
   // Initialize Vim and make it available as an API.
   return vimApi;
-}
-// export {CodeMirror, vimApi as Vim};
+};

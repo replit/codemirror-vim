@@ -76,7 +76,7 @@ function signalTo(handlers: any, ...args: any[]) {
 var specialKey: any = {
   Return: 'CR', Backspace: 'BS', 'Delete': 'Del', Escape: 'Esc', Insert: 'Ins',
   ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
-  Enter: 'CR'
+  Enter: 'CR', ' ': 'Space'
 };
 var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1, CapsLock: 1 };
 
@@ -139,6 +139,8 @@ export class CodeMirror {
   static keyName = function (e: KeyboardEvent) {
     var key = e.key;
     if (ignoredKeys[key]) return;
+    if (key == "Escape") key = "Esc";
+    if (key == " ") key = "Space";
     if (key.length > 1) {
       key = key.replace(/Numpad|Arrow/, "");
     }
@@ -898,7 +900,6 @@ function findEnclosingTag(cm: CodeMirror, pos: Pos) {
   var offset = cm.indexFromPos(pos)
   var text = state.sliceDoc(0, offset);
   var i = offset;
-  debugger
   while (i > 0) {
     var m = matchBrackets(state, i, 1, {brackets: "\n\n"})
     if (m && m.start && m.end) {

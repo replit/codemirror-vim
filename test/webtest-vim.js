@@ -1,5 +1,5 @@
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
-import { CodeMirror, Vim, vim} from "../src/index"
+import { CodeMirror, Vim, vim} from ".."
 import {xml} from "@codemirror/lang-xml"
 import {javascript} from "@codemirror/lang-javascript"
 import ist from "ist";
@@ -22,6 +22,7 @@ var disabled = {
     "vim_scrollMotion": 1,
     
     "vim_gj_gk_clipping": 1, // TODO doesn't pass on selecnium
+    "vim_j_k_and_gj_gk": 1,
 };
 
 describe("Vim extension", () => {

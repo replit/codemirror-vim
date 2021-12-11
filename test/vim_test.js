@@ -333,6 +333,7 @@ testMotion('|_repeat', ['3', '|'], makeCursor(0, 2), makeCursor(0,4));
 testMotion('h', 'h', makeCursor(0, 0), word1.start);
 testMotion('h_repeat', ['3', 'h'], offsetCursor(word1.end, 0, -3), word1.end);
 testMotion('l', 'l', makeCursor(0, 1));
+testMotion('Space', 'Space', makeCursor(0, 1));
 testMotion('l_repeat', ['2', 'l'], makeCursor(0, 2));
 testMotion('j', 'j', offsetCursor(word1.end, 1, 0), word1.end);
 testMotion('j_repeat', ['2', 'j'], offsetCursor(word1.end, 2, 0), word1.end);
@@ -1940,10 +1941,12 @@ testVim('mark\'', function(cm, vim, helpers) {
   helpers.assertCursorAt(1, 1);
   // edits
   helpers.doKeys('g', 'I', '\n', '<Esc>', 'l');
+  var indent = /^\s*/.exec(cm.getLine(2))[0].length;
+  helpers.assertCursorAt(2, indent);
   helpers.doKeys('`', '`');
   helpers.assertCursorAt(7, 2);
   helpers.doKeys('`', '`');
-  helpers.assertCursorAt(2, 1);
+  helpers.assertCursorAt(2, indent);
 });
 testVim('mark.', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
@@ -3524,6 +3527,32 @@ testVim('Ty,;', function(cm, vim, helpers) {
   helpers.doKeys('y', ',', 'P');
   eq('01230123456789', cm.getValue());
 }, { value: '0123456789'});
+testVim('page_motions', function(cm, vim, helpers) {
+  var value = "x".repeat(200).split("").map((_, i)=>i).join("\n");
+  cm.setValue(value);
+  cm.refresh();
+  var lines = 10;
+  var textHeight = cm.defaultTextHeight();
+  cm.setSize(600, lines*textHeight);
+  cm.setCursor(100, 0);
+  cm.refresh();
+  helpers.doKeys('<C-u>');
+  helpers.assertCursorAt(95, 0);
+  helpers.doKeys('<C-u>');
+  helpers.assertCursorAt(90, 0);
+  helpers.doKeys('<C-d>');
+  helpers.doKeys('<C-d>');
+  helpers.assertCursorAt(100, 0);
+  cm.refresh();
+  helpers.doKeys('<C-f>');
+  cm.refresh();
+  helpers.assertCursorAt(110, 0);
+
+  helpers.doKeys('<C-b>');
+  cm.refresh();
+  helpers.assertCursorAt(100, 0);
+  eq(value, cm.getValue());
+});
 testVim('HML', function(cm, vim, helpers) {
   cm.refresh();
   var lines = 35;
@@ -4981,22 +5010,29 @@ var typeKey = function() {
     Backquote: [192, "`", "~"], Minus: [189, "-", "_"], Equal: [187, "=", "+"],
     BracketLeft: [219, "[", "{"], Backslash: [220, "\\", "|"], BracketRight: [221, "]", "}"],
     Semicolon: [186, ";", ":"], Quote: [222, "'", '"'], Comma: [188, ",", "<"],
-    Period: [190, ".", ">"], Slash: [191, "/", "?"], Space: [32, " "], NumpadAdd: [107, "+"],
+    Period: [190, ".", ">"], Slash: [191, "/", "?"], Space: [32, " ", " "], NumpadAdd: [107, "+"],
     NumpadDecimal: [110, "."], NumpadSubtract: [109, "-"], NumpadDivide: [111, "/"], NumpadMultiply: [106, "*"]
   };
   for (var i in specialKeys) {
     var key = specialKeys[i];
     printableKeys[i] = printableKeys[key[1]] = shiftedKeys[key[2]] = key[0];
     keyCodeToCode[key[0]] = i;
+    keyCodeToKey[key[0]] = key[1];
+    keyCodeToKey["s-" + key[0]] = key[2];
   }
   for (var i = 0; i < 10; i++) {
-    printableKeys[i] = shiftedKeys["!@#$%^&*()"[i]] = 48 + i;
+    var shifted = "!@#$%^&*()"[i];
+    printableKeys[i] = shiftedKeys[shifted] = 48 + i;
     keyCodeToCode[48 + i] = "Digit" + i;
+    keyCodeToKey[48 + i] = i.toString();
+    keyCodeToKey["s-" + (48 + i)] = shifted;
   }
-  for (var i = 65; i < 90; i++) {
+  for (var i = 65; i < 91; i++) {
     var chr = String.fromCharCode(i + 32);
     printableKeys[chr] = shiftedKeys[chr.toUpperCase()] = i;
     keyCodeToCode[i] = "Key" + chr.toUpperCase();
+    keyCodeToKey[i] = chr;
+    keyCodeToKey["s-" + i] = chr.toUpperCase();
   }
   for (var i = 1; i < 13; i++) {
     controlKeys["F" + i] = 111 + i;
@@ -5006,6 +5042,7 @@ var typeKey = function() {
     keyCodeToKey[controlKeys[i]] = i;
     keyCodeToCode[controlKeys[i]] = i;
   }
+  controlKeys["\t"] = controlKeys.Tab;
   controlKeys["\n"] = controlKeys.Return;
   controlKeys.Del = controlKeys.Delete;
   controlKeys.Esc = controlKeys.Escape;
@@ -5039,6 +5076,10 @@ var typeKey = function() {
       isTextInput = false;
     } else if (shift) {
       text = text.toUpperCase();
+    } 
+    
+    if (keyCodeToKey[keyCode] != text && keyCodeToKey["s-" + keyCode] == text) {
+      shift = true;
     }
 
     var target = document.activeElement;
@@ -5065,11 +5106,11 @@ var typeKey = function() {
       data.charCode = text.charCodeAt(0);
       data.keyCode = type == "keypress" ? data.charCode : keyCode;
       data.which = data.keyCode;
-      data.shiftKey = shift || shiftedKeys[text];
+      data.shiftKey = shift || (shiftedKeys[text] && !printableKeys[text]);
       data.ctrlKey = ctrl;
       data.altKey = alt;
       data.metaKey = meta;
-      data.key = text || keyCodeToKey[keyCode];
+      data.key = keyCodeToKey[(shift ? "s-" : "") + keyCode] || console.error(text);
       data.code = keyCodeToCode[keyCode];
       var event = new KeyboardEvent(type, data);
 

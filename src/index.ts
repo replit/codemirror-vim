@@ -102,7 +102,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   }
 }, {
   eventHandlers: {
-    keydown: function name(e: KeyboardEvent, view: EditorView) {
+    keydown: function(e: KeyboardEvent, view: EditorView) {
       const key = CodeMirror.vimKey(e)
       const cm = this.cm
       if (!key) return
@@ -111,7 +111,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
 
       // insert mode
       if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
-        if (key.length == 1 && e.key && !/\n/.test(e.key)) {
+        if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
           result = true;
           cm.overWriteSelection(e.key)
         } else if (e.key == "Backspace") {

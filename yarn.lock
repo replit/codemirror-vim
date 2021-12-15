@@ -146,31 +146,6 @@
     "@codemirror/state" "^0.19.0"
     "@codemirror/view" "^0.19.0"
 
-"@codemirror/lang-css@^0.19.0":
-  version "0.19.3"
-  resolved "https://registry.yarnpkg.com/@codemirror/lang-css/-/lang-css-0.19.3.tgz#7a17adf78c6fcdab4ad5ee4e360631c41e949e4a"
-  integrity sha512-tyCUJR42/UlfOPLb94/p7dN+IPsYSIzHbAHP2KQHANj0I+Orqp+IyIOS++M8TuCX4zkWh9dvi8s92yy/Tn8Ifg==
-  dependencies:
-    "@codemirror/autocomplete" "^0.19.0"
-    "@codemirror/highlight" "^0.19.6"
-    "@codemirror/language" "^0.19.0"
-    "@codemirror/state" "^0.19.0"
-    "@lezer/css" "^0.15.2"
-
-"@codemirror/lang-html@^0.19.0":
-  version "0.19.3"
-  resolved "https://registry.yarnpkg.com/@codemirror/lang-html/-/lang-html-0.19.3.tgz#73ff276efd4b22d28062f70367fd0f638993f36a"
-  integrity sha512-QlZN8VhQ+vlOpDMbcfXcG3HiiNeklAfIYnKonPM902SM3nJc4rJ66X9O8mzy0TUDBmew9zaYDubvQcqw7rc5Bg==
-  dependencies:
-    "@codemirror/autocomplete" "^0.19.0"
-    "@codemirror/highlight" "^0.19.6"
-    "@codemirror/lang-css" "^0.19.0"
-    "@codemirror/lang-javascript" "^0.19.0"
-    "@codemirror/language" "^0.19.0"
-    "@codemirror/state" "^0.19.0"
-    "@lezer/common" "^0.15.0"
-    "@lezer/html" "^0.15.0"
-
 "@codemirror/lang-javascript@^0.19.0":
   version "0.19.3"
   resolved "https://registry.yarnpkg.com/@codemirror/lang-javascript/-/lang-javascript-0.19.3.tgz#281b3447d8b65d98311ebf25893ef5c30a11418b"
@@ -183,6 +158,18 @@
     "@codemirror/state" "^0.19.0"
     "@codemirror/view" "^0.19.0"
     "@lezer/javascript" "^0.15.1"
+
+"@codemirror/lang-xml@^0.19.0":
+  version "0.19.2"
+  resolved "https://registry.yarnpkg.com/@codemirror/lang-xml/-/lang-xml-0.19.2.tgz#877bd064bcd396435c628e476bfccb22d4977a0a"
+  integrity sha512-9VIjxvqcH1sk8bmYbxQon0lXhVZgdHdfjGes+e4Akgvb43aMBDNvIQVALwrCb+XMEHTxLUMQtrsBN0G64yCUXw==
+  dependencies:
+    "@codemirror/autocomplete" "^0.19.0"
+    "@codemirror/highlight" "^0.19.6"
+    "@codemirror/language" "^0.19.0"
+    "@codemirror/state" "^0.19.0"
+    "@lezer/common" "^0.15.0"
+    "@lezer/xml" "^0.15.0"
 
 "@codemirror/language@^0.19.0":
   version "0.19.5"
@@ -302,26 +289,12 @@
   resolved "https://registry.yarnpkg.com/@lezer/common/-/common-0.15.9.tgz#0aab74ad14d2690fb09f83d5a05bd6039ad812f3"
   integrity sha512-N86tOY/g9pZQuKbmUjL4TQTegm4/34TZXxp1TYYFGdd9Rnhd9RPjQ3zp4q5qp/2qs4xlF4Dheg19K+JqAtvZxg==
 
-"@lezer/css@^0.15.2":
-  version "0.15.2"
-  resolved "https://registry.yarnpkg.com/@lezer/css/-/css-0.15.2.tgz#e96995da67df90bb4b191aaa8a486349cca5d8e7"
-  integrity sha512-tnMOMZY0Zs6JQeVjqfmREYMV0GnmZR1NitndLWioZMD6mA7VQF/PPKPmJX1f+ZgVZQc5Am0df9mX3aiJnNJlKQ==
-  dependencies:
-    "@lezer/lr" "^0.15.0"
-
 "@lezer/generator@^0.15.0":
   version "0.15.2"
   resolved "https://registry.yarnpkg.com/@lezer/generator/-/generator-0.15.2.tgz#10fa8fab58a561c2bd2a27d7b4f20b1080c6cb6c"
   integrity sha512-nxY6TTj0ZAcAvg1zEeaZnt1xODdyPhD0lTaPOgcGOVFHhwwx0Oz7CxZB7Rh+xRCXFr5kJWDtM1uXPp80UZjhAg==
   dependencies:
     "@lezer/common" "^0.15.0"
-    "@lezer/lr" "^0.15.0"
-
-"@lezer/html@^0.15.0":
-  version "0.15.0"
-  resolved "https://registry.yarnpkg.com/@lezer/html/-/html-0.15.0.tgz#572c9444bc39c1afc0529a70e089abf7254edf5d"
-  integrity sha512-ErmgP/Vv0AhYJvs/Ekb9oue4IzBHemKLi7K8tJ0jgS+20Y8FGC9foK6knCXtEHqdPaxVGQH9PVp7gecLnzLd9Q==
-  dependencies:
     "@lezer/lr" "^0.15.0"
 
 "@lezer/javascript@^0.15.1":
@@ -337,6 +310,13 @@
   integrity sha512-vwgG80sihEGJn6wJp6VijXrnzVai/KPva/OzYKaWvIx0IiXKjoMQ8UAwcgpSBwfS4Fbz3IKOX/cCNXU3r1FvpQ==
   dependencies:
     "@lezer/common" "^0.15.0"
+
+"@lezer/xml@^0.15.0":
+  version "0.15.1"
+  resolved "https://registry.yarnpkg.com/@lezer/xml/-/xml-0.15.1.tgz#ad4bb442b18bf267fd370350543239f71d2075c2"
+  integrity sha512-vVh01enxM9hSGOcFtztmX+Pa460HDq5jIeft9bDCe17PUOU0nAbfo883I3cW9lUOcmWNQ3btbkmXMGjRszJE6g==
+  dependencies:
+    "@lezer/lr" "^0.15.0"
 
 "@types/mocha@^8.2.2":
   version "8.2.3"

@@ -1,2 +1,12 @@
-run = "yarn run dev"
+run="yarn run dev"
 
+[packager]
+language = "nodejs-yarn"
+[packager.features]
+packageSearch = true
+guessImports = false
+
+[languages.js]
+pattern = "**/*.ts"
+[languages.js.languageServer]
+start = ["typescript-language-server", "--stdio"]

@@ -1,7 +1,7 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "0.19.0-beta.5",
-  "description": "Vim mode for Codemirror 6",
+  "version": "0.19.0-beta.6",
+  "description": "Vim keybindings for CodeMirror 6",
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",
@@ -37,6 +37,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/codemirror/vim.git"
+    "url": "https://github.com/replit/codemirror-vim.git"
   }
 }

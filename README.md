@@ -1,4 +1,4 @@
-# CM5 vim mode for CM6
+# Vim keybindings for CM6
 
 ## Installation
 

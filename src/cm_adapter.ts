@@ -508,7 +508,8 @@ export class CodeMirror {
 
     const startOffset = indexFromPos(doc, start);
     let range = EditorSelection.range(startOffset, startOffset, goalColumn);
-    for (let i = 0; i < Math.abs(amount); i++) {
+    let count = Math.round(Math.abs(amount))
+    for (let i = 0; i < count; i++) {
       if (unit == 'page') {
         range = cm6.moveVertically(range, amount > 0, pixels);
       }

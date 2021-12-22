@@ -1477,6 +1477,7 @@ export function initVim(CodeMirror) {
           vimGlobalState.exCommandHistoryController.pushInput(input);
           vimGlobalState.exCommandHistoryController.reset();
           exCommandDispatcher.processCommand(cm, input);
+          clearInputState(cm);
         }
         function onPromptKeyDown(e, input, close) {
           var keyName = CodeMirror.keyName(e), up, offset;
@@ -4313,7 +4314,7 @@ export function initVim(CodeMirror) {
     }
 
     function showConfirm(cm, template) {
-      var pre = dom('pre', {$color: 'red', class: 'cm-vim-message'}, template);
+      var pre = dom('div', {$color: 'red', $whiteSpace: 'pre', class: 'cm-vim-message'}, template);
       if (cm.openNotification) {
         cm.openNotification(pre, {bottom: true, duration: 5000});
       } else {

@@ -37,6 +37,13 @@ htmlCheckbox.onclick = function() {
   updateView();
   localStorage.html = htmlCheckbox.checked;
 }
+let statusBox = document.getElementById("status") as HTMLInputElement
+statusBox.checked = localStorage.status == "true"
+statusBox.onclick = function() {
+  updateView();
+  localStorage.status = statusBox.checked;
+}
+
 
 let view
 function updateView() {
@@ -46,7 +53,7 @@ function updateView() {
       doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
       extensions: [
         // make sure vim is included before all other keymaps
-        vim(), 
+        vim({status: statusBox.checked}), 
         // include the default keymap and all other keymaps you want to use in insert mode
         basicSetup,
         htmlCheckbox.checked ? xml(): javascript(), 

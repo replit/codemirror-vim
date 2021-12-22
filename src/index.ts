@@ -7,7 +7,7 @@ import { Extension } from "@codemirror/state"
 import { ViewPlugin, PluginValue, ViewUpdate } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
 
-import {showPanel} from "@codemirror/panel"
+import {showPanel, Panel} from "@codemirror/panel"
 import {StateField, StateEffect} from "@codemirror/state"
 
 const Vim = initVim(CodeMirror)
@@ -17,14 +17,14 @@ const vimStyle = EditorView.theme({
     display: "none",
   },
   ".cm-vim-panel": {
-    padding: "5px 10px",
-    backgroundColor: "#fffa8f",
+    padding: "0px 10px",
     fontFamily: "monospace",
+    minHeight: "1.3em",
   },
   ".cm-vim-panel input": {
     border: "none",
     outline: "none",
-    backgroundColor: "#fffa8f",
+    backgroundColor: "inherit",
   },
 })
 type EditorViewExtended = EditorView&{cm:CodeMirror}
@@ -41,31 +41,40 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     Vim.enterVimMode(this.cm);
 
     this.view.cm = this.cm
+    this.cm.state.vimPlugin = this
 
     this.blockCursor = new BlockCursorPlugin(view, cm)
     this.updateClass()
 
     this.cm.on('vim-command-done', () => {
-      this.status = ""
       if (cm.state.vim) cm.state.vim.status = "";
       this.blockCursor.scheduleRedraw();
+      this.updateStatus()
     });
-    this.cm.on('vim-mode-change', () => {
+    this.cm.on('vim-mode-change', (e: any) => {
+      cm.state.vim.mode = e.mode;
+      if (e.subMode) {
+        cm.state.vim.mode += " block"
+      }
+      cm.state.vim.status = "";
       this.blockCursor.scheduleRedraw();
       this.updateClass()
+      this.updateStatus()
     });
     
 
     this.cm.on("dialog", () => {
-      view.dispatch({
-        effects: showVimPanel.of(!!this.cm.state.dialog)
-      })
+      if (this.cm.state.statusbar) {
+        this.updateStatus()
+      } else {
+        view.dispatch({
+          effects: showVimPanel.of(!!this.cm.state.dialog)
+        })
+      }
     });
 
-    this.dom = view.dom.appendChild(document.createElement("div"))
-    this.dom.style.cssText =
-      "position: absolute; inset-block-start: 2px; inset-inline-end: 5px"
-    this.dom.textContent = ""
+    this.dom = document.createElement("span");
+    this.dom.style.cssText = "float: right";
   }
 
   update(update: ViewUpdate) {
@@ -83,7 +92,6 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     }
 
     this.blockCursor.update(update);
-    this.dom.textContent = this.status
   }
   updateClass() {
     const state = this.cm.state;
@@ -92,12 +100,28 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     else 
       this.view.scrollDOM.classList.add("cm-vimMode")
   }
+  updateStatus() {
+    let dom = this.cm.state.statusbar;
+    if (!dom) return;
+    let dialog = this.cm.state.dialog
+    if (dialog) {
+      if (dialog.parentElement != dom) {
+        dom.textContent = ""
+        dom.appendChild(dialog)
+      }
+    } else {
+      let vim = this.cm.state.vim;
+      dom.textContent = `--${(vim.mode || "normal").toUpperCase()}--`
+
+      this.dom.textContent = vim.status
+      dom.appendChild(this.dom)
+    }
+  }
 
   destroy() {
     this.cm.state.vim = null;
     this.updateClass()
     this.blockCursor.destroy();
-    this.dom.remove()
     delete (this.view as any).cm;
   }
 }, {
@@ -106,7 +130,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
       const key = CodeMirror.vimKey(e)
       const cm = this.cm
       if (!key) return
-      this.status += key
+      cm.state.vim.status = (cm.state.vim.status|| "") + key
       let result = Vim.handleKey(cm, key, "user");
 
       // insert mode
@@ -124,7 +148,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
         e.stopPropagation()
         this.blockCursor.scheduleRedraw();
       }
-      cm.state.vim.status = this.status;
+      this.updateStatus()
 
       return !!result;
     }
@@ -154,12 +178,21 @@ function createVimPanel(view: EditorView) {
   return {top: false, dom}
 }
 
-export function vim(options: {} = {}): Extension {
+function statusPanel(view: EditorView): Panel {
+  let dom = document.createElement("div")
+  dom.className = "cm-vim-panel"
+  let cm = (view as EditorViewExtended).cm;
+  cm.state.statusbar = dom
+  cm.state.vimPlugin.updateStatus()
+  return {dom}
+}
+
+export function vim(options: {status?: boolean} = {}): Extension {
   return [
     vimStyle,
     vimPlugin,
     hideNativeSelection,
-    vimPanelState
+    options.status ? showPanel.of(statusPanel): vimPanelState
   ]
 }
 

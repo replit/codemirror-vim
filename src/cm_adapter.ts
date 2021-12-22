@@ -193,7 +193,9 @@ export class CodeMirror {
   // --------------------------
   cm6: EditorView
   state: {
+    statusbar?: Element|null, 
     dialog?: Element|null, 
+    vimPlugin?: any,
     vim?: any, 
     currentNotificationClose?: Function|null,
     keyMap?: string,

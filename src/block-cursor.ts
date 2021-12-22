@@ -42,7 +42,8 @@ class Piece {
     return this.left == p.left && this.top == p.top && this.height == p.height &&
         this.fontFamily == p.fontFamily && this.fontSize == p.fontSize &&
         this.fontWeight == p.fontWeight && this.color == p.color &&
-        this.className == p.className;
+        this.className == p.className &&
+        this.letter == p.letter;
   }
 }
 

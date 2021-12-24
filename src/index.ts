@@ -4,15 +4,20 @@ import { CodeMirror } from "./cm_adapter"
 import {BlockCursorPlugin, hideNativeSelection} from "./block-cursor"
 
 import { Extension } from "@codemirror/state"
-import { ViewPlugin, PluginValue, ViewUpdate } from "@codemirror/view"
+import { ViewPlugin, PluginValue, ViewUpdate, Decoration } from "@codemirror/view"
 import { EditorView } from "@codemirror/view"
 
 import {showPanel, Panel} from "@codemirror/panel"
 import {StateField, StateEffect} from "@codemirror/state"
 
+import {RangeSetBuilder} from "@codemirror/rangeset"
+import {setSearchQuery} from "@codemirror/search"
+
 const Vim = initVim(CodeMirror)
 
-const vimStyle = EditorView.theme({
+const HighlightMargin = 250;
+
+const vimStyle = EditorView.baseTheme({
   ".cm-vimMode .cm-cursorLayer:not(.cm-vimCursorLayer)": {
     display: "none",
   },
@@ -26,6 +31,9 @@ const vimStyle = EditorView.theme({
     outline: "none",
     backgroundColor: "inherit",
   },
+
+  "&light .cm-searchMatch": { backgroundColor: "#ffff0054" },
+  "&dark .cm-searchMatch": { backgroundColor: "#00ffff8a" },
 })
 type EditorViewExtended = EditorView&{cm:CodeMirror}
 
@@ -74,12 +82,14 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     });
 
     this.dom = document.createElement("span");
-    this.dom.style.cssText = "float: right";
+    this.dom.style.cssText = "position: absolute; right: 10px; top: 1px";
   }
 
   update(update: ViewUpdate) {
     if (update.docChanged) {
       this.cm.onChange(update)
+      if (this.query)
+        this.highlight(this.query)
     } 
     if (update.selectionSet) {
       this.cm.onSelectionChange()
@@ -89,6 +99,20 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     }
     if (this.cm.curOp && !this.cm.curOp.isVimOp) {
       this.cm.onBeforeEndOperation();
+    } 
+    if (update.transactions) {
+      for (let tr of update.transactions)
+      for (let effect of tr.effects) {
+        if (effect.is(setSearchQuery)) {
+          let forVim = (effect.value as any)?.forVim
+          if (!forVim) {
+            this.highlight(null)
+          } else {
+            let query = (effect.value as any).create()
+            this.highlight(query)
+          }
+        }
+      }
     }
 
     this.blockCursor.update(update);
@@ -104,18 +128,18 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     let dom = this.cm.state.statusbar;
     if (!dom) return;
     let dialog = this.cm.state.dialog
+    let vim = this.cm.state.vim;
     if (dialog) {
       if (dialog.parentElement != dom) {
         dom.textContent = ""
         dom.appendChild(dialog)
       }
     } else {
-      let vim = this.cm.state.vim;
       dom.textContent = `--${(vim.mode || "normal").toUpperCase()}--`
-
-      this.dom.textContent = vim.status
-      dom.appendChild(this.dom)
     }
+
+    this.dom.textContent = vim.status
+    dom.appendChild(this.dom)
   }
 
   destroy() {
@@ -124,12 +148,41 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
     this.blockCursor.destroy();
     delete (this.view as any).cm;
   }
+
+  highlight(query: any) {
+    this.query = query;
+    if (!query) 
+      return this.decorations = Decoration.none
+    let {view} = this
+    let builder = new RangeSetBuilder<Decoration>()
+    for (let i = 0, ranges = view.visibleRanges, l = ranges.length; i < l; i++) {
+      let {from, to} = ranges[i]
+      while (i < l - 1 && to > ranges[i + 1].from - 2 * HighlightMargin) to = ranges[++i].to
+      query.highlight(view.state.doc, from, to, (from: number, to: number) => {
+        builder.add(from, to, matchMark)
+      })
+    }
+    return this.decorations = builder.finish()
+  }
+  query = null
+  decorations = Decoration.none
+
 }, {
   eventHandlers: {
     keydown: function(e: KeyboardEvent, view: EditorView) {
       const key = CodeMirror.vimKey(e)
       const cm = this.cm
       if (!key) return
+      
+      // clear search highlight
+      let vim = cm.state.vim
+      if (key == "<Esc>"
+       && !vim.insertMode && !vim.visualMode 
+       && this.query/* && !cm.inMultiSelectMode*/
+      ) {
+        cm.removeOverlay(null);
+      }
+
       cm.state.vim.status = (cm.state.vim.status|| "") + key
       let result = Vim.handleKey(cm, key, "user");
 
@@ -147,13 +200,18 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
         e.preventDefault()
         e.stopPropagation()
         this.blockCursor.scheduleRedraw();
-      }
+      } 
+
       this.updateStatus()
 
       return !!result;
     }
-  }
+  },
+  
+  decorations: v => v.decorations
 })
+
+const matchMark = Decoration.mark({class: "cm-searchMatch"})
 
 const showVimPanel = StateEffect.define<boolean>()
 

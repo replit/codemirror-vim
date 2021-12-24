@@ -5,7 +5,8 @@ import {
 import {StringStream} from "@codemirror/stream-parser"
 import {EditorView, ViewUpdate} from "@codemirror/view"
 import {matchBrackets} from "@codemirror/matchbrackets"
-import {RegExpCursor} from "@codemirror/search"
+import {RegExpCursor, setSearchQuery, SearchQuery} from "@codemirror/search"
+ 
 import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection,
   deleteCharBackward, deleteCharForward, cursorCharLeft,
@@ -425,11 +426,26 @@ export class CodeMirror {
     return bm;
   };
   
-  addOverlay = function () {
-    // console.error("not implemented")
+  cm6Query? :SearchQuery
+  addOverlay({query}: {query: RegExp}) {
+      let cm6Query = new SearchQuery({
+        regexp: true,
+        search: query.source,
+        caseSensitive: !/i/.test(query.flags),
+      });
+      if (cm6Query.valid) {
+        (cm6Query as any).forVim = true;
+        this.cm6Query = cm6Query;
+        let effect = setSearchQuery.of(cm6Query);
+        this.cm6.dispatch({ effects: effect });
+        return cm6Query
+      }
   };
-  removeOverlay = function () {
-    // console.error("not implemented")
+  removeOverlay(overlay?: any) {
+    if (!this.cm6Query) return
+    (this.cm6Query as any).forVim = false;
+    let effect = setSearchQuery.of(this.cm6Query);
+    this.cm6.dispatch({ effects: effect });
   };
 
   getSearchCursor(query: RegExp, pos: Pos) {
@@ -549,9 +565,19 @@ export class CodeMirror {
     if (y != null)
       this.cm6.scrollDOM.scrollTop = y
   };
-  scrollInfo () { return 0; };
+  scrollInfo () { 
+    debugger
+    return 0; 
+  };
   scrollIntoView(pos?: Pos, margin?: number) {
-    this.cm6.dispatch({}, { scrollIntoView: true, userEvent: "scroll" });
+    if (pos) {
+      var offset = this.indexFromPos(pos);
+      this.cm6.dispatch({}, { 
+        effects: EditorView.scrollIntoView(offset)
+      });
+    } else {
+      this.cm6.dispatch({}, { scrollIntoView: true, userEvent: "scroll" });
+    }
   };
 
   getWrapperElement () {

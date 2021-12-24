@@ -4336,7 +4336,10 @@ export function initVim(CodeMirror) {
       if (cm.openDialog) {
         cm.openDialog(template, options.onClose, {
           onKeyDown: options.onKeyDown, onKeyUp: options.onKeyUp,
-          bottom: true, selectValueOnOpen: false, value: options.value
+          bottom: true, selectValueOnOpen: false, value: options.value,
+          onClose: function() {
+            clearInputState(cm)
+          }
         });
       }
       else {

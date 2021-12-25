@@ -704,7 +704,7 @@ export function initVim(CodeMirror) {
     }
 
     var lastInsertModeKeyTimer;
-    var vimApi= {
+    var vimApi = {
       enterVimMode: enterVimMode,
       buildKeyMap: function() {
         // TODO: Convert keymap into dictionary format for fast lookup.
@@ -4338,7 +4338,7 @@ export function initVim(CodeMirror) {
           onKeyDown: options.onKeyDown, onKeyUp: options.onKeyUp,
           bottom: true, selectValueOnOpen: false, value: options.value,
           onClose: function() {
-            clearInputState(cm)
+            cm.state.vim && clearInputState(cm);
           }
         });
       }

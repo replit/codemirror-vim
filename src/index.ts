@@ -184,7 +184,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
       }
 
       cm.state.vim.status = (cm.state.vim.status|| "") + key
-      let result = Vim.handleKey(cm, key, "user");
+      let result = Vim.multiSelectHandleKey(cm, key, "user");
 
       // insert mode
       if (!result && cm.state.vim.insertMode && cm.state.overwrite) {

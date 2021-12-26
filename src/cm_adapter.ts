@@ -642,6 +642,9 @@ export class CodeMirror {
       let m = this.marks[i];
       m.update(update.changes)
     }
+    if (this.virtualSelection) {
+      this.virtualSelection.ranges = this.virtualSelection.ranges.map(range => range.map(update.changes))
+    }
     var curOp = this.curOp = this.curOp || ({} as Operation);
     update.changes.iterChanges((fromA: number, toA: number, fromB: number, toB: number, text: Text) => {
       this.$lastChangeEndOffset = toB;
@@ -751,6 +754,28 @@ export class CodeMirror {
       selection: EditorSelection.create(ranges, sel.mainIndex)
     })
     this.replaceSelection(text)
+  }
+
+  /*** multiselect ****/
+  isInMultiSelectMode() {
+    return this.cm6.state.selection.ranges.length > 1
+  }
+  virtualSelectionMode() {
+    return !!this.virtualSelection
+  }
+  virtualSelection: EditorSelection | null = null;
+  forEachSelection(command: Function) {
+    var selection = this.cm6.state.selection;
+    this.virtualSelection = EditorSelection.create(selection.ranges, selection.mainIndex)
+    for (var i = 0; i < this.virtualSelection.ranges.length; i++) {
+      var range = this.virtualSelection.ranges[i]
+      if (!range) continue
+      this.cm6.dispatch({ selection: EditorSelection.create([range]) });
+      command();
+      (this.virtualSelection as any).ranges[i] = this.cm6.state.selection.ranges[0]      
+    }
+    this.cm6.dispatch({ selection: this.virtualSelection })
+    this.virtualSelection = null;
   }
 };
 

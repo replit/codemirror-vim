@@ -4,6 +4,9 @@ import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { vim } from "../src/"
 
+import * as commands from "@codemirror/commands";
+(window as any)._commands = commands;
+
 const doc = `
 import { basicSetup, EditorState } from '@codemirror/basic-setup';
 import { EditorView } from '@codemirror/view';

@@ -1,5 +1,5 @@
 import {
-  EditorSelection, Text, MapMode, ChangeDesc, EditorState,
+  EditorSelection, Text, MapMode, ChangeDesc, EditorState, Transaction,
 } from "@codemirror/state"
 
 import { StringStream } from "@codemirror/stream-parser"
@@ -98,6 +98,22 @@ interface Operation {
   changeHandlers?: Function[],
 }
 
+// workaround for missing api for merging transactions
+function dispatchChange(view: EditorView, transaction: any) {
+  if (transaction.annotations) {
+    try {
+      transaction.annotations.some(function (note: any) {
+        if (note.value == "input") note.value = "input.type.compose";
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  } else {
+    transaction.userEvent =  "input.type.compose";
+  }
+  return view.dispatch(transaction)
+}
+
 export class CodeMirror {
   // --------------------------
   static Pos = Pos;
@@ -107,7 +123,12 @@ export class CodeMirror {
     redo: function (cm: CodeMirror) { history.redo(cm.cm6); },
     undo: function (cm: CodeMirror) { history.undo(cm.cm6); },
     newlineAndIndent: function (cm: CodeMirror) {
-      insertNewlineAndIndent(cm.cm6)
+      insertNewlineAndIndent({
+        state: cm.cm6.state,
+        dispatch: (tr) => {
+          return dispatchChange(cm.cm6, tr);
+        }
+      })
     },
     indentAuto: function (cm: CodeMirror) {
       indentSelection(cm.cm6)
@@ -201,7 +222,7 @@ export class CodeMirror {
     keyMap?: string,
     overwrite?: boolean,
   } = {};
-  marks = Object.create(null);
+  marks: Record<string, Marker> = Object.create(null);
   $mid = 0; // marker id counter
   curOp: Operation | null | undefined;
   options: any = {};
@@ -316,19 +337,17 @@ export class CodeMirror {
     var doc = this.cm6.state.doc;
     var from = indexFromPos(doc, s);
     var to = indexFromPos(doc, e);
-    this.cm6.dispatch({
-      changes: { from, to, insert: text }
-    });
+    dispatchChange(this.cm6, { changes: { from, to, insert: text } });
   };
   replaceSelection(text: string) {
-    this.cm6.dispatch(this.cm6.state.replaceSelection(text))
+    dispatchChange(this.cm6, this.cm6.state.replaceSelection(text))
   };
   replaceSelections(replacements: string[]) {
     var ranges = this.cm6.state.selection.ranges;
     var changes = ranges.map((r, i) => {
       return { from: r.from, to: r.to, insert: replacements[i] || "" }
     });
-    this.cm6.dispatch({ changes });
+    dispatchChange(this.cm6, { changes });
   };
   getSelection() {
     return this.getSelections().join("\n");
@@ -507,7 +526,7 @@ export class CodeMirror {
       to: function () { return lastCM5Result?.to },
       replace: function (text: string) {
         if (last) {
-          cm.cm6.dispatch({
+          dispatchChange(cm.cm6, {
             changes: { from: last.from, to: last.to, insert: text }
           });
           last.to = last.from + text.length
@@ -569,11 +588,11 @@ export class CodeMirror {
   scrollIntoView(pos?: Pos, margin?: number) {
     if (pos) {
       var offset = this.indexFromPos(pos);
-      this.cm6.dispatch({}, {
+      this.cm6.dispatch({
         effects: EditorView.scrollIntoView(offset)
       });
     } else {
-      this.cm6.dispatch({}, { scrollIntoView: true, userEvent: "scroll" });
+      this.cm6.dispatch({ scrollIntoView: true, userEvent: "scroll" });
     }
   };
 

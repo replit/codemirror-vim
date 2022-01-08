@@ -2186,6 +2186,7 @@ export function initVim(CodeMirror) {
             head = ranges[0].head;
         if (!vim.visualMode) {
           text = cm.getRange(anchor, head);
+          var leadingNonLineWhiteSpace = (/[^\S\r\n]*/).exec(text);
           var lastState = vim.lastEditInputState || {};
           if (lastState.motion == "moveByWords" && !isWhiteSpaceString(text)) {
             // Exclude trailing whitespace if the range is not all whitespace.
@@ -2207,6 +2208,9 @@ export function initVim(CodeMirror) {
             if (!wasLastLine) {
               cm.setCursor(prevLineEnd);
               CodeMirror.commands.newlineAndIndent(cm);
+            }
+            if(leadingNonLineWhiteSpace[0]) {
+              cm.replaceRange(leadingNonLineWhiteSpace[0], new Pos(anchor.line, 0), new Pos(anchor.line, Number.MAX_VALUE));
             }
             // make sure cursor ends up at the end of the line.
             anchor.ch = Number.MAX_VALUE;

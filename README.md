@@ -11,7 +11,7 @@ import { basicSetup, EditorState } from '@codemirror/basic-setup';
 import { EditorView } from '@codemirror/view';
 import { vim } from "@replit/codemirror-vim"
 
-new EditorView({
+let view = new EditorView({
     state: EditorState.create({
       doc: "",
       extensions: [
@@ -23,4 +23,16 @@ new EditorView({
     }),
     parent: document.querySelector('#editor'),
 })
+```
+
+## Usage of cm5 vim extension api
+
+The same api that could be used in previous version of codemirror https://codemirror.net/doc/manual.html#vimapi, can be used with this plugin too, just replace the old editor instance with `view.cm` in your code
+
+```js
+import {Vim} from "@replit/codemirror-vim"
+
+// use view.cm to access the old cm5 api
+Vim.exitInsertMode(view.cm)
+Vim.handleKey(view.cm, "<Esc>")
 ```

@@ -110,7 +110,7 @@ export class BlockCursorPlugin {
 }
 
  const themeSpec = {
-  ".cm-line": {
+  ".cm-vimMode .cm-line": {
     "& ::selection": {backgroundColor: "transparent !important"},
     "&::selection": {backgroundColor: "transparent !important"},
     caretColor: "transparent !important",

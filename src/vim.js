@@ -5772,7 +5772,7 @@ export function initVim(CodeMirror) {
             cm.state.vim.sel.anchor = anchor;
 
             isHandled = vimApi.handleKey(cm, key, origin);
-            if (cm.virtualSelectionMode()) {
+            if (cm.virtualSelection) {
               cm.state.vim = cloneVimState(old);
             }
           });

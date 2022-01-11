@@ -30,9 +30,10 @@ let view = new EditorView({
 The same api that could be used in previous version of codemirror https://codemirror.net/doc/manual.html#vimapi, can be used with this plugin too, just replace the old editor instance with `view.cm` in your code
 
 ```js
-import {Vim} from "@replit/codemirror-vim"
+import {Vim, getCm} from "@replit/codemirror-vim"
 
-// use view.cm to access the old cm5 api
-Vim.exitInsertMode(view.cm)
-Vim.handleKey(view.cm, "<Esc>")
+let cm = getCm(view)
+// use cm to access the old cm5 api
+Vim.exitInsertMode(cm)
+Vim.handleKey(cm, "<Esc>")
 ```

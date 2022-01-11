@@ -255,3 +255,7 @@ export function vim(options: {status?: boolean} = {}): Extension {
 }
 
 export {CodeMirror, Vim}
+
+export function getCM(view: EditorView): CodeMirror|null {
+  return (view as EditorViewExtended).cm || null;
+}

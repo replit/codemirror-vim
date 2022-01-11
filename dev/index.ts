@@ -2,10 +2,9 @@ import { basicSetup, EditorState } from '@codemirror/basic-setup';
 import { EditorView, highlightActiveLine } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
-import { vim } from "../src/"
+import { Vim, vim } from "../src/"
 
 import * as commands from "@codemirror/commands";
-(window as any)._commands = commands;
 
 const doc = `
 import { basicSetup, EditorState } from '@codemirror/basic-setup';
@@ -46,12 +45,26 @@ statusBox.onclick = function() {
   updateView();
   localStorage.status = statusBox.checked;
 }
+let jjBox = document.getElementById("jj") as HTMLInputElement
+jjBox.checked = localStorage.jj == "true"
+jjBox.onclick = function() {
+  if (jjBox.checked)
+    Vim.map("jj", "<Esc>", "insert");
+  else 
+    Vim.unmap("jj", "insert")
+  localStorage.status = statusBox.checked;
+}
+jjBox.onclick()
 
+
+let global = window as any;
+global._commands = commands;
+global._Vim = Vim;
 
 let view
 function updateView() {
   if (view) view.destroy()
-  view = (window as any)._view = new EditorView({
+  view = global._view = new EditorView({
     state: EditorState.create({
       doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
       extensions: [
@@ -66,7 +79,10 @@ function updateView() {
     }),
     parent: document.querySelector('#editor'),
   });
-}
 
+  if (jjBox.checked) {
+    Vim.map
+  }
+}
 
 updateView()

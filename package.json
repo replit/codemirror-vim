@@ -1,11 +1,12 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "0.19.0-beta.7",
+  "version": "0.19.0-beta.8",
   "description": "Vim keybindings for CodeMirror 6",
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",
-    "build": "cm-buildhelper src/index.ts"
+    "build": "cm-buildhelper src/index.ts",
+    "publish": "npm run build && npm publish"
   },
   "keywords": [
     "editor",

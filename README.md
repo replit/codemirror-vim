@@ -1,5 +1,8 @@
 # Vim keybindings for CM6
 
+<span><a href="https://replit.com/@util/codemirror-vim" title="Run on Replit badge"><img src="https://replit.com/badge/github/replit/codemirror-vim" alt="Run on Replit badge" /></a></span>
+<span><a href="https://www.npmjs.com/package/@replit/codemirror-vim" title="NPM version badge"><img src="https://img.shields.io/npm/v/@replit/codemirror-vim?color=blue" alt="NPM version badge" /></a></span>
+
 ## Installation
 
 `npm i @replit/codemirror-vim`

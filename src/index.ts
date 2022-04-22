@@ -1,17 +1,9 @@
 import {initVim} from "./vim"
 import { CodeMirror } from "./cm_adapter"
-
-import {BlockCursorPlugin, hideNativeSelection} from "./block-cursor"
-
-import { Extension } from "@codemirror/state"
-import { ViewPlugin, PluginValue, ViewUpdate, Decoration } from "@codemirror/view"
-import { EditorView } from "@codemirror/view"
-
-import {showPanel, Panel} from "@codemirror/panel"
-import {StateField, StateEffect} from "@codemirror/state"
-
-import {RangeSetBuilder} from "@codemirror/rangeset"
-import {setSearchQuery} from "@codemirror/search"
+import { BlockCursorPlugin, hideNativeSelection } from "./block-cursor"
+import { Extension, StateField, StateEffect, RangeSetBuilder } from "@codemirror/state"
+import { ViewPlugin, PluginValue, ViewUpdate, Decoration, EditorView, showPanel, Panel } from "@codemirror/view"
+import { setSearchQuery } from "@codemirror/search"
 
 const Vim = initVim(CodeMirror)
 

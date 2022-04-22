@@ -1,19 +1,12 @@
-import {
-  EditorSelection, Text, MapMode, ChangeDesc, EditorState, Transaction,
-} from "@codemirror/state"
-
-import { StringStream } from "@codemirror/stream-parser"
+import { EditorSelection, Text, MapMode, ChangeDesc } from "@codemirror/state"
+import { StringStream, matchBrackets, indentUnit, ensureSyntaxTree, foldCode } from "@codemirror/language"
 import { EditorView, ViewUpdate } from "@codemirror/view"
-import { matchBrackets } from "@codemirror/matchbrackets"
 import { RegExpCursor, setSearchQuery, SearchQuery } from "@codemirror/search"
-
 import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection,
   deleteCharBackward, deleteCharForward, cursorCharLeft,
 } from "@codemirror/commands"
-import { foldCode } from "@codemirror/fold"
-import * as history from "@codemirror/history"
-import { indentUnit, ensureSyntaxTree, syntaxTree } from "@codemirror/language"
+import { undo, redo } from "@codemirror/commands"
 
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
@@ -120,8 +113,8 @@ export class CodeMirror {
   static StringStream = StringStream;
   static commands = {
     cursorCharLeft: function (cm: CodeMirror) { cursorCharLeft(cm.cm6); },
-    redo: function (cm: CodeMirror) { history.redo(cm.cm6); },
-    undo: function (cm: CodeMirror) { history.undo(cm.cm6); },
+    redo: function (cm: CodeMirror) { redo(cm.cm6); },
+    undo: function (cm: CodeMirror) { undo(cm.cm6); },
     newlineAndIndent: function (cm: CodeMirror) {
       insertNewlineAndIndent({
         state: cm.cm6.state,

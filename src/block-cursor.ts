@@ -1,7 +1,5 @@
-import {SelectionRange, Prec} from "@codemirror/state"
-import {ViewUpdate} from "@codemirror/view"
-import {EditorView} from "@codemirror/view"
-import {Direction} from "@codemirror/view"
+import { SelectionRange, Prec } from "@codemirror/state"
+import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
 import { CodeMirror } from "."
 
 type Measure = {cursors: Piece[]}
@@ -127,9 +125,7 @@ export class BlockCursorPlugin {
   },
 }
 
-export const hideNativeSelection = Prec.override(EditorView.theme(themeSpec))
-
-
+export const hideNativeSelection = Prec.highest(EditorView.theme(themeSpec))
 
 function getBase(view: EditorView) {
   let rect = view.scrollDOM.getBoundingClientRect()

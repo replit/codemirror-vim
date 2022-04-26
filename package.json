@@ -25,9 +25,9 @@
   "peerDependencies": {
     "@codemirror/commands": "^0.20.0",
     "@codemirror/language": "^0.20.0",
+    "@codemirror/search": "^0.20.0",
     "@codemirror/state": "^0.20.0",
-    "@codemirror/view": "^0.20.1",
-    "@codemirror/search": "^0.20.0"
+    "@codemirror/view": "^0.20.1"
   },
   "devDependencies": {
     "@codemirror/basic-setup": "^0.20.0",
@@ -35,7 +35,7 @@
     "@codemirror/lang-javascript": "^0.20.0",
     "@codemirror/lang-xml": "^0.20.0",
     "@codemirror/language": "^0.20.0",
-    "vite": "^2.7.6"
+    "vite": "^2.9.6"
   },
   "repository": {
     "type": "git",

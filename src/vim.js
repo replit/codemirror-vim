@@ -2133,6 +2133,25 @@ export function initVim(CodeMirror) {
           }
         } else if (character === 't') {
           tmp = expandTagUnderCursor(cm, head, inclusive);
+        } else if (character === 's') {
+          var curLine = cm.getLine(head.line);
+          var start;
+          if (
+              head.ch === 0
+              || (isWhiteSpaceString(curLine[head.ch - 1]) && isEndOfSentenceSymbol(curLine[head.ch - 2]))
+              || (isEndOfSentenceSymbol(curLine[head.ch - 1]))
+          ) {
+            start = head;
+          } else {
+            start = findSentence(cm, head, motionArgs.repeat, -1);
+          }
+          var end;
+          if (isEndOfSentenceSymbol(curLine[head.ch])) {
+            end = {line: head.line, ch: head.ch + 1};
+          } else {
+            end = findSentence(cm, head, motionArgs.repeat, 1);
+          }
+          tmp = {start: start, end: end};
         } else {
           // No text object defined for this, don't move.
           return null;

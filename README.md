@@ -10,8 +10,8 @@
 ## Usage
 
 ```js
-import { basicSetup, EditorState } from '@codemirror/basic-setup';
-import { EditorView } from '@codemirror/view';
+import { basicSetup, EditorView } from 'codemirror';
+import { EditorState } from '@codemirror/state';
 import { vim } from "@replit/codemirror-vim"
 
 let view = new EditorView({

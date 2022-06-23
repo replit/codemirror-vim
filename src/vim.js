@@ -214,8 +214,8 @@ export function initVim(CodeMirror) {
     { keys: 'z.', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: 'zt', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'top' }},
     { keys: 'z<CR>', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'top' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
-    { keys: 'z-', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'bottom' }},
-    { keys: 'zb', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'bottom' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
+    { keys: 'zb', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'bottom' }},
+    { keys: 'z-', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'bottom' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: '.', type: 'action', action: 'repeatLastEdit' },
     { keys: '<C-a>', type: 'action', action: 'incrementNumberToken', isEdit: true, actionArgs: {increase: true, backtrack: false}},
     { keys: '<C-x>', type: 'action', action: 'incrementNumberToken', isEdit: true, actionArgs: {increase: false, backtrack: false}},
@@ -2403,11 +2403,14 @@ export function initVim(CodeMirror) {
         var charCoords = cm.charCoords(new Pos(lineNum, 0), 'local');
         var height = cm.getScrollInfo().clientHeight;
         var y = charCoords.top;
-        var lineHeight = charCoords.bottom - y;
         switch (actionArgs.position) {
-          case 'center': y = y - (height / 2) + lineHeight;
+          case 'center': y = charCoords.bottom - height / 2;
             break;
-          case 'bottom': y = y - height + lineHeight;
+          case 'bottom':
+            var lineLastCharPos = new Pos(lineNum, cm.getLine(lineNum).length - 1);
+            var lineLastCharCoords = cm.charCoords(lineLastCharPos, 'local');
+            var lineHeight = lineLastCharCoords.bottom - y;
+            y = y - height + lineHeight
             break;
         }
         cm.scrollTo(null, y);

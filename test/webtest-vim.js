@@ -1,5 +1,4 @@
 import {EditorView, basicSetup} from "codemirror"
-import {EditorState} from "@codemirror/state"
 import { CodeMirror, Vim, vim} from ".."
 import {xml} from "@codemirror/lang-xml"
 import {javascript} from "@codemirror/lang-javascript"
@@ -48,7 +47,8 @@ describe("Vim extension", () => {
     function CM(place, options) {
         addRoot()
         if (lastView) lastView.destroy()
-        var state = EditorState.create({
+
+        var view = new EditorView({
             doc: options.value,
             extensions: [
                 vim({}),
@@ -57,11 +57,7 @@ describe("Vim extension", () => {
                 EditorState.tabSize.of(options.tabSize || 4),
                 indentUnit.of(options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)),
                 // keymap.of([indentWithTab]),
-            ]
-        });
-        
-        var view = new EditorView({
-            state, 
+            ],
             parent: root
         })
         lastView = view

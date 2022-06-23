@@ -1,5 +1,5 @@
-import { basicSetup, EditorState } from '@codemirror/basic-setup';
-import { EditorView, highlightActiveLine } from '@codemirror/view';
+import { basicSetup, EditorView } from 'codemirror'
+import { highlightActiveLine } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/"
@@ -7,8 +7,7 @@ import { Vim, vim } from "../src/"
 import * as commands from "@codemirror/commands";
 
 const doc = `
-import { basicSetup, EditorState } from '@codemirror/basic-setup';
-import { EditorView } from '@codemirror/view';
+import { basicSetup, EditorView } from 'codemirror'
 import { javascript } from '@codemirror/lang-javascript';
 import { vim } from "../src/"
 
@@ -17,10 +16,8 @@ console.log('hi')
 \`
 
 new EditorView({
-  state: EditorState.create({
-    doc,
-    extensions: [vim(), basicSetup, javascript()],
-  }),
+  doc,
+  extensions: [vim(), basicSetup, javascript()],
   parent: document.querySelector('#editor'),
 });
 
@@ -65,18 +62,16 @@ let view
 function updateView() {
   if (view) view.destroy()
   view = global._view = new EditorView({
-    state: EditorState.create({
-      doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
-      extensions: [
-        // make sure vim is included before all other keymaps
-        vim({status: statusBox.checked}), 
-        // include the default keymap and all other keymaps you want to use in insert mode
-        basicSetup,
-        htmlCheckbox.checked ? xml(): javascript(), 
-        highlightActiveLine(),
-        wrapCheckbox.checked && EditorView.lineWrapping,
-      ].filter(Boolean),
-    }),
+    doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
+    extensions: [
+      // make sure vim is included before all other keymaps
+      vim({status: statusBox.checked}),
+      // include the default keymap and all other keymaps you want to use in insert mode
+      basicSetup,
+      htmlCheckbox.checked ? xml(): javascript(),
+      highlightActiveLine(),
+      wrapCheckbox.checked && EditorView.lineWrapping,
+    ].filter(Boolean),
     parent: document.querySelector('#editor'),
   });
 

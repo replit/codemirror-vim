@@ -1,6 +1,6 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "0.20.0",
+  "version": "6.0.0",
   "description": "Vim keybindings for CodeMirror 6",
   "scripts": {
     "dev": "vite ./dev",
@@ -23,18 +23,18 @@
   "sideEffects": false,
   "license": "MIT",
   "peerDependencies": {
-    "@codemirror/commands": "^0.20.0",
-    "@codemirror/language": "^0.20.0",
-    "@codemirror/search": "^0.20.0",
-    "@codemirror/state": "^0.20.0",
-    "@codemirror/view": "^0.20.1"
+    "@codemirror/commands": "^6.0.0",
+    "@codemirror/language": "^6.1.0",
+    "@codemirror/search": "^6.0.0",
+    "@codemirror/state": "^6.0.1",
+    "@codemirror/view": "^6.0.2"
   },
   "devDependencies": {
-    "@codemirror/basic-setup": "^0.20.0",
-    "@codemirror/buildhelper": "^0.1.15",
-    "@codemirror/lang-javascript": "^0.20.0",
-    "@codemirror/lang-xml": "^0.20.0",
-    "@codemirror/language": "^0.20.0",
+    "codemirror": "6.0.0",
+    "@codemirror/buildhelper": "^0.1.16",
+    "@codemirror/lang-javascript": "^6.0.0",
+    "@codemirror/lang-xml": "^6.0.0",
+    "@codemirror/language": "^6.1.0",
     "vite": "^2.9.6"
   },
   "repository": {

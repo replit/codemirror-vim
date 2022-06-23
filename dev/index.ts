@@ -1,5 +1,6 @@
-import { basicSetup, EditorState } from '@codemirror/basic-setup';
-import { EditorView, highlightActiveLine } from '@codemirror/view';
+import { basicSetup, EditorView } from 'codemirror'
+import { EditorState } from '@codemirror/state';
+import { highlightActiveLine } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/"

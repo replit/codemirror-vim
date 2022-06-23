@@ -1,4 +1,5 @@
-import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
+import {EditorView, basicSetup} from "codemirror"
+import {EditorState} from "@codemirror/state"
 import { CodeMirror, Vim, vim} from ".."
 import {xml} from "@codemirror/lang-xml"
 import {javascript} from "@codemirror/lang-javascript"

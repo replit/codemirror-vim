@@ -86,6 +86,7 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   handleKeydownEvent(e: KeyboardEvent) {
     const key = CodeMirror.vimKey(e)
     const cm = this.cm
+    this.handledLatestKeydownEvent = false
     if (!key) return
 
     // clear search highlight

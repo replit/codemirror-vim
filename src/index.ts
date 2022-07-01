@@ -78,20 +78,21 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   }
 
   update(update: ViewUpdate) {
+    if ((update.viewportChanged || update.docChanged) && this.query) {
+      this.highlight(this.query)
+    }
     if (update.docChanged) {
       this.cm.onChange(update)
-      if (this.query)
-        this.highlight(this.query)
-    } 
+    }
     if (update.selectionSet) {
       this.cm.onSelectionChange()
-    } 
+    }
     if (update.viewportChanged) {
       // scroll
     }
     if (this.cm.curOp && !this.cm.curOp.isVimOp) {
       this.cm.onBeforeEndOperation();
-    } 
+    }
     if (update.transactions) {
       for (let tr of update.transactions)
       for (let effect of tr.effects) {

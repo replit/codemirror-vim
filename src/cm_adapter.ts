@@ -89,22 +89,40 @@ interface Operation {
   lastChange?: any,
   change?: any,
   changeHandlers?: Function[],
+  $changeStart?: number,
 }
 
 // workaround for missing api for merging transactions
-function dispatchChange(view: EditorView, transaction: any) {
+function dispatchChange(cm: CodeMirror, transaction: any) {
+  var view = cm.cm6;
+  var type = "input.type.compose";
+  if (cm.curOp) {
+    if (!cm.curOp.lastChange) type = "input.type.compose.start";
+  }
   if (transaction.annotations) {
     try {
       transaction.annotations.some(function (note: any) {
-        if (note.value == "input") note.value = "input.type.compose";
+        if (note.value == "input") note.value = type;
       });
     } catch (e) {
       console.error(e);
     }
   } else {
-    transaction.userEvent =  "input.type.compose";
+    transaction.userEvent =  type;
   }
   return view.dispatch(transaction)
+}
+
+function runHistoryCommand(cm: CodeMirror, revert: boolean) {
+  if (cm.curOp) {
+    cm.curOp.$changeStart = undefined;
+  }
+  (revert ? undo : redo)(cm.cm6);
+  let changeStartIndex = cm.curOp?.$changeStart;
+  // vim mode expects the changed text to be either selected or cursor placed at the start
+  if (changeStartIndex != null) {
+    cm.cm6.dispatch({ selection: { anchor: changeStartIndex } });
+  }
 }
 
 export class CodeMirror {
@@ -113,13 +131,13 @@ export class CodeMirror {
   static StringStream = StringStream;
   static commands = {
     cursorCharLeft: function (cm: CodeMirror) { cursorCharLeft(cm.cm6); },
-    redo: function (cm: CodeMirror) { redo(cm.cm6); },
-    undo: function (cm: CodeMirror) { undo(cm.cm6); },
+    redo: function (cm: CodeMirror) { runHistoryCommand(cm, false); },
+    undo: function (cm: CodeMirror) { runHistoryCommand(cm, true); },
     newlineAndIndent: function (cm: CodeMirror) {
       insertNewlineAndIndent({
         state: cm.cm6.state,
         dispatch: (tr) => {
-          return dispatchChange(cm.cm6, tr);
+          return dispatchChange(cm, tr);
         }
       })
     },
@@ -330,17 +348,17 @@ export class CodeMirror {
     var doc = this.cm6.state.doc;
     var from = indexFromPos(doc, s);
     var to = indexFromPos(doc, e);
-    dispatchChange(this.cm6, { changes: { from, to, insert: text } });
+    dispatchChange(this, { changes: { from, to, insert: text } });
   };
   replaceSelection(text: string) {
-    dispatchChange(this.cm6, this.cm6.state.replaceSelection(text))
+    dispatchChange(this, this.cm6.state.replaceSelection(text))
   };
   replaceSelections(replacements: string[]) {
     var ranges = this.cm6.state.selection.ranges;
     var changes = ranges.map((r, i) => {
       return { from: r.from, to: r.to, insert: replacements[i] || "" }
     });
-    dispatchChange(this.cm6, { changes });
+    dispatchChange(this, { changes });
   };
   getSelection() {
     return this.getSelections().join("\n");
@@ -519,7 +537,7 @@ export class CodeMirror {
       to: function () { return lastCM5Result?.to },
       replace: function (text: string) {
         if (last) {
-          dispatchChange(cm.cm6, {
+          dispatchChange(cm, {
             changes: { from: last.from, to: last.to, insert: text }
           });
           last.to = last.from + text.length
@@ -547,7 +565,23 @@ export class CodeMirror {
       }
     }
 
-    return posFromIndex(doc, range.head);
+    let pos = posFromIndex(doc, range.head) as Pos&{hitSide: boolean};
+    // set hitside to true if there was no place to move and cursor was clipped to the edge
+    // of document. Needed for gj/gk
+    if (
+      (
+        amount < 0 && 
+        range.head == 0 && goalColumn != 0 &&
+        start.line == 0 && start.ch != 0
+      ) || (
+        amount > 0 && 
+        range.head == doc.length && pos.ch != goalColumn
+        && start.line == pos.line
+      )
+    ) {
+      pos.hitSide = true;
+    }
+    return pos;
   };
   charCoords(pos: Pos, mode: "div" | "local") {
     var rect = this.cm6.contentDOM.getBoundingClientRect();
@@ -640,6 +674,8 @@ export class CodeMirror {
     }
     var curOp = this.curOp = this.curOp || ({} as Operation);
     update.changes.iterChanges((fromA: number, toA: number, fromB: number, toB: number, text: Text) => {
+      if (curOp.$changeStart == null || curOp.$changeStart > fromB) 
+        curOp.$changeStart = fromB;
       this.$lastChangeEndOffset = toB;
       var change = { text: text.toJSON() };
       if (!curOp.lastChange) {

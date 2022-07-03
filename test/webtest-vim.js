@@ -3,7 +3,7 @@ import { CodeMirror, Vim, vim } from "..";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
 import ist from "ist";
-import tests from "./vim_test.js";
+import {vimTests} from "./vim_test.js"
 import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -18,10 +18,7 @@ var disabled = {
 
   vim_zb_to_bottom: 1,
   vim_zt_to_top: 1,
-  vim_scrollMotion: 1,
-
-  vim_gj_gk_clipping: 1, // TODO doesn't pass on selecnium
-  vim_j_k_and_gj_gk: 1,
+  "vim_zb<zz": 1,
 };
 
 describe("Vim extension", () => {
@@ -57,8 +54,8 @@ describe("Vim extension", () => {
         indentUnit.of(
           options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)
         ),
-        // keymap.of([indentWithTab]),
-      ],
+        options.lineWrapping && EditorView.lineWrapping,
+    ].filter(Boolean),
       parent: root,
     });
     lastView = view;
@@ -68,9 +65,10 @@ describe("Vim extension", () => {
       view.cm.replaceSelection(text);
     };
 
-    if (options.lineWrapping) view.contentDOM.style.whiteSpace = "pre-wrap";
-
     view.dom.style.backgroundColor = "white";
+    view.cm.setSize(420, 300);
+    // without calling refresh cursor movement commands of codemirror 6 do not work
+    view.cm.refresh();
 
     return view.cm;
   }
@@ -117,5 +115,5 @@ describe("Vim extension", () => {
       }
     });
   }
-  tests(CM, transformTest, ist);
+  vimTests(CM, transformTest, ist);
 });

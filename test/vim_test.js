@@ -1,5 +1,5 @@
 
-export default function Tests(CodeMirror, test, ist) {
+export function vimTests(CodeMirror, test, ist) {
 
 var eqCursorPos = function(a, b) { 
   ist(
@@ -1265,7 +1265,14 @@ testVim('._delete_visualBlock', function(cm, vim, helpers) {
   eq('ve\n\nsome\nsugar', cm.getValue());
   helpers.doKeys('j', 'j', '.');
   eq('ve\n\nome\nugar', cm.getValue());
-  helpers.doKeys('u', '<C-r>', '.');
+  helpers.doKeys('u');
+  helpers.assertCursorAt(2, 0);
+  eq('ve\n\nsome\nsugar', cm.getValue());
+  helpers.doKeys('<C-r>');
+  helpers.assertCursorAt(2, 0);
+  eq('ve\n\nome\nugar', cm.getValue());
+  helpers.doKeys('.');
+  helpers.assertCursorAt(2, 0);
   eq('ve\n\nme\ngar', cm.getValue());
 },{value: 'give\nme\nsome\nsugar' });
 testVim('>{motion}', function(cm, vim, helpers) {
@@ -3677,16 +3684,21 @@ var scrollMotionSandbox =
   '\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n';
 testVim('scrollMotion', function(cm, vim, helpers){
   var prevCursor, prevScrollInfo;
+  cm.setSize(320, 200);
   cm.setCursor(0, 0);
+  cm.refresh();
   // ctrl-y at the top of the file should have no effect.
   helpers.doKeys('<C-y>');
   eq(0, cm.getCursor().line);
+  cm.refresh();
   prevScrollInfo = cm.getScrollInfo();
   helpers.doKeys('<C-e>');
   eq(1, cm.getCursor().line);
+  cm.refresh();
   is(prevScrollInfo.top < cm.getScrollInfo().top);
   // Jump to the end of the sandbox.
   cm.setCursor(1000, 0);
+  cm.refresh();
   prevCursor = cm.getCursor();
   // ctrl-e at the bottom of the file should have no effect.
   helpers.doKeys('<C-e>');

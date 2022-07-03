@@ -125,10 +125,11 @@ const vimPlugin = ViewPlugin.fromClass(class implements PluginValue {
   }
 
   update(update: ViewUpdate) {
+    if (this.query && (update.viewportChanged || update.docChanged)) {
+      this.highlight(this.query)
+    }
     if (update.docChanged) {
       this.cm.onChange(update)
-      if (this.query)
-        this.highlight(this.query)
     }
     if (update.selectionSet) {
       this.cm.onSelectionChange()

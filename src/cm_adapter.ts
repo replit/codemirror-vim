@@ -553,7 +553,7 @@ export class CodeMirror {
     var rect = this.cm6.contentDOM.getBoundingClientRect();
     var offset = indexFromPos(this.cm6.state.doc, pos)
     var coords = this.cm6.coordsAtPos(offset)
-    var d = -rect.top
+    var d = this.cm6.scrollDOM.scrollTop - rect.top
     return { left: (coords?.left || 0) - rect.left, top: (coords?.top || 0) + d, bottom: (coords?.bottom || 0) + d }
   };
   coordsChar(coords: { left: number, top: number }, mode: "div" | "local") {

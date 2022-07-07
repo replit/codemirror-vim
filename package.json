@@ -6,8 +6,7 @@
     "dev": "vite ./dev",
     "test": "cm-runtests",
     "build": "cm-buildhelper src/index.ts",
-    "publish": "npm run build && npm publish",
-    "prepare": "npm run build"
+    "publish": "npm run build && npm publish"
   },
   "keywords": [
     "editor",

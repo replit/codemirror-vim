@@ -6,7 +6,6 @@ import {
   StateField,
   StateEffect,
   RangeSetBuilder,
-  Prec,
 } from "@codemirror/state";
 import {
   ViewPlugin,
@@ -266,7 +265,7 @@ function statusPanel(view: EditorView): Panel {
 export function vim(options: { status?: boolean } = {}): Extension {
   return [
     vimStyle,
-    Prec.highest(vimPlugin),
+    vimPlugin,
     hideNativeSelection,
     options.status ? showPanel.of(statusPanel) : vimPanelState,
   ];

@@ -1,5 +1,9 @@
 name: main
-on: [push, repository_dispatch]
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
 jobs:
   build-and-test:
     runs-on: ubuntu-latest

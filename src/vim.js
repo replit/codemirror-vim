@@ -1,5 +1,5 @@
 // CodeMirror, copyright (c) by Marijn Haverbeke and others
-// Distributed under an MIT license: https://codemirror.net/LICENSE
+// Distributed under an MIT license: https://codemirror.net/5/LICENSE
 
 /**
  * Supported keybindings:
@@ -64,6 +64,8 @@ export function initVim(CodeMirror) {
     { keys: '<Right>', type: 'keyToKey', toKeys: 'l' },
     { keys: '<Up>', type: 'keyToKey', toKeys: 'k' },
     { keys: '<Down>', type: 'keyToKey', toKeys: 'j' },
+    { keys: 'g<Up>', type: 'keyToKey', toKeys: 'gk' },
+    { keys: 'g<Down>', type: 'keyToKey', toKeys: 'gj' },
     { keys: '<Space>', type: 'keyToKey', toKeys: 'l' },
     { keys: '<BS>', type: 'keyToKey', toKeys: 'h', context: 'normal'},
     { keys: '<Del>', type: 'keyToKey', toKeys: 'x', context: 'normal'},
@@ -118,6 +120,9 @@ export function initVim(CodeMirror) {
     { keys: '<C-u>', type: 'motion', motion: 'moveByScroll', motionArgs: { forward: false, explicitRepeat: true }},
     { keys: 'gg', type: 'motion', motion: 'moveToLineOrEdgeOfDocument', motionArgs: { forward: false, explicitRepeat: true, linewise: true, toJumplist: true }},
     { keys: 'G', type: 'motion', motion: 'moveToLineOrEdgeOfDocument', motionArgs: { forward: true, explicitRepeat: true, linewise: true, toJumplist: true }},
+    {keys: "g$", type: "motion", motion: "moveToEndOfDisplayLine"},
+    {keys: "g^", type: "motion", motion: "moveToStartOfDisplayLine"},
+    {keys: "g0", type: "motion", motion: "moveToStartOfDisplayLine"},
     { keys: '0', type: 'motion', motion: 'moveToStartOfLine' },
     { keys: '^', type: 'motion', motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: '+', type: 'motion', motion: 'moveByLines', motionArgs: { forward: true, toFirstChar:true }},
@@ -856,13 +861,17 @@ export function initVim(CodeMirror) {
         }
         function handleEsc() {
           if (key == '<Esc>') {
-            // Clear input state and get back to normal mode.
-            clearInputState(cm);
             if (vim.visualMode) {
+              // Get back to normal mode.
               exitVisualMode(cm);
             } else if (vim.insertMode) {
+              // Get back to normal mode.
               exitInsertMode(cm);
+            } else {
+              // We're already in normal mode. Let '<Esc>' be handled normally.
+              return;
             }
+            clearInputState(cm);
             return true;
           }
         }
@@ -930,7 +939,7 @@ export function initVim(CodeMirror) {
           var match = commandDispatcher.matchCommand(mainKey, defaultKeymap, vim.inputState, context);
           if (match.type == 'none') { clearInputState(cm); return false; }
           else if (match.type == 'partial') { return true; }
-          else if (match.type == 'clear') { clearInputState(cm); return true; } // ace_patch
+          else if (match.type == 'clear') { clearInputState(cm); return true; }
 
           vim.inputState.keyBuffer = '';
           keysMatcher = /^(\d*)(.*)$/.exec(keys);
@@ -2085,6 +2094,16 @@ export function initVim(CodeMirror) {
         return new Pos(lineNum,
                    findFirstNonWhiteSpaceCharacter(cm.getLine(lineNum)));
       },
+      moveToStartOfDisplayLine: function(cm) {
+        cm.execCommand("goLineLeft");
+        return cm.getCursor();
+      },
+      moveToEndOfDisplayLine: function(cm) {
+        cm.execCommand("goLineRight");
+        var head = cm.getCursor();
+        if (head.sticky == "before") head.ch--;
+        return head;
+      },
       textObjectManipulation: function(cm, head, motionArgs, vim) {
         // TODO: lots of possible exceptions that can be thrown here. Try da(
         //     outside of a () block.
@@ -2133,6 +2152,20 @@ export function initVim(CodeMirror) {
           }
         } else if (character === 't') {
           tmp = expandTagUnderCursor(cm, head, inclusive);
+        } else if (character === 's') {
+          // account for cursor on end of sentence symbol
+          var content = cm.getLine(head.line);
+          if (head.ch > 0 && isEndOfSentenceSymbol(content[head.ch])) {
+            head.ch -= 1;
+          }
+          var end = getSentence(cm, head, motionArgs.repeat, 1, inclusive)
+          var start = getSentence(cm, head, motionArgs.repeat, -1, inclusive)
+          // closer vim behaviour, 'a' only takes the space after the sentence if there is one before and after
+          if (isWhiteSpaceString(cm.getLine(start.line)[start.ch])
+              && isWhiteSpaceString(cm.getLine(end.line)[end.ch -1])) {
+            start = {line: start.line, ch: start.ch + 1}
+          }
+          tmp = {start: start, end: end};
         } else {
           // No text object defined for this, don't move.
           return null;
@@ -3792,21 +3825,156 @@ export function initVim(CodeMirror) {
       start = new Pos(i, 0);
       return { start: start, end: end };
     }
-
-    function findSentence(cm, cur, repeat, dir) {
-
-      /*
-        Takes an index object
-        {
-          line: the line string,
-          ln: line number,
-          pos: index in line,
-          dir: direction of traversal (-1 or 1)
+  function getSentence(cm, cur, repeat, dir, inclusive /*includes whitespace*/) {
+    /*
+    Takes an index object
+    {
+    line: the line string,
+    ln: line number,
+    pos: index in line,
+    dir: direction of traversal (-1 or 1)
+    }
+    and modifies the pos member to represent the
+    next valid position or sets the line to null if there are
+    no more valid positions.
+   */
+    function nextChar(curr) {
+      if (curr.pos + curr.dir < 0 || curr.pos + curr.dir >= curr.line.length) {
+          curr.line = null;
         }
-        and modifies the line, ln, and pos members to represent the
-        next valid position or sets them to null if there are
-        no more valid positions.
-       */
+      else {
+        curr.pos += curr.dir;
+      }
+    }
+    /*
+    Performs one iteration of traversal in forward direction
+    Returns an index object of the new location
+   */
+    function forward(cm, ln, pos, dir) {
+      var line = cm.getLine(ln);
+
+      var curr = {
+        line: line,
+        ln: ln,
+        pos: pos,
+        dir: dir,
+      };
+
+      if (curr.line === "") {
+        return { ln: curr.ln, pos: curr.pos };
+      }
+
+      var lastSentencePos = curr.pos;
+
+      // Move one step to skip character we start on
+      nextChar(curr);
+
+      while (curr.line !== null) {
+        lastSentencePos = curr.pos;
+        if (isEndOfSentenceSymbol(curr.line[curr.pos])) {
+          if (!inclusive) {
+            return { ln: curr.ln, pos: curr.pos + 1 };
+          } else {
+            nextChar(curr);
+            while (curr.line !== null ) {
+              if (isWhiteSpaceString(curr.line[curr.pos])) {
+                lastSentencePos = curr.pos;
+                nextChar(curr)
+              } else {
+                break;
+              }
+            }
+            return { ln: curr.ln, pos: lastSentencePos + 1, };
+          }
+        }
+        nextChar(curr);
+      }
+      return { ln: curr.ln, pos: lastSentencePos + 1 };
+    }
+
+    /*
+    Performs one iteration of traversal in reverse direction
+    Returns an index object of the new location
+   */
+    function reverse(cm, ln, pos, dir) {
+      var line = cm.getLine(ln);
+
+      var curr = {
+        line: line,
+        ln: ln,
+        pos: pos,
+        dir: dir,
+      }
+
+      if (curr.line === "") {
+        return { ln: curr.ln, pos: curr.pos };
+      }
+
+      var lastSentencePos = curr.pos;
+
+      // Move one step to skip character we start on
+      nextChar(curr);
+
+      while (curr.line !== null) {
+        if (!isWhiteSpaceString(curr.line[curr.pos]) && !isEndOfSentenceSymbol(curr.line[curr.pos])) {
+          lastSentencePos = curr.pos;
+        }
+
+        else if (isEndOfSentenceSymbol(curr.line[curr.pos]) ) {
+          if (!inclusive) {
+            return { ln: curr.ln, pos: lastSentencePos };
+          } else {
+              if (isWhiteSpaceString(curr.line[curr.pos + 1])) {
+                return { ln: curr.ln, pos: curr.pos + 1, };
+              } else {
+                return {ln: curr.ln, pos: lastSentencePos};
+              }
+          }
+        }
+
+        nextChar(curr);
+      }
+      curr.line = line
+      if (inclusive && isWhiteSpaceString(curr.line[curr.pos])) {
+        return { ln: curr.ln, pos: curr.pos };
+      } else {
+        return { ln: curr.ln, pos: lastSentencePos };
+      }
+
+    }
+
+    var curr_index = {
+      ln: cur.line,
+      pos: cur.ch,
+    };
+
+    while (repeat > 0) {
+      if (dir < 0) {
+        curr_index = reverse(cm, curr_index.ln, curr_index.pos, dir);
+      }
+      else {
+        curr_index = forward(cm, curr_index.ln, curr_index.pos, dir);
+      }
+      repeat--;
+    }
+
+    return new Pos(curr_index.ln, curr_index.pos);
+  }
+
+  function findSentence(cm, cur, repeat, dir) {
+
+    /*
+    Takes an index object
+    {
+    line: the line string,
+    ln: line number,
+    pos: index in line,
+    dir: direction of traversal (-1 or 1)
+    }
+    and modifies the line, ln, and pos members to represent the
+    next valid position or sets them to null if there are
+    no more valid positions.
+   */
       function nextChar(cm, idx) {
         if (idx.pos + idx.dir < 0 || idx.pos + idx.dir >= idx.line.length) {
           idx.ln += idx.dir;
@@ -4341,10 +4509,7 @@ export function initVim(CodeMirror) {
       if (cm.openDialog) {
         cm.openDialog(template, options.onClose, {
           onKeyDown: options.onKeyDown, onKeyUp: options.onKeyUp,
-          bottom: true, selectValueOnOpen: false, value: options.value,
-          onClose: function() {
-            cm.state.vim && clearInputState(cm);
-          }
+          bottom: true, selectValueOnOpen: false, value: options.value
         });
       }
       else {
@@ -5746,14 +5911,14 @@ export function initVim(CodeMirror) {
       var isHandled = false;
       var vim = vimApi.maybeInitVimState_(cm);
       var visualBlock = vim.visualBlock || vim.wasInVisualBlock;
-  
+
       var wasMultiselect = cm.isInMultiSelectMode();
       if (vim.wasInVisualBlock && !wasMultiselect) {
         vim.wasInVisualBlock = false;
       } else if (wasMultiselect && vim.visualBlock) {
          vim.wasInVisualBlock = true;
       }
-  
+
       if (key == '<Esc>' && !vim.insertMode && !vim.visualMode && wasMultiselect && vim.status == "<Esc>") {
         // allow editor to exit multiselect
         clearInputState(cm);
@@ -5761,7 +5926,7 @@ export function initVim(CodeMirror) {
         isHandled = vimApi.handleKey(cm, key, origin);
       } else {
         var old = cloneVimState(vim);
-        
+
         cm.operation(function() {
           cm.curOp.isVimOp = true;
           cm.forEachSelection(function() {
@@ -5792,6 +5957,5 @@ export function initVim(CodeMirror) {
     }
     resetVimGlobalState();
 
-  // Initialize Vim and make it available as an API.
   return vimApi;
 };

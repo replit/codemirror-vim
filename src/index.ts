@@ -213,6 +213,7 @@ const vimPlugin = ViewPlugin.fromClass(
           }
         }
         if (result) {
+          CodeMirror.signal(this.cm, 'vim-keypress', key);
           e.preventDefault();
           e.stopPropagation();
           this.blockCursor.scheduleRedraw();

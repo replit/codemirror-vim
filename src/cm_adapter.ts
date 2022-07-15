@@ -5,8 +5,8 @@ import { RegExpCursor, setSearchQuery, SearchQuery } from "@codemirror/search"
 import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection,
   deleteCharBackward, deleteCharForward, cursorCharLeft,
+  undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
 } from "@codemirror/commands"
-import { undo, redo } from "@codemirror/commands"
 
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
@@ -443,8 +443,13 @@ export class CodeMirror {
     indentLess(this.cm6);
   };
 
-  execCommand(name: "indentAuto") {
+  execCommand(name: string) {
     if (name == "indentAuto") CodeMirror.commands.indentAuto(this);
+    else if (name == "goLineLeft") cursorLineBoundaryBackward(this.cm6);
+    else if (name == "goLineRight") {
+      cursorLineBoundaryForward(this.cm6);
+      cursorCharBackward(this.cm6)
+    }
     else console.log(name + " is not implemented");
   };
 

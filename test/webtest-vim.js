@@ -2,10 +2,10 @@ import { EditorView, basicSetup } from "codemirror";
 import { CodeMirror, Vim, vim } from "..";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import ist from "ist";
 import {vimTests} from "./vim_test.js"
 import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
+import {indentWithTab} from "@codemirror/commands";
 import { keymap } from "@codemirror/view";
 
 /**@type {any}*/
@@ -55,6 +55,7 @@ describe("Vim extension", () => {
           options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)
         ),
         options.lineWrapping && EditorView.lineWrapping,
+        keymap.of([indentWithTab]),
     ].filter(Boolean),
       parent: root,
     });
@@ -74,6 +75,8 @@ describe("Vim extension", () => {
   }
 
   CM.defineMode = () => {};
+  CM.on = CodeMirror.on;
+  CM.off = CodeMirror.off;
   CM.Vim = Vim;
   CM.Pos = function (a, b) {
     return new Pos(a, b);
@@ -115,5 +118,5 @@ describe("Vim extension", () => {
       }
     });
   }
-  vimTests(CM, transformTest, ist);
+  vimTests(CM, transformTest);
 });

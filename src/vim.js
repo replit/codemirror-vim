@@ -394,7 +394,7 @@ export function initVim(CodeMirror) {
     var lowerCaseAlphabet = makeKeyRange(97, 26);
     var numbers = makeKeyRange(48, 10);
     var validMarks = [].concat(upperCaseAlphabet, lowerCaseAlphabet, numbers, ['<', '>']);
-    var validRegisters = [].concat(upperCaseAlphabet, lowerCaseAlphabet, numbers, ['-', '"', '.', ':', '_', '/']);
+    var validRegisters = [].concat(upperCaseAlphabet, lowerCaseAlphabet, numbers, ['-', '"', '.', ':', '_', '/', '+']);
     var upperCaseChars;
     try { upperCaseChars = new RegExp("^[\\p{Lu}]$", "u"); }
     catch (_) { upperCaseChars = /^[A-Z]$/; }
@@ -1117,6 +1117,7 @@ export function initVim(CodeMirror) {
       registers['.'] = new Register();
       registers[':'] = new Register();
       registers['/'] = new Register();
+      registers['+'] = new Register();
     }
     RegisterController.prototype = {
       pushText: function(registerName, operator, text, linewise, blockwise) {
@@ -1161,6 +1162,9 @@ export function initVim(CodeMirror) {
           register.pushText(text, linewise);
         } else {
           register.setText(text, linewise, blockwise);
+        }
+        if (registerName === '+') {
+          navigator.clipboard.writeText(text);
         }
         // The unnamed register always has the same value as the last used
         // register.
@@ -2668,10 +2672,19 @@ export function initVim(CodeMirror) {
         this.enterInsertMode(cm, { repeat: actionArgs.repeat }, vim);
       },
       paste: function(cm, actionArgs, vim) {
-        var cur = copyCursor(cm.getCursor());
         var register = vimGlobalState.registerController.getRegister(
             actionArgs.registerName);
-        var text = register.toString();
+        if (actionArgs.registerName === '+') {
+          navigator.clipboard.readText().then((value) => {
+            this.continuePaste(cm, actionArgs, vim, value, register);
+          })
+        } else {
+          var text = register.toString();
+          this.continuePaste(cm, actionArgs, vim, text, register);
+        }
+      },
+      continuePaste: function(cm, actionArgs, vim, text, register) {
+        var cur = copyCursor(cm.getCursor());
         if (!text) {
           return;
         }
@@ -2712,7 +2725,7 @@ export function initVim(CodeMirror) {
         if (blockwise) {
           text = text.split('\n');
           if (linewise) {
-              text.pop();
+            text.pop();
           }
           for (var i = 0; i < text.length; i++) {
             text[i] = (text[i] == '') ? ' ' : text[i];
@@ -2798,8 +2811,8 @@ export function initVim(CodeMirror) {
             // Now fine tune the cursor to where we want it.
             if (linewise && actionArgs.after) {
               curPosFinal = new Pos(
-              cur.line + 1,
-              findFirstNonWhiteSpaceCharacter(cm.getLine(cur.line + 1)));
+                cur.line + 1,
+                findFirstNonWhiteSpaceCharacter(cm.getLine(cur.line + 1)));
             } else if (linewise && !actionArgs.after) {
               curPosFinal = new Pos(
                 cur.line,

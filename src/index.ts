@@ -196,7 +196,11 @@ const vimPlugin = ViewPlugin.fromClass(
           !vim.visualMode &&
           this.query /* && !cm.inMultiSelectMode*/
         ) {
-          cm.removeOverlay(null);
+          const searchState = vim.searchState_
+          if (searchState) {
+            cm.removeOverlay(searchState.getOverlay())
+            searchState.setOverlay(null);
+          }
         }
 
         cm.state.vim.status = (cm.state.vim.status || "") + key;

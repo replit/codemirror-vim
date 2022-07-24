@@ -20,5 +20,6 @@ jobs:
           node-version: '16.4'
 
       - run: npm install
+      - run: cd ./dev/cm5 && npm install
       - run: npm run build
-      - run: npm run test
+      - run: npm run testAll

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",
+    "testAll": "npm run test && cd dev/cm5 && npm run buildAndTest",
     "build": "cm-buildhelper src/index.ts",
     "publish": "npm run build && npm publish",
     "prepare": "npm run build"

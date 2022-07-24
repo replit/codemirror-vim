@@ -36,3 +36,8 @@ var test = fs.readFileSync("../../test/vim_test.js", "utf8");
 test = test.replace(/export function/, "function") +  "\nvimTests(CodeMirror, test);";
 fs.writeFileSync("vim_test.js", test, "utf8");
 
+// update version
+var version = require("../../../package.json").version;
+var package = require("../package.json");
+package.version = version;
+fs.writeFileSync("./package.json", JSON.stringify(package, null, 2), "utf8");

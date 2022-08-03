@@ -3842,7 +3842,7 @@ export function initVim(CodeMirror) {
     /**
      * Based on {@link findSentence}. The internal functions have the same names,
      * but their behaviour is different. findSentence() crosses line breaks and 
-     * is used for jumping to sentences before or after the current cursor position, 
+     * is used for jumping to sentence beginnings before or after the current cursor position, 
      * whereas getSentence() is for getting the beginning or end of the sentence 
      * at the current cursor position, either including (a) or excluding (i) whitespace.
      */

@@ -3838,19 +3838,28 @@ export function initVim(CodeMirror) {
       start = new Pos(i, 0);
       return { start: start, end: end };
     }
-  function getSentence(cm, cur, repeat, dir, inclusive /*includes whitespace*/) {
-    /*
-    Takes an index object
-    {
-    line: the line string,
-    ln: line number,
-    pos: index in line,
-    dir: direction of traversal (-1 or 1)
-    }
-    and modifies the pos member to represent the
-    next valid position or sets the line to null if there are
-    no more valid positions.
+
+  /**
+   * Based on {@link findSentence}. The internal functions have the same names,
+   * but their behaviour is different. findSentence() crosses line breaks and 
+   * is used for jumping to sentences before or after the current cursor position, 
+   * whereas getSentence() is for getting the beginning or end of the sentence 
+   * at the current cursor position, either including (a) or excluding (i) whitespace.
    */
+  function getSentence(cm, cur, repeat, dir, inclusive /*includes whitespace*/) {
+
+    /*
+      Takes an index object
+      {
+        line: the line string,
+        ln: line number,
+        pos: index in line,
+        dir: direction of traversal (-1 or 1)
+      }
+      and modifies the pos member to represent the
+      next valid position or sets the line to null if there are
+      no more valid positions.
+     */
     function nextChar(curr) {
       if (curr.pos + curr.dir < 0 || curr.pos + curr.dir >= curr.line.length) {
           curr.line = null;
@@ -3860,9 +3869,9 @@ export function initVim(CodeMirror) {
       }
     }
     /*
-    Performs one iteration of traversal in forward direction
-    Returns an index object of the new location
-   */
+      Performs one iteration of traversal in forward direction
+      Returns an index object of the sentence end
+     */
     function forward(cm, ln, pos, dir) {
       var line = cm.getLine(ln);
 
@@ -3906,9 +3915,9 @@ export function initVim(CodeMirror) {
     }
 
     /*
-    Performs one iteration of traversal in reverse direction
-    Returns an index object of the new location
-   */
+      Performs one iteration of traversal in reverse direction
+      Returns an index object of the sentence start
+     */
     function reverse(cm, ln, pos, dir) {
       var line = cm.getLine(ln);
 
@@ -3976,18 +3985,18 @@ export function initVim(CodeMirror) {
 
   function findSentence(cm, cur, repeat, dir) {
 
-    /*
-    Takes an index object
-    {
-    line: the line string,
-    ln: line number,
-    pos: index in line,
-    dir: direction of traversal (-1 or 1)
-    }
-    and modifies the line, ln, and pos members to represent the
-    next valid position or sets them to null if there are
-    no more valid positions.
-   */
+       /*
+         Takes an index object
+         {
+           line: the line string,
+           ln: line number,
+           pos: index in line,
+           dir: direction of traversal (-1 or 1)
+         }
+         and modifies the line, ln, and pos members to represent the
+         next valid position or sets them to null if there are
+         no more valid positions.
+       */
       function nextChar(cm, idx) {
         if (idx.pos + idx.dir < 0 || idx.pos + idx.dir >= idx.line.length) {
           idx.ln += idx.dir;

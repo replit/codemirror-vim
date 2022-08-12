@@ -37,3 +37,31 @@ let cm = getCM(view)
 Vim.exitInsertMode(cm)
 Vim.handleKey(cm, "<Esc>")
 ```
+
+### Define additional ex commands
+```js
+Vim.defineEx('write', 'w', function() {
+    // save the file
+});
+```
+
+### Map keys
+```js
+Vim.map("jj", "<Esc>", "insert"); // in insert mode
+Vim.map("Y", "y$"); // in normal mode
+```
+
+### Unmap keys
+
+```js
+Vim.unmap("jj", "insert");
+```
+
+### Add custom key
+
+```js
+  defaultKeymap.push({ keys: 'gq', type: 'operator', operator: 'hardWrap' });
+  Vim.defineOperator("hardWrap", function(cm, operatorArgs, ranges, oldAnchor, newHead) {
+    // make changes and return new cursor position
+  });
+```

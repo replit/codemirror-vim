@@ -1,0 +1,199 @@
+<!doctype html>
+
+<title>CodeMirror 5: Vim bindings demo</title>
+<meta charset="utf-8" />
+
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/lib/codemirror.css">
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/addon/dialog/dialog.css">
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/addon/fold/foldgutter.css">
+<script src="https://www.unpkg.com/codemirror@5.65.6/lib/codemirror.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/dialog/dialog.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/search/searchcursor.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/foldcode.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/xml-fold.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/brace-fold.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/addon/mode/simple.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/mode/css/css.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/mode/clike/clike.js"></script>
+<script src="https://www.unpkg.com/codemirror@5.65.6/mode/xml/xml.js"></script>
+
+<style>
+  .CodeMirror {
+    border-top: 1px solid #eee;
+    border-bottom: 1px solid #eee;
+  }
+
+  #testNames {
+    column-width: 19em;
+    column-count: auto;
+  }
+
+  .pass *,
+  .pass {
+    color: green
+  }
+
+  .error *,
+  .error {
+    color: red
+  }
+</style>
+
+<h2>Vim bindings for CodeMirror 5 demo</h2>
+
+<form><textarea id="code" name="code">
+#include "syscalls.h"
+/* getchar:  simple buffered version */
+int getchar(void)
+{
+  static char buf[BUFSIZ];
+  static char *bufp = buf;
+  static int n = 0;
+  if (n == 0) {  /* buffer is empty */
+    n = read(0, buf, sizeof buf);
+    bufp = buf;
+  }
+  return (--n >= 0) ? (unsigned char) *bufp++ : EOF;
+}
+</textarea></form>
+<div style="font-size: 13px; width: 300px; height: 30px;">Key buffer: <span id="command-display"></span></div>
+<div style="font-size: 13px; width: 300px; height: 30px;">Vim mode: <span id="vim-mode"></span></div>
+
+<script type=module>
+  import {initVim} from "./index.js";
+  initVim(CodeMirror);
+  CodeMirror.commands.save = function(){ alert("Saving"); };
+  let editor = CodeMirror.fromTextArea(document.getElementById("code"), {
+    lineNumbers: true,
+    mode: "text/x-csrc",
+    keyMap: "vim",
+    matchBrackets: true,
+    showCursorWhenSelecting: true
+  });
+  let commandDisplay = document.getElementById('command-display');
+  let keys = '';
+  CodeMirror.on(editor, 'vim-keypress', function(key) {
+    keys = keys + key;
+    commandDisplay.innerText = keys;
+  });
+  CodeMirror.on(editor, 'vim-command-done', function(e) {
+    keys = '';
+    commandDisplay.innerHTML = keys;
+  });
+  let vimMode = document.getElementById('vim-mode');
+  CodeMirror.on(editor, 'vim-mode-change', function(e) {
+    vimMode.innerText = JSON.stringify(e);
+  });
+
+  window._editor = editor;
+
+  import { vimTests } from "../../test/vim_test.js";
+  window.vimTests = vimTests;
+  setTimeout(onLoad);
+</script>
+
+<div>
+  <button onclick="runTests()">Run all</button>
+  <span id="status"></span>
+</div>
+<div id="failures"></div>
+<div id="testground"></div>
+<div id="testNames"></div>
+
+<script type=module>
+</script>
+
+<script>
+  function onLoad(params) {
+    let allTests = {}
+    vimTests(CodeMirror, function (name, func) {
+      allTests[name] = func;
+    }, function (a, b) {
+      if (arguments.length == 1) {
+        if (!a) throw new Error("!" + a);
+      } else {
+        if (a != b) throw new Error(`${a} is not equal to ${b}`);
+      }
+    });
+
+    let container = document.getElementById("testNames");
+    let testLinks = {};
+    function prepareLinks() {
+      container.textContent = "";
+      testLinks = {};
+      Object.keys(allTests).forEach((name, i) => {
+        let div = document.createElement("div");
+        testLinks[name] = div;
+        let span = document.createElement("span");
+        span.textContent = "" + (i + 1) + ") "
+        let a = document.createElement("a")
+        a.href = "#" + name;
+        a.textContent = name.slice(4);
+        div.appendChild(span);
+        div.appendChild(a);
+        container.appendChild(div);
+      });
+    }
+
+    let testground = document.getElementById("testground");
+    let failures = document.getElementById("failures");
+    let statusDiv = document.getElementById("status");
+    function runTest(name) {
+      try {
+        allTests[name]();
+        testLinks[name].className = "pass";
+        testground.textContent = "";
+        return true;
+      } catch (e) {
+        console.error(e);
+        console.log(name, testLinks[name])
+        testLinks[name].className = "error";
+        failures.appendChild(testLinks[name].cloneNode(true));
+        if (testground.firstChild) {
+          failures.appendChild(testground.firstChild);
+        }
+        return false;
+      }
+    }
+
+    function runTests() {
+      prepareLinks();
+      let toRun = Object.keys(allTests);
+      let i = 0;
+      let failures = 0;
+      function runNext() {
+        if (!toRun[i]) return done();
+        updateStatus();
+        let result = runTest(toRun[i]);
+        if (!result) failures++;
+        i++;
+        setTimeout(runNext);
+      }
+      function done() {
+        updateStatus();
+      }
+      function updateStatus() {
+        statusDiv.textContent =
+          ((i/1000).toFixed(3).slice(2) + "/" + toRun.length + " Tests run, with " + failures + " failures.")
+          + (toRun[i] ? "   Running" + toRun[i] : "");
+        statusDiv.className = failures ? "error" : "pass";
+      }
+      runNext();
+    }
+
+    window.onhashchange = function () {
+      let name = document.location.hash.slice(1);
+      if (allTests[name]) runTest(name);
+      else if (name == "all") runTests();
+    }
+    
+    window.allTests = allTests;
+    window.testLinks = testLinks;
+    window.runTests = runTests;
+    window.runTest = runTest;
+
+    prepareLinks();
+    window.onhashchange();
+  }
+</script>

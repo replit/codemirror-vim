@@ -158,11 +158,15 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       domAtPos = {node: domAtPos.node.childNodes[domAtPos.offset], offset: 0};
     }
     if (!(node instanceof HTMLElement)) {
+      if (!node.parentNode) return null;
       node = node.parentNode;
     }
     let style = getComputedStyle(node as HTMLElement);
     let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
     if (!letter || letter == "\n" || letter == "\r") letter = "\xa0";
+    else if ((/[\uD800-\uDC00]/.test(letter) && head < view.state.doc.length - 1)) {
+      letter += view.state.sliceDoc(head + 1, head + 2);
+    }
     let h = (pos.bottom - pos.top);
     return new Piece(pos.left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
                      style.fontFamily, style.fontSize, style.fontWeight, style.color,

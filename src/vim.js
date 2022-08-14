@@ -1605,7 +1605,7 @@ export function initVim(CodeMirror) {
           }
           if (vim.visualMode) {
             if (!(vim.visualBlock && newHead.ch === Infinity)) {
-              newHead = clipCursorToContent(cm, newHead);
+              newHead = clipCursorToContent(cm, newHead, oldHead);
             }
             if (newAnchor) {
               newAnchor = clipCursorToContent(cm, newAnchor);
@@ -1621,7 +1621,7 @@ export function initVim(CodeMirror) {
                 cursorIsBefore(newAnchor, newHead) ? newHead
                     : newAnchor);
           } else if (!operator) {
-            newHead = clipCursorToContent(cm, newHead);
+            newHead = clipCursorToContent(cm, newHead, oldHead);
             cm.setCursor(newHead.line, newHead.ch);
           }
         }
@@ -2961,14 +2961,28 @@ export function initVim(CodeMirror) {
 
     /**
      * Clips cursor to ensure that line is within the buffer's range
+     * and is not inside surrogate pair
      * If includeLineBreak is true, then allow cur.ch == lineLength.
      */
-    function clipCursorToContent(cm, cur) {
+    function clipCursorToContent(cm, cur, oldCur) {
       var vim = cm.state.vim;
       var includeLineBreak = vim.insertMode || vim.visualMode;
       var line = Math.min(Math.max(cm.firstLine(), cur.line), cm.lastLine() );
-      var maxCh = lineLength(cm, line) - 1 + !!includeLineBreak;
+      var text = cm.getLine(line);
+      var maxCh = text.length - 1 + !!includeLineBreak;
       var ch = Math.min(Math.max(0, cur.ch), maxCh);
+      // prevent cursor from entering surrogate pair
+      var charCode = text.charCodeAt(ch);
+      if (0xDC00 < charCode && charCode <0xDFFF) {
+        var direction = 1;
+        if (oldCur && oldCur.line == line) {
+          if (oldCur.ch > ch) {
+            direction = -1;
+          }
+        }
+        ch +=direction;
+        if (ch > maxCh) ch -=2;
+      }
       return new Pos(line, ch);
     }
     function copyArgs(args) {

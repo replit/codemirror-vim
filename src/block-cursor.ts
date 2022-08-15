@@ -148,7 +148,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
   }
 
   if (fatCursor) {
-    let pos = view.coordsAtPos(head, cursor.assoc || 1);
+    let pos = view.coordsAtPos(head, 1);
     if (!pos) return null;
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);

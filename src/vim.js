@@ -2639,15 +2639,22 @@ export function initVim(CodeMirror) {
         var finalCh = 0;
         for (var i = curStart.line; i < curEnd.line; i++) {
           finalCh = lineLength(cm, curStart.line);
-          var tmp = new Pos(curStart.line + 1,
-                        lineLength(cm, curStart.line + 1));
-          var text = cm.getRange(curStart, tmp);
-          text = actionArgs.keepSpaces
-            ? text.replace(/\n\r?/g, '')
-            : text.replace(/\n\s*/g, ' ');
-          cm.replaceRange(text, curStart, tmp);
+          var text = '';
+          var nextStartCh = 0;
+          if (!actionArgs.keepSpaces) {
+            var nextLine = cm.getLine(curStart.line + 1);
+            nextStartCh = nextLine.search(/\S/);
+            if (nextStartCh == -1) {
+              nextStartCh = nextLine.length;
+            } else {
+              text = " ";
+            }
+          }
+          cm.replaceRange(text, 
+            new Pos(curStart.line, finalCh),
+            new Pos(curStart.line + 1, nextStartCh));
         }
-        var curFinalPos = new Pos(curStart.line, finalCh);
+        var curFinalPos = clipCursorToContent(cm, new Pos(curStart.line, finalCh));
         if (vim.visualMode) {
           exitVisualMode(cm, false);
         }
@@ -2834,7 +2841,7 @@ export function initVim(CodeMirror) {
       undo: function(cm, actionArgs) {
         cm.operation(function() {
           repeatFn(cm, CodeMirror.commands.undo, actionArgs.repeat)();
-          cm.setCursor(cm.getCursor('anchor'));
+          cm.setCursor(clipCursorToContent(cm, cm.getCursor('start')));
         });
       },
       redo: function(cm, actionArgs) {

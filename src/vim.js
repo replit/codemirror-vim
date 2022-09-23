@@ -2513,9 +2513,11 @@ export function initVim(CodeMirror) {
         } else if (insertAt == 'bol') {
           head = new Pos(head.line, 0);
         } else if (insertAt == 'charAfter') {
-          head = offsetCursor(head, 0, 1);
+          var newPosition = updateSelectionForSurrogateCharacters(cm, head, offsetCursor(head, 0, 1));
+          head = newPosition.end;
         } else if (insertAt == 'firstNonBlank') {
-          head = motions.moveToFirstNonWhiteSpaceCharacter(cm, head);
+          var newPosition = updateSelectionForSurrogateCharacters(cm, head, motions.moveToFirstNonWhiteSpaceCharacter(cm, head));
+          head = newPosition.end;
         } else if (insertAt == 'startOfSelectedArea') {
           if (!vim.visualMode)
               return;

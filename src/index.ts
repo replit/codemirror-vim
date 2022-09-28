@@ -168,7 +168,7 @@ const vimPlugin = ViewPlugin.fromClass(
         while (i < l - 1 && to > ranges[i + 1].from - 2 * HighlightMargin)
           to = ranges[++i].to;
         query.highlight(
-          view.state.doc,
+          view.state,
           from,
           to,
           (from: number, to: number) => {

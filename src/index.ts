@@ -15,6 +15,7 @@ import {
   EditorView,
   showPanel,
   Panel,
+  keymap,
 } from "@codemirror/view";
 import { setSearchQuery } from "@codemirror/search";
 
@@ -182,54 +183,61 @@ const vimPlugin = ViewPlugin.fromClass(
     decorations = Decoration.none;
   },
   {
-    eventHandlers: {
-      keydown: function (e: KeyboardEvent, view: EditorView) {
-        const key = CodeMirror.vimKey(e);
-        const cm = this.cm;
-        if (!key) return;
-
-        // clear search highlight
-        let vim = cm.state.vim;
-        if (
-          key == "<Esc>" &&
-          !vim.insertMode &&
-          !vim.visualMode &&
-          this.query /* && !cm.inMultiSelectMode*/
-        ) {
-          const searchState = vim.searchState_
-          if (searchState) {
-            cm.removeOverlay(searchState.getOverlay())
-            searchState.setOverlay(null);
-          }
-        }
-
-        cm.state.vim.status = (cm.state.vim.status || "") + key;
-        let result = Vim.multiSelectHandleKey(cm, key, "user");
-
-        // insert mode
-        if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
-          if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
-            result = true;
-            cm.overWriteSelection(e.key);
-          } else if (e.key == "Backspace") {
-            result = true;
-            CodeMirror.commands.cursorCharLeft(cm);
-          }
-        }
-        if (result) {
-          CodeMirror.signal(this.cm, 'vim-keypress', key);
-          e.preventDefault();
-          e.stopPropagation();
-          this.blockCursor.scheduleRedraw();
-        }
-
-        this.updateStatus();
-
-        return !!result;
-      },
-    },
-
     decorations: (v) => v.decorations,
+
+    provide: plugin => {
+      return keymap.of([
+        {
+          any: function(view, e) {
+            const pluginInstance = view.plugin(plugin)
+            if (!pluginInstance) return false;
+
+            const key = CodeMirror.vimKey(e);
+            const cm = pluginInstance.cm;
+            if (!key) return false;
+
+            // clear search highlight
+            let vim = cm.state.vim;
+            if (
+                key == "<Esc>" &&
+                !vim.insertMode &&
+                !vim.visualMode &&
+                pluginInstance.query /* && !cm.inMultiSelectMode*/
+            ) {
+              const searchState = vim.searchState_
+              if (searchState) {
+                cm.removeOverlay(searchState.getOverlay())
+                searchState.setOverlay(null);
+              }
+            }
+
+            cm.state.vim.status = (cm.state.vim.status || "") + key;
+            let result = Vim.multiSelectHandleKey(cm, key, "user");
+
+            // insert mode
+            if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
+              if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
+                result = true;
+                cm.overWriteSelection(e.key);
+              } else if (e.key == "Backspace") {
+                result = true;
+                CodeMirror.commands.cursorCharLeft(cm);
+              }
+            }
+            if (result) {
+              CodeMirror.signal(cm, 'vim-keypress', key);
+              e.preventDefault();
+              e.stopPropagation();
+              pluginInstance.blockCursor.scheduleRedraw();
+            }
+
+            pluginInstance.updateStatus();
+
+            return !!result;
+          }
+        }
+      ])
+    }
   }
 );
 

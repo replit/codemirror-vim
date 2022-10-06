@@ -1,10 +1,11 @@
 import { basicSetup, EditorView } from 'codemirror'
-import { highlightActiveLine } from '@codemirror/view';
+import { highlightActiveLine, keymap } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/"
 
 import * as commands from "@codemirror/commands";
+import { Compartment, EditorState } from '@codemirror/state';
 
 const doc = `
 import { basicSetup, EditorView } from 'codemirror'
@@ -59,25 +60,76 @@ global._commands = commands;
 global._Vim = Vim;
 
 let view
-function updateView() {
-  if (view) view.destroy()
-  view = global._view = new EditorView({
-    doc: htmlCheckbox.checked ? document.documentElement.outerHTML : doc,
-    extensions: [
-      // make sure vim is included before all other keymaps
-      vim({status: statusBox.checked}),
-      // include the default keymap and all other keymaps you want to use in insert mode
-      basicSetup,
-      htmlCheckbox.checked ? xml(): javascript(),
-      highlightActiveLine(),
-      wrapCheckbox.checked && EditorView.lineWrapping,
-    ].filter(Boolean),
-    parent: document.querySelector('#editor'),
-  });
+let enableVim = true
+let vimCompartement = new Compartment();
 
-  if (jjBox.checked) {
-    Vim.map
+var defaultExtensions = [
+  // make sure vim is included before all other keymaps
+  vimCompartement.of([
+    vim({status: true}),
+  ]),
+  // include the default keymap and all other keymaps you want to use in insert mode
+  basicSetup,
+  highlightActiveLine(),
+  keymap.of([
+    {
+      key: "Alt-v",
+      run: () => {
+        enableVim = !enableVim
+        updateView()
+        return true
+      }
+    }
+  ])
+]
+
+var tabs = {
+  js: EditorState.create({
+    doc: doc,
+    extensions: [...defaultExtensions, javascript()]
+  }),
+  html: EditorState.create({
+    doc: document.documentElement.outerHTML,
+    extensions: [...defaultExtensions, xml()]
+  })
+}
+var selectedTab = ""
+
+
+function updateView() {
+  if (!view) {
+    view = global._view = new EditorView({
+      doc: "",
+      extensions: defaultExtensions,
+      parent: document.querySelector('#editor'),
+    });
+  }
+
+  selectTab(htmlCheckbox.checked ? "html": "js")
+
+  view.dispatch({
+    effects: vimCompartement.reconfigure([
+      enableVim && vim({status: statusBox.checked}),
+      wrapCheckbox.checked && EditorView.lineWrapping,
+    ].filter(Boolean))  
+  })
+}
+
+function selectTab(tab: string) {
+  if (selectedTab != tab) {
+    tabs[selectedTab] = view.state;
+    selectedTab = tab
+    view.setState(tabs[selectedTab])
   }
 }
+
+Vim.defineEx("tabnext", "tabn", () => {
+  tabs["scratch"] = EditorState.create({
+    doc: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
+    extensions: defaultExtensions,
+  })
+  selectTab("scratch")
+});
+
 
 updateView()

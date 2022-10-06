@@ -131,9 +131,9 @@ const vimPlugin = ViewPlugin.fromClass(
     }
     updateStatus() {
       let dom = this.cm.state.statusbar;
-      if (!dom) return;
-      let dialog = this.cm.state.dialog;
       let vim = this.cm.state.vim;
+      if (!dom || !vim) return;
+      let dialog = this.cm.state.dialog;
       if (dialog) {
         if (dialog.parentElement != dom) {
           dom.textContent = "";
@@ -148,7 +148,7 @@ const vimPlugin = ViewPlugin.fromClass(
     }
 
     destroy() {
-      this.cm.state.vim = null;
+      Vim.leaveVimMode(this.cm);
       this.updateClass();
       this.blockCursor.destroy();
       delete (this.view as any).cm;
@@ -188,8 +188,9 @@ const vimPlugin = ViewPlugin.fromClass(
         const cm = this.cm;
         if (!key) return;
 
-        // clear search highlight
         let vim = cm.state.vim;
+        if (!vim) return;
+        // clear search highlight
         if (
           key == "<Esc>" &&
           !vim.insertMode &&
@@ -203,11 +204,12 @@ const vimPlugin = ViewPlugin.fromClass(
           }
         }
 
-        cm.state.vim.status = (cm.state.vim.status || "") + key;
+        vim.status = (vim.status || "") + key;
         let result = Vim.multiSelectHandleKey(cm, key, "user");
+        vim = cm.state.vim; // the object can change if there is an exception in handleKey
 
         // insert mode
-        if (!result && cm.state.vim.insertMode && cm.state.overwrite) {
+        if (!result && vim.insertMode && cm.state.overwrite) {
           if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
             result = true;
             cm.overWriteSelection(e.key);

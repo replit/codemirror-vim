@@ -711,6 +711,7 @@ export function initVim(CodeMirror) {
     var lastInsertModeKeyTimer;
     var vimApi = {
       enterVimMode: enterVimMode,
+      leaveVimMode: leaveVimMode,
       buildKeyMap: function() {
         // TODO: Convert keymap into dictionary format for fast lookup.
       },
@@ -1492,7 +1493,7 @@ export function initVim(CodeMirror) {
           vimGlobalState.exCommandHistoryController.pushInput(input);
           vimGlobalState.exCommandHistoryController.reset();
           exCommandDispatcher.processCommand(cm, input);
-          clearInputState(cm);
+          if (cm.state.vim) clearInputState(cm);
         }
         function onPromptKeyDown(e, input, close) {
           var keyName = CodeMirror.keyName(e), up, offset;

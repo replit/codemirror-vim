@@ -2493,9 +2493,29 @@ testVim('visual_join', function(cm, vim, helpers) {
 }, { value: ' 1\n 2\n 3\n 4\n 5' });
 testVim('visual_join_2', function(cm, vim, helpers) {
   helpers.doKeys('G', 'V', 'g', 'g', 'J');
-  eq('1 2 3 4 5 6 ', cm.getValue());
+  eq('1 2 3 4 5 6', cm.getValue());
   is(!vim.visualMode);
 }, { value: '1\n2\n3\n4\n5\n6\n'});
+testVim('visual_join_blank', function(cm, vim, helpers) {
+  var initialValue = cm.getValue();
+  helpers.doKeys('G', 'V', 'g', 'g', 'J');
+  eq('1  2 5 6', cm.getValue());
+  is(!vim.visualMode);
+  helpers.doKeys('u');
+  eq(initialValue, cm.getValue());
+  helpers.doKeys('G', 'V', 'g', 'g', 'g', 'J');
+  eq('1 \t2\t  5 6', cm.getValue());
+  helpers.doKeys('u');
+  eq(cm.getCursor().line, 0);
+  eq(initialValue, cm.getValue());
+  helpers.doKeys('J', 'J', 'J');
+  helpers.assertCursorAt(0, 3);
+  helpers.doKeys('J');
+  helpers.assertCursorAt(0, 4);
+  eq('1  2 5\n 6\n', cm.getValue());
+  helpers.doKeys('u');
+  eq('1  2\n5\n 6\n', cm.getValue());  
+}, { value: '1 \n\t2\n\t  \n\n5\n 6\n'});
 testVim('visual_blank', function(cm, vim, helpers) {
   helpers.doKeys('v', 'k');
   eq(vim.visualMode, true);

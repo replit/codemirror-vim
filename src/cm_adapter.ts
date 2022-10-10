@@ -71,7 +71,8 @@ var specialKey: any = {
   ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
   Enter: 'CR', ' ': 'Space'
 };
-var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1, CapsLock: 1 , AltGraph: 1 };
+var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1,
+  CapsLock: 1, AltGraph: 1, Dead: 1 };
 
 
 let wordChar: RegExp

@@ -180,54 +180,64 @@ const vimPlugin = ViewPlugin.fromClass(
     }
     query = null;
     decorations = Decoration.none;
+
+    handleKey(e: KeyboardEvent, view: EditorView) {
+      const key = CodeMirror.vimKey(e);
+      const cm = this.cm;
+      if (!key) return;
+
+      let vim = cm.state.vim;
+      if (!vim) return;
+      // clear search highlight
+      if (
+        key == "<Esc>" &&
+        !vim.insertMode &&
+        !vim.visualMode &&
+        this.query /* && !cm.inMultiSelectMode*/
+      ) {
+        const searchState = vim.searchState_
+        if (searchState) {
+          cm.removeOverlay(searchState.getOverlay())
+          searchState.setOverlay(null);
+        }
+      }
+
+      vim.status = (vim.status || "") + key;
+      let result = Vim.multiSelectHandleKey(cm, key, "user");
+      vim = cm.state.vim; // the object can change if there is an exception in handleKey
+
+      // insert mode
+      if (!result && vim.insertMode && cm.state.overwrite) {
+        if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
+          result = true;
+          cm.overWriteSelection(e.key);
+        } else if (e.key == "Backspace") {
+          result = true;
+          CodeMirror.commands.cursorCharLeft(cm);
+        }
+      }
+      if (result) {
+        CodeMirror.signal(this.cm, 'vim-keypress', key);
+        e.preventDefault();
+        e.stopPropagation();
+        this.blockCursor.scheduleRedraw();
+      }
+
+      this.updateStatus();
+
+      return !!result;
+    }
+    lastKeydown = ''
   },
   {
     eventHandlers: {
+      keypress: function (e: KeyboardEvent, view: EditorView) {
+        if (this.lastKeydown == "Dead")
+          this.handleKey(e, view);
+      },
       keydown: function (e: KeyboardEvent, view: EditorView) {
-        const key = CodeMirror.vimKey(e);
-        const cm = this.cm;
-        if (!key) return;
-
-        let vim = cm.state.vim;
-        if (!vim) return;
-        // clear search highlight
-        if (
-          key == "<Esc>" &&
-          !vim.insertMode &&
-          !vim.visualMode &&
-          this.query /* && !cm.inMultiSelectMode*/
-        ) {
-          const searchState = vim.searchState_
-          if (searchState) {
-            cm.removeOverlay(searchState.getOverlay())
-            searchState.setOverlay(null);
-          }
-        }
-
-        vim.status = (vim.status || "") + key;
-        let result = Vim.multiSelectHandleKey(cm, key, "user");
-        vim = cm.state.vim; // the object can change if there is an exception in handleKey
-
-        // insert mode
-        if (!result && vim.insertMode && cm.state.overwrite) {
-          if (e.key && e.key.length == 1 && !/\n/.test(e.key)) {
-            result = true;
-            cm.overWriteSelection(e.key);
-          } else if (e.key == "Backspace") {
-            result = true;
-            CodeMirror.commands.cursorCharLeft(cm);
-          }
-        }
-        if (result) {
-          CodeMirror.signal(this.cm, 'vim-keypress', key);
-          e.preventDefault();
-          e.stopPropagation();
-          this.blockCursor.scheduleRedraw();
-        }
-
-        this.updateStatus();
-
-        return !!result;
+        this.lastKeydown = e.key;
+        this.handleKey(e, view);
       },
     },
 

@@ -164,7 +164,8 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     let style = getComputedStyle(node as HTMLElement);
     let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
     if (!letter || letter == "\n" || letter == "\r") letter = "\xa0";
-    else if ((/[\uD800-\uDC00]/.test(letter) && head < view.state.doc.length - 1)) {
+    else if ((/[\uD800-\uDBFF]/.test(letter) && head < view.state.doc.length - 1)) {
+      // include the second half of a surrogate pair in cursor
       letter += view.state.sliceDoc(head + 1, head + 2);
     }
     let h = (pos.bottom - pos.top);

@@ -2969,16 +2969,14 @@ export function initVim(CodeMirror) {
       var includeLineBreak = vim.insertMode || vim.visualMode;
       var line = Math.min(Math.max(cm.firstLine(), cur.line), cm.lastLine() );
       var text = cm.getLine(line);
-      var maxCh = text.length - 1 + !!includeLineBreak;
+      var maxCh = text.length - 1 + Number(!!includeLineBreak);
       var ch = Math.min(Math.max(0, cur.ch), maxCh);
       // prevent cursor from entering surrogate pair
       var charCode = text.charCodeAt(ch);
-      if (0xDC00 < charCode && charCode <0xDFFF) {
+      if (0xDC00 <= charCode && charCode <= 0xDFFF) {
         var direction = 1;
-        if (oldCur && oldCur.line == line) {
-          if (oldCur.ch > ch) {
-            direction = -1;
-          }
+        if (oldCur && oldCur.line == line && oldCur.ch > ch) {
+          direction = -1;
         }
         ch +=direction;
         if (ch > maxCh) ch -=2;

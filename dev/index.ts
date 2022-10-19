@@ -7,7 +7,7 @@ import { Vim, vim } from "../src/"
 import * as commands from "@codemirror/commands";
 import { Compartment, EditorState } from '@codemirror/state';
 
-const doc = `
+const doc = `//🌞
 import { basicSetup, EditorView } from 'codemirror'
 import { javascript } from '@codemirror/lang-javascript';
 import { vim } from "../src/"

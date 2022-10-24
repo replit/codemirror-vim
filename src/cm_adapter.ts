@@ -196,6 +196,12 @@ export class CodeMirror {
     if (e.ctrlKey) { name += 'C-'; }
     if (e.altKey) { name += 'A-'; }
     if (e.metaKey) { name += 'M-'; }
+    // HACK: on mac many characters are entered as option- combos
+    // (e.g. on swiss keyboard { is option-8)
+    // so we ignore lonely A- modifier on mac
+    if (e.type == "keypress" && e.altKey && !e.metaKey && !e.ctrlKey) {
+      name = name.slice(2);
+    }
     if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }
 
     name += key;

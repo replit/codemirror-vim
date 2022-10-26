@@ -5261,7 +5261,16 @@ testVim('increment_hexadecimal', function(cm, vim, helpers) {
   eq('0x00', cm.getValue());
 }, { value: '0x0' });
 
+testVim('option_key_on_mac', function(cm, vim, helpers) {
+  helpers.assertCursorAt(0, 0);
+  typeKey.optionTextInput('9', '}');
+  helpers.assertCursorAt(3, 0);
+  typeKey.optionTextInput('8', '{');
+  helpers.assertCursorAt(0, 0);
+}, { value: '0\n1\n2\n\n\n3\n4\n' });
+
 }
+
 var typeKey = function() {
   var keyCodeToKey = {};
   var keyCodeToCode = {};
@@ -5340,7 +5349,7 @@ var typeKey = function() {
       return alt = true;
   }
 
-  function sendKey(letter, timeout) {
+  function sendKey(letter, options) {
     var keyCode = controlKeys[letter] || printableKeys[letter] || shiftedKeys[letter];
     var isModifier = updateModifierStates(keyCode);
 
@@ -5354,6 +5363,13 @@ var typeKey = function() {
 
     if (keyCodeToKey[keyCode] != text && keyCodeToKey["s-" + keyCode] == text) {
       shift = true;
+    }
+    var key = keyCodeToKey[(shift ? "s-" : "") + keyCode];
+    
+    if (options && options.macAltText) {
+      alt = true;
+      text = key = options.macAltText;
+      isTextInput = true;
     }
 
     var target = document.activeElement;
@@ -5384,7 +5400,7 @@ var typeKey = function() {
       data.ctrlKey = ctrl;
       data.altKey = alt;
       data.metaKey = meta;
-      data.key = keyCodeToKey[(shift ? "s-" : "") + keyCode] || console.error(text);
+      data.key = key;
       data.code = keyCodeToCode[keyCode];
       var event = new KeyboardEvent(type, data);
 
@@ -5454,6 +5470,12 @@ var typeKey = function() {
       }
       sendKey(key);
     }
+  }
+
+  // emulates option-9 inputting } on mac swiss keyboard
+  type.optionTextInput = function(letter, altText) {
+    reset();
+    sendKey(letter, {macAltText: altText});
   }
 
   return type;

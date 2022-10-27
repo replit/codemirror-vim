@@ -231,11 +231,11 @@ const vimPlugin = ViewPlugin.fromClass(
   },
   {
     eventHandlers: {
-      keypress: function (e: KeyboardEvent, view: EditorView) {
-        if (this.lastKeydown == "Dead")
+      keypress: function(e: KeyboardEvent, view: EditorView) {
+        if (this.lastKeydown == "Dead" || (e.altKey && !e.ctrlKey && !e.cmdKey))
           this.handleKey(e, view);
       },
-      keydown: function (e: KeyboardEvent, view: EditorView) {
+      keydown: function(e: KeyboardEvent, view: EditorView) {
         this.lastKeydown = e.key;
         this.handleKey(e, view);
       },

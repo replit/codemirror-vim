@@ -229,6 +229,7 @@ export function initVim(CodeMirror) {
     { keys: '<C-r>', type: 'action', action: 'redo' },
     { keys: 'm<character>', type: 'action', action: 'setMark' },
     { keys: '"<character>', type: 'action', action: 'setRegister' },
+    { keys: '<C-r><character>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
     { keys: 'zz', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }},
     { keys: 'z.', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: 'zt', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'top' }},
@@ -905,41 +906,52 @@ export function initVim(CodeMirror) {
 
         function handleKeyInsertMode() {
           if (handleEsc()) { return true; }
-          var keys = vim.inputState.keyBuffer = vim.inputState.keyBuffer + key;
+          vim.inputState.keyBuffer.push(key);
+          var keys = vim.inputState.keyBuffer.join("");
           var keysAreChars = key.length == 1;
           var match = commandDispatcher.matchCommand(keys, defaultKeymap, vim.inputState, 'insert');
-          // Need to check all key substrings in insert mode.
-          while (keys.length > 1 && match.type != 'full') {
-            var keys = vim.inputState.keyBuffer = keys.slice(1);
-            var thisMatch = commandDispatcher.matchCommand(keys, defaultKeymap, vim.inputState, 'insert');
-            if (thisMatch.type != 'none') { match = thisMatch; }
-          }
+          var changeQueue = vim.inputState.changeQueue;
+
           if (match.type == 'none') { clearInputState(cm); return false; }
           else if (match.type == 'partial') {
             if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
-            lastInsertModeKeyTimer = window.setTimeout(
-              function() { if (vim.insertMode && vim.inputState.keyBuffer) { clearInputState(cm); } },
+            lastInsertModeKeyTimer = keysAreChars && window.setTimeout(
+              function() { if (vim.insertMode && vim.inputState.keyBuffer.length) { clearInputState(cm); } },
               getOption('insertModeEscKeysTimeout'));
+            if (keysAreChars) {
+              var selections = cm.listSelections();
+              if (!changeQueue || changeQueue.removed.length != selections.length)
+                changeQueue = vim.inputState.changeQueue = new ChangeQueue;
+              changeQueue.inserted += key;
+              for (var i = 0; i < selections.length; i++) {
+                var from = cursorMin(selections[i].anchor, selections[i].head);
+                var to = cursorMax(selections[i].anchor, selections[i].head);
+                var text = cm.getRange(from, cm.state.overwrite ? offsetCursor(to, 0, 1) : to);
+                changeQueue.removed[i] = (changeQueue.removed[i] || "") + text;
+              }
+            }
             return !keysAreChars;
           }
 
           if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
-          if (keysAreChars) {
+          if (match.command && changeQueue) {
             var selections = cm.listSelections();
             for (var i = 0; i < selections.length; i++) {
               var here = selections[i].head;
-              cm.replaceRange('', offsetCursor(here, 0, -(keys.length - 1)), here, '+input');
+              cm.replaceRange(changeQueue.removed[i] || "", 
+                offsetCursor(here, 0, -changeQueue.inserted.length), here, '+input');
             }
             vimGlobalState.macroModeState.lastInsertModeChanges.changes.pop();
           }
-          clearInputState(cm);
+          if (!match.command) clearInputState(cm);
           return match.command;
         }
 
         function handleKeyNonInsertMode() {
           if (handleMacroRecording() || handleEsc()) { return true; }
 
-          var keys = vim.inputState.keyBuffer = vim.inputState.keyBuffer + key;
+          vim.inputState.keyBuffer.push(key);
+          var keys = vim.inputState.keyBuffer.join("");
           if (/^[1-9]\d*$/.test(keys)) { return true; }
 
           var keysMatcher = /^(\d*)(.*)$/.exec(keys);
@@ -956,7 +968,7 @@ export function initVim(CodeMirror) {
           else if (match.type == 'partial') { return true; }
           else if (match.type == 'clear') { clearInputState(cm); return true; }
 
-          vim.inputState.keyBuffer = '';
+          vim.inputState.keyBuffer.length = 0;
           keysMatcher = /^(\d*)(.*)$/.exec(keys);
           if (keysMatcher[1] && keysMatcher[1] != '0') {
             vim.inputState.pushRepeatDigit(keysMatcher[1]);
@@ -1025,6 +1037,7 @@ export function initVim(CodeMirror) {
       this.motionArgs = null;
       this.keyBuffer = []; // For matching multi-key commands.
       this.registerName = null; // Defaults to the unnamed register.
+      this.changeQueue = null; // For restoring text used by insert mode keybindings
     }
     InputState.prototype.pushRepeatDigit = function(n) {
       if (!this.operator) {
@@ -1050,6 +1063,11 @@ export function initVim(CodeMirror) {
     function clearInputState(cm, reason) {
       cm.state.vim.inputState = new InputState();
       CodeMirror.signal(cm, 'vim-command-done', reason);
+    }
+
+    function ChangeQueue() {
+      this.removed = [];
+      this.inserted = "";
     }
 
     /*
@@ -2869,6 +2887,14 @@ export function initVim(CodeMirror) {
       },
       setRegister: function(_cm, actionArgs, vim) {
         vim.inputState.registerName = actionArgs.selectedCharacter;
+      },
+      insertRegister: function(cm, actionArgs, vim) {
+        var registerName = actionArgs.selectedCharacter;
+        var register = vimGlobalState.registerController.getRegister(registerName);
+        var text = register && register.toString();
+        if (text) {
+          cm.replaceSelection(text);
+        }
       },
       setMark: function(cm, actionArgs, vim) {
         var markName = actionArgs.selectedCharacter;
@@ -5684,8 +5710,7 @@ export function initVim(CodeMirror) {
       'Backspace': 'goCharLeft',
       fallthrough: ['vim-insert'],
       attach: attachVimMap,
-      detach: detachVimMap,
-      call: cmKey
+      detach: detachVimMap
     };
 
     function executeMacroRegister(cm, vim, macroModeState, registerName) {
@@ -5999,10 +6024,13 @@ export function initVim(CodeMirror) {
         isHandled = vimApi.handleKey(cm, key, origin);
       } else {
         var old = cloneVimState(vim);
+        var changeQueueList = vim.inputState.changeQueueList || [];
 
         cm.operation(function() {
           cm.curOp.isVimOp = true;
+          var index = 0;
           cm.forEachSelection(function() {
+            cm.state.vim.inputState.changeQueue = changeQueueList[index];
             var head = cm.getCursor("head");
             var anchor = cm.getCursor("anchor");
             var headOffset = !cursorIsBefore(head, anchor) ? -1 : 0;
@@ -6014,12 +6042,16 @@ export function initVim(CodeMirror) {
 
             isHandled = vimApi.handleKey(cm, key, origin);
             if (cm.virtualSelection) {
+              changeQueueList[index] = cm.state.vim.inputState.changeQueue;
               cm.state.vim = cloneVimState(old);
             }
+            index++;
           });
           if (cm.curOp.cursorActivity && !isHandled)
             cm.curOp.cursorActivity = false;
           cm.state.vim = vim
+          vim.inputState.changeQueueList = changeQueueList
+          vim.inputState.changeQueue = null;
         }, true);
       }
       // some commands may bring visualMode and selection out of sync

@@ -4851,6 +4851,32 @@ testVim('ex_imap', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('.');
   eq('foo4\nfoo8\nfoodefg', cm.getValue());
+  helpers.doKeys('R', 'x', 'j', 'j');
+  eq('xoo4\nfoo8\nfoodefg', cm.getValue());
+  helpers.doKeys('i');
+  cm.setSelections([
+    {head: makeCursor(0, 0), anchor: makeCursor(0, 1)},
+    {head: makeCursor(1, 0), anchor: makeCursor(1, 2)}
+  ]);
+  helpers.doKeys('j');
+  eq('joo4\njo8\nfoodefg', cm.getValue());
+  helpers.doKeys('j');
+  eq('xoo4\nfoo8\nfoodefg', cm.getValue());
+  
+  if (cm.forEachSelection) {
+    cm.setSelections([
+      {head: makeCursor(0, 2), anchor: makeCursor(0, 2)},
+      {head: makeCursor(1, 2), anchor: makeCursor(1, 2)},
+      {head: makeCursor(2, 4), anchor: makeCursor(2, 4)}
+    ]);
+    helpers.doKeys('R', 'x');
+    eq('xox4\nfox8\nfoodxfg', cm.getValue());
+    helpers.doKeys('j');
+    eq('xoxj\nfoxj\nfoodxjg', cm.getValue());
+    helpers.doKeys('k');
+    eq('xox4\nfox8\nfoodxfg', cm.getValue());
+    eq(3, cm.listSelections().length);
+  }
   CodeMirror.Vim.mapclear();
 }, { value: '1234\n5678\nabcdefg' });
 testVim('ex_unmap_api', function(cm, vim, helpers) {
@@ -5268,6 +5294,13 @@ testVim('option_key_on_mac', function(cm, vim, helpers) {
   typeKey.optionTextInput('8', '{');
   helpers.assertCursorAt(0, 0);
 }, { value: '0\n1\n2\n\n\n3\n4\n' });
+
+testVim('<C-r>_insert_mode', function(cm, vim, helpers) {
+  helpers.assertCursorAt(0, 0);
+  helpers.doKeys('d', 'w', 'A');
+  helpers.doKeys('<C-r>', '-');
+  eq('456 123 ', cm.getValue());
+}, { value: '123 456 ' });
 
 }
 

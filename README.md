@@ -5,7 +5,9 @@
 
 ## Installation
 
-`npm i @replit/codemirror-vim`
+```sh
+npm i @replit/codemirror-vim
+```
 
 ## Usage
 
@@ -24,6 +26,8 @@ let view = new EditorView({
   parent: document.querySelector('#editor'),
 })
 ```
+> **Note**:
+> if you are not using `basicSetup`, make sure you include the [drawSelection](https://codemirror.net/docs/ref/#view.drawSelection) plugin to correctly render the selection in visual mode.
 
 ## Usage of cm5 vim extension api
 

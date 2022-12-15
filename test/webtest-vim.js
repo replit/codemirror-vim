@@ -12,10 +12,7 @@ import { keymap } from "@codemirror/view";
 var disabled = {
   vim_ex_set_filetype: 1,
   vim_ex_set_filetype_null: 1,
-
-  vim_ex_global_substitute_join: 1,
-  vim_ex_global_substitute_split: 1,
-
+  
   vim_zb_to_bottom: 1,
   vim_zt_to_top: 1,
   "vim_zb<zz": 1,

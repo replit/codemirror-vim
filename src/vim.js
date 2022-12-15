@@ -282,6 +282,8 @@ export function initVim(CodeMirror) {
     { name: 'delmarks', shortName: 'delm' },
     { name: 'registers', shortName: 'reg', excludeFromCommandHistory: true },
     { name: 'vglobal', shortName: 'v' },
+    { name: 'delete', shortName: 'd' },
+    { name: 'join', shortName: 'j' },
     { name: 'global', shortName: 'g' }
   ];
 
@@ -5302,6 +5304,10 @@ export function initVim(CodeMirror) {
           return;
         }
         var inverted = params.commandName[0] === 'v';
+        if (argString[0] === '!' && params.commandName[0] === 'g') {
+          inverted = true;
+          argString = argString.slice(1);
+        }
         // range is specified here
         var lineStart = (params.line !== undefined) ? params.line : cm.firstLine();
         var lineEnd = params.lineEnd || params.line || cm.lastLine();
@@ -5328,10 +5334,10 @@ export function initVim(CodeMirror) {
         var query = getSearchState(cm).getQuery();
         var matchedLines = [];
         for (var i = lineStart; i <= lineEnd; i++) {
-          var line = cm.getLineHandle(i);
-          var matched = query.test(line.text);
+          var line = cm.getLine(i);
+          var matched = query.test(line);
           if (matched !== inverted) {
-            matchedLines.push(cmd ? line : line.text);
+            matchedLines.push(cmd ? cm.getLineHandle(i) : line);
           }
         }
         // if there is no [cmd], just display the list of matched lines
@@ -5342,8 +5348,8 @@ export function initVim(CodeMirror) {
         var index = 0;
         var nextCommand = function() {
           if (index < matchedLines.length) {
-            var line = matchedLines[index++];
-            var lineNum = cm.getLineNumber(line);
+            var lineHandle = matchedLines[index++];
+            var lineNum = cm.getLineNumber(lineHandle);
             if (lineNum == null) {
               nextCommand();
               return;
@@ -5352,6 +5358,8 @@ export function initVim(CodeMirror) {
             exCommandDispatcher.processCommand(cm, command, {
               callback: nextCommand
             });
+          } else if (cm.releaseLineHandles) {
+            cm.releaseLineHandles();
           }
         };
         nextCommand();
@@ -5461,6 +5469,19 @@ export function initVim(CodeMirror) {
         var lineText = cm.getLine(line);
         vimGlobalState.registerController.pushText(
           '0', 'yank', lineText, true, true);
+      },
+      delete: function(cm, params) {
+        var lineEnd = isNaN(params.lineEnd) ? params.line : params.lineEnd;
+        operators.delete(cm, {linewise: true}, [
+          { anchor: new Pos(params.line, 0), 
+            head: new Pos(lineEnd + 1, 0) }
+        ]);
+      },
+      join: function(cm, params) {
+        var line = params.line;
+        var lineEnd = isNaN(params.lineEnd) ? line : params.lineEnd;
+        cm.setCursor(new Pos(line, 0));
+        actions.joinLines(cm, {repeat: lineEnd - line}, cm.state.vim);
       },
       delmarks: function(cm, params) {
         if (!params.argString || !trim(params.argString)) {

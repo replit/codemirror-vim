@@ -338,10 +338,23 @@ export class CodeMirror {
     return this.cm6.state.doc.line(row + 1).text;
   };
   getLineHandle(row: number) {
-    return { text: this.getLine(row), row: row };
+    if (!this.$lineHandleChanges) this.$lineHandleChanges = [];
+    return { row: row,  index: this.indexFromPos(new Pos(row, 0))};
   }
   getLineNumber(handle: any) {
-    return handle.row;
+    var updates = this.$lineHandleChanges;
+    
+    if (!updates) return null;
+    var offset = handle.index;
+    for (var i = 0; i < updates.length; i++) {
+      offset = updates[i].changes .mapPos(offset)
+      if (offset == null) return null;
+    }
+    var pos = this.posFromIndex(offset);
+    return pos.ch == 0 ? pos.line : null;
+  }
+  releaseLineHandles() {
+    this.$lineHandleChanges = undefined;
   }
   getRange(s: Pos, e: Pos) {
     var doc = this.cm6.state.doc;
@@ -675,8 +688,11 @@ export class CodeMirror {
     }
   };
   $lastChangeEndOffset = 0;
-
+  $lineHandleChanges: undefined|ViewUpdate[]
   onChange(update: ViewUpdate) {
+    if (this.$lineHandleChanges) {
+      this.$lineHandleChanges.push(update);
+    }
     for (let i in this.marks) {
       let m = this.marks[i];
       m.update(update.changes)

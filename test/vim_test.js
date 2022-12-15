@@ -4222,6 +4222,13 @@ testVim('ex_global_substitute_split', function(cm, vim, helpers) {
   helpers.doEx('g/e/s/[or]/\\n');
   eq('\nne\ntwo\nth\nee\nfour\nfive\n', cm.getValue());
 }, {value: 'one\ntwo\nthree\nfour\nfive\n'});
+testVim('ex_global_delete', function(cm, vim, helpers) {
+  helpers.doEx('g/e/d\\n');
+  eq('two\nfour\nsix\n---', cm.getValue());
+  helpers.doKeys('u');
+  helpers.doEx('g/e/g/v/d\\n');
+  eq('one\ntwo\nthree\nfour\nsix\nnine\n---', cm.getValue());
+}, {value: 'one\ntwo\nthree\nfour\nfive\nsix\nseven\nnine\n---'});
 testVim('ex_global_confirm', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doEx('g/one/s//two/gc');

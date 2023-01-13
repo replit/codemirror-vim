@@ -788,6 +788,8 @@ export function initVim(CodeMirror) {
               newMapping.context = ctx;
             }
             // Add it to the keymap with a higher priority than the original.
+            // BUG: this adds at the beginning of defaultKeymaps!
+            //      so from this point on the i-th element will be the same
             this._mapCommand(newMapping);
             // Record the mapped contexts as complete.
             var mappedCtxs = toCtxArray(mapping.context);

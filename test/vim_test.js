@@ -4971,6 +4971,21 @@ testVim('noremap', function(cm, vim, helpers) {
   // unmap all mappings
   CodeMirror.Vim.mapclear();
 }, { value: 'wOrd1' });
+// noremap should capture all mappings of the rhs 
+testVim('noremap_all_mappings', function(cm, vim, helpers) {
+  // mapping to 'u' should undo in normal mode and lowercase in visual mode
+  CodeMirror.Vim.noremap('a', 'u');
+  helpers.doKeys('y', 'y', 'p');
+  eq('HeY\nHeY', cm.getValue());
+  // undo
+  helpers.doKeys('a');
+  eq('HeY', cm.getValue());
+  // lowercase
+  helpers.doKeys('V', 'a');
+  eq('hey', cm.getValue());
+  // unmap all mappings
+  CodeMirror.Vim.mapclear();
+}, { value: 'HeY' });
 testVim('noremap_swap', function(cm, vim, helpers) {
   CodeMirror.Vim.noremap('i', 'a', 'normal');
   CodeMirror.Vim.noremap('a', 'i', 'normal');

@@ -768,6 +768,7 @@ export function initVim(CodeMirror) {
         var ctxsToMap = toCtxArray(ctx);
         // Look through all actual defaults to find a map candidate.
         var actualLength = defaultKeymap.length, origLength = defaultKeymapLength;
+        var goodMappings = []
         for (var i = actualLength - origLength;
              i < actualLength && ctxsToMap.length;
              i++) {
@@ -787,12 +788,16 @@ export function initVim(CodeMirror) {
             if (ctx && !newMapping.context) {
               newMapping.context = ctx;
             }
-            // Add it to the keymap with a higher priority than the original.
-            this._mapCommand(newMapping);
+            // Add it to the list of keymaps to add
+            goodMappings.unshift(newMapping);
             // Record the mapped contexts as complete.
             var mappedCtxs = toCtxArray(mapping.context);
             ctxsToMap = ctxsToMap.filter(function(el) { return mappedCtxs.indexOf(el) === -1; });
           }
+        }
+        for (var newMapping of goodMappings){
+          // Add new mappings with a higher priority than the originals.
+          this._mapCommand(newMapping);
         }
         // TODO: Create non-recursive keyToKey mappings for the unmapped contexts once those exist.
       },

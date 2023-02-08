@@ -232,7 +232,7 @@ const vimPlugin = ViewPlugin.fromClass(
   {
     eventHandlers: {
       keypress: function(e: KeyboardEvent, view: EditorView) {
-        if (this.lastKeydown == "Dead" || (e.altKey && !e.ctrlKey && !e.cmdKey))
+        if (this.lastKeydown == "Dead")
           this.handleKey(e, view);
       },
       keydown: function(e: KeyboardEvent, view: EditorView) {

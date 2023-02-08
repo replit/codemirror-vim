@@ -71,6 +71,7 @@ describe("Vim extension", () => {
     return view.cm;
   }
 
+  CM.$setPlatformForTest = CodeMirror.$setPlatformForTest;
   CM.defineMode = () => {};
   CM.on = CodeMirror.on;
   CM.off = CodeMirror.off;

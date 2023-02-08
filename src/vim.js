@@ -1495,12 +1495,12 @@ export function initVim(CodeMirror) {
             break;
           case 'wordUnderCursor':
             var word = expandWordUnderCursor(cm, false /** inclusive */,
-                true /** forward */, false /** bigWord */,
+                false /** innerWord */, false /** bigWord */,
                 true /** noSymbol */);
             var isKeyword = true;
             if (!word) {
               word = expandWordUnderCursor(cm, false /** inclusive */,
-                  true /** forward */, false /** bigWord */,
+                  false /** innerWord */, false /** bigWord */,
                   false /** noSymbol */);
               isKeyword = false;
             }
@@ -2181,10 +2181,10 @@ export function initVim(CodeMirror) {
         } else if (selfPaired[character]) {
           tmp = findBeginningAndEnd(cm, head, character, inclusive);
         } else if (character === 'W') {
-          tmp = expandWordUnderCursor(cm, inclusive, true /** forward */,
+          tmp = expandWordUnderCursor(cm, inclusive, !inclusive /** innerWord */,
                                                      true /** bigWord */);
         } else if (character === 'w') {
-          tmp = expandWordUnderCursor(cm, inclusive, true /** forward */,
+          tmp = expandWordUnderCursor(cm, inclusive, !inclusive /** innerWord */,
                                                      false /** bigWord */);
         } else if (character === 'p') {
           tmp = findParagraph(cm, head, motionArgs.repeat, 0, inclusive);
@@ -2212,8 +2212,10 @@ export function initVim(CodeMirror) {
             start = {line: start.line, ch: start.ch + 1}
           }
           tmp = {start: start, end: end};
-        } else {
-          // No text object defined for this, don't move.
+        }
+
+        if (!tmp) {
+          // No valid text object, don't move.
           return null;
         }
 
@@ -3454,7 +3456,7 @@ export function initVim(CodeMirror) {
       return firstNonWS == -1 ? text.length : firstNonWS;
     }
 
-    function expandWordUnderCursor(cm, inclusive, _forward, bigWord, noSymbol) {
+    function expandWordUnderCursor(cm, inclusive, innerWord, bigWord, noSymbol) {
       var cur = getHead(cm);
       var line = cm.getLine(cur.line);
       var idx = cur.ch;
@@ -3462,17 +3464,21 @@ export function initVim(CodeMirror) {
       // Seek to first word or non-whitespace character, depending on if
       // noSymbol is true.
       var test = noSymbol ? wordCharTest[0] : bigWordCharTest [0];
-      while (!test(line.charAt(idx))) {
-        idx++;
-        if (idx >= line.length) { return null; }
-      }
-
-      if (bigWord) {
-        test = bigWordCharTest[0];
+      if (innerWord && /\s/.test(line.charAt(idx))) {
+        test = function(ch) { return /\s/.test(ch); };
       } else {
-        test = wordCharTest[0];
-        if (!test(line.charAt(idx))) {
-          test = wordCharTest[1];
+        while (!test(line.charAt(idx))) {
+          idx++;
+          if (idx >= line.length) { return null; }
+        }
+
+        if (bigWord) {
+          test = bigWordCharTest[0];
+        } else {
+          test = wordCharTest[0];
+          if (!test(line.charAt(idx))) {
+            test = wordCharTest[1];
+          }
         }
       }
 

@@ -1493,6 +1493,9 @@ testEdit('diw_end_spc', 'foo \tbAr', /A/, 'diw', 'foo \t');
 testEdit('daw_end_spc', 'foo \tbAr', /A/, 'daw', 'foo');
 testEdit('diw_end_punct', 'foo \tbAr.', /A/, 'diw', 'foo \t.');
 testEdit('daw_end_punct', 'foo \tbAr.', /A/, 'daw', 'foo.');
+testEdit('diw_space_word1', 'foo \t\n\tbar.', /\t/, 'diw', 'foo\n\tbar.');
+testEdit('diw_space_word2', 'foo +bar.', / /, 'diw', 'foo+bar.');
+testEdit('diw_space_word3', ' foo bar.', / /, 'diw', 'foo bar.');
 // Big word:
 testEdit('diW_mid_spc', 'foo \tbAr\t baz', /A/, 'diW', 'foo \t\t baz');
 testEdit('daW_mid_spc', 'foo \tbAr\t baz', /A/, 'daW', 'foo \tbaz');
@@ -1508,6 +1511,7 @@ testEdit('diW_end_spc', 'foo \tbAr', /A/, 'diW', 'foo \t');
 testEdit('daW_end_spc', 'foo \tbAr', /A/, 'daW', 'foo');
 testEdit('diW_end_punct', 'foo \tbAr.', /A/, 'diW', 'foo \t');
 testEdit('daW_end_punct', 'foo \tbAr.', /A/, 'daW', 'foo');
+testEdit('diW_space_word2', 'foo +bar.', / /, 'diW', 'foo+bar.');
 // Deleting text objects
 //    Open and close on same line
 testEdit('di(_open_spc', 'foo (bAr) baz', /\(/, 'di(', 'foo () baz');

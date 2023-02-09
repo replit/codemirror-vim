@@ -4127,6 +4127,13 @@ testVim('ex_write', function(cm, vim, helpers) {
   }
   CodeMirror.commands.save = tmp;
 });
+testVim('ex_delete', function(cm, vim, helpers) {
+  helpers.doKeys("j");
+  helpers.doEx('delete');
+  eq('l 1\nl 3\nl 4\n', cm.getValue());
+  helpers.doEx('d');
+  eq('l 1\nl 4\n', cm.getValue());
+}, { value: 'l 1\nl 2\nl 3\nl 4\n'});
 testVim('ex_sort', function(cm, vim, helpers) {
   helpers.doEx('sort');
   eq('Z\na\nb\nc\nd', cm.getValue());

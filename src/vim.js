@@ -4865,9 +4865,6 @@ export function initVim(CodeMirror) {
         var vim = cm.state.vim;
         var commandHistoryRegister = vimGlobalState.registerController.getRegister(':');
         var previousCommand = commandHistoryRegister.toString();
-        if (vim.visualMode) {
-          exitVisualMode(cm);
-        }
         var inputStream = new CodeMirror.StringStream(input);
         // update ": with the latest command whether valid or invalid
         commandHistoryRegister.setText(input);
@@ -4879,6 +4876,11 @@ export function initVim(CodeMirror) {
           showConfirm(cm, e.toString());
           throw e;
         }
+
+        if (vim.visualMode) {
+          exitVisualMode(cm);
+        }
+
         var command;
         var commandName;
         if (!params.commandName) {
@@ -4935,6 +4937,18 @@ export function initVim(CodeMirror) {
           if (result.line !== undefined && inputStream.eat(',')) {
             result.lineEnd = this.parseLineSpec_(cm, inputStream);
           }
+        }
+
+        if (result.line == undefined) {
+          if (cm.state.vim.visualMode) {
+            result.selectionLine = getMarkPos(cm, cm.state.vim, '<')?.line;
+            result.selectionLineEnd = getMarkPos(cm, cm.state.vim, '>')?.line;
+          } else {
+            result.selectionLine = cm.getCursor().line;
+          }
+        } else {
+          result.selectionLine = result.line;
+          result.selectionLineEnd = result.lineEnd;
         }
 
         // Parse command name.
@@ -5482,15 +5496,16 @@ export function initVim(CodeMirror) {
           '0', 'yank', lineText, true, true);
       },
       delete: function(cm, params) {
-        var lineEnd = isNaN(params.lineEnd) ? params.line : params.lineEnd;
+        var line = params.selectionLine;
+        var lineEnd = isNaN(params.selectionLineEnd) ? line : params.selectionLineEnd;
         operators.delete(cm, {linewise: true}, [
-          { anchor: new Pos(params.line, 0), 
+          { anchor: new Pos(line, 0),
             head: new Pos(lineEnd + 1, 0) }
         ]);
       },
       join: function(cm, params) {
-        var line = params.line;
-        var lineEnd = isNaN(params.lineEnd) ? line : params.lineEnd;
+        var line = params.selectionLine;
+        var lineEnd = isNaN(params.selectionLineEnd) ? line : params.selectionLineEnd;
         cm.setCursor(new Pos(line, 0));
         actions.joinLines(cm, {repeat: lineEnd - line}, cm.state.vim);
       },

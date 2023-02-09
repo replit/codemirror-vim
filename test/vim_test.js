@@ -5314,6 +5314,7 @@ testVim('increment_hexadecimal', function(cm, vim, helpers) {
 }, { value: '0x0' });
 
 testVim('option_key_on_mac', function(cm, vim, helpers) {
+  if (CodeMirror.$setPlatformForTest) CodeMirror.$setPlatformForTest("mac");
   helpers.assertCursorAt(0, 0);
   typeKey.optionTextInput('9', '}');
   helpers.assertCursorAt(3, 0);

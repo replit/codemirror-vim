@@ -352,7 +352,7 @@ export class CodeMirror {
     if (!updates) return null;
     var offset = handle.index;
     for (var i = 0; i < updates.length; i++) {
-      offset = updates[i].changes .mapPos(offset)
+      offset = updates[i].changes .mapPos(offset, 1, MapMode.TrackAfter);
       if (offset == null) return null;
     }
     var pos = this.posFromIndex(offset);

@@ -151,23 +151,14 @@ function fullHeightCoordsAtPos(
     return null;
   }
 
-  const lineBlock = view.lineBlockAt(pos);
-  const topOfDoc = view.documentTop;
-  const { left, right } = coords;
-  const posY = (coords.top + coords.bottom) / 2 - topOfDoc;
-  const lineHeight = view.defaultLineHeight;
-  let top = lineBlock.top;
-  let bottom = top + lineHeight;
-  while (bottom < posY) {
-    top += lineHeight;
-    bottom = top + lineHeight;
-  }
+  const halfLeading =
+      (view.defaultLineHeight - (coords.bottom - coords.top)) / 2;
 
   return {
-    left,
-    right,
-    top: top + topOfDoc,
-    bottom: bottom + topOfDoc,
+    left: coords.left,
+    right: coords.right,
+    top: coords.top - halfLeading,
+    bottom: coords.bottom + halfLeading,
   };
 }
 

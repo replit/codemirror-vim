@@ -3,20 +3,21 @@
 <title>CodeMirror 5: Vim bindings demo</title>
 <meta charset="utf-8" />
 
-<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/lib/codemirror.css">
-<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/addon/dialog/dialog.css">
-<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5.65.6/addon/fold/foldgutter.css">
-<script src="https://www.unpkg.com/codemirror@5.65.6/lib/codemirror.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/dialog/dialog.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/search/searchcursor.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/edit/matchbrackets.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/foldcode.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/xml-fold.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/fold/brace-fold.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/addon/mode/simple.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/mode/css/css.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/mode/clike/clike.js"></script>
-<script src="https://www.unpkg.com/codemirror@5.65.6/mode/xml/xml.js"></script>
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5/lib/codemirror.css">
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5/addon/dialog/dialog.css">
+<link rel="stylesheet" href="https://www.unpkg.com/codemirror@5/addon/fold/foldgutter.css">
+<script src="https://www.unpkg.com/codemirror@5/lib/codemirror.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/dialog/dialog.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/search/searchcursor.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/edit/matchbrackets.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/edit/closebrackets.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/fold/foldcode.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/fold/xml-fold.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/fold/brace-fold.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/addon/mode/simple.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/mode/css/css.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/mode/clike/clike.js"></script>
+<script src="https://www.unpkg.com/codemirror@5/mode/xml/xml.js"></script>
 
 <style>
   .CodeMirror {
@@ -69,6 +70,7 @@ int getchar(void)
     mode: "text/x-csrc",
     keyMap: "vim",
     matchBrackets: true,
+    autoCloseBrackets: true,
     showCursorWhenSelecting: true
   });
   let commandDisplay = document.getElementById('command-display');

@@ -6,17 +6,15 @@
     <title>Vite App</title>
     <style>
       #editor {
-        height: min(540px, 70vh); width: min(960px, 90vw);
+        height: min(540px, 50vh); width: min(960px, 90vw);
         position: absolute; resize: both; overflow: hidden
       }
       #editor>.cm-editor {width: 100%; height: 100%}
+      #editor.split>.cm-editor {height: 50%}
     </style>
   </head>
   <body>
-    <input type="checkbox" id="wrap"> <label for="wrap">wrap</label>
-    <input type="checkbox" id="html"> <label for="html">html</label>
-    <input type="checkbox" id="status"> <label for="status">status bar</label>
-    <input type="checkbox" id="jj"> <label for="jj">map jj to Esc</label>
+    <div id="toolbar"></div>
     <div id="editor"></div>
     <script type="module" src="./index.ts"></script>
   </body>

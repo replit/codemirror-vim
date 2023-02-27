@@ -74,7 +74,7 @@ var specialKey: any = {
   Enter: 'CR', ' ': 'Space'
 };
 var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1,
-  CapsLock: 1, AltGraph: 1, Dead: 1 };
+  CapsLock: 1, AltGraph: 1, Dead: 1, Unidentified: 1 };
 
 
 let wordChar: RegExp

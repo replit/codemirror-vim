@@ -155,7 +155,7 @@ function expectFail(fn) {
 
 function vimKeyToKeyName(key) {
   return key.replace(/[CS]-|CR|BS/g, function(part) {
-    return {"C-": "Ctrl-", "S-": "Shift", CR: "Return", BS: "Backspace"}[part];
+    return {"C-": "Ctrl-", "S-": "Shift-", CR: "Return", BS: "Backspace"}[part];
   });
 }
 
@@ -171,7 +171,7 @@ function testVim(name, run, opts, expectedFail) {
       vimOpts[prop] = opts[prop];
     }
   }
-  return test('vim_' + name, function() {
+  return test('vim_' + name, async function() {
     var place = document.getElementById("testground");
     place.style.visibility = "visible";
     var cm = CodeMirror(place, vimOpts);
@@ -230,7 +230,7 @@ function testVim(name, run, opts, expectedFail) {
     CodeMirror.Vim.resetVimGlobalState_();
     var successful = false;
     try {
-      run(cm, vim, helpers);
+      await run(cm, vim, helpers);
       successful = true;
     } finally {
       if (successful && !window.verbose) {
@@ -1282,7 +1282,7 @@ testVim('s_visual_block', function(cm, vim, helpers) {
 }, {value: '1234\n5678\nabcdefg\n'});
 
 // Test mode change event. It should only fire once per mode transition.
-testVim('on_mode_change', function(cm, vim, helpers) {
+testVim('on_mode_change', async function(cm, vim, helpers) {
   var modeHist = [];
   function callback(arg) {
     var subMode = arg.subMode ? ':' + arg.subMode : '';
@@ -1290,9 +1290,11 @@ testVim('on_mode_change', function(cm, vim, helpers) {
   }
   helpers.doKeys('<Esc>', '<Esc>');
   cm.on('vim-mode-change', callback);
-  function test(key, mode) {
+  async function test(key, mode) {
     modeHist.length = 0;
     helpers.doKeys(key);
+    if (key == '<C-c>' && !isOldCodeMirror)
+      await delay(0);
     eq(modeHist.join(';'), mode);
   }
   test('v', 'visual');
@@ -1308,7 +1310,7 @@ testVim('on_mode_change', function(cm, vim, helpers) {
   test('V', 'visual:linewise');
   test('<C-v>', 'visual:blockwise');
   test('v', 'visual');
-  test('<C-c>', 'normal');
+  await test('<C-c>', 'normal');
   test('a', 'insert');
   test('<Esc>', 'normal');
   test('v', 'visual');
@@ -5321,13 +5323,35 @@ testVim('increment_hexadecimal', function(cm, vim, helpers) {
 }, { value: '0x0' });
 
 testVim('option_key_on_mac', function(cm, vim, helpers) {
-  if (CodeMirror.$setPlatformForTest) CodeMirror.$setPlatformForTest("mac");
+  CodeMirror.isMac = true;
   helpers.assertCursorAt(0, 0);
   typeKey.optionTextInput('9', '}');
   helpers.assertCursorAt(3, 0);
   typeKey.optionTextInput('8', '{');
   helpers.assertCursorAt(0, 0);
+  CodeMirror.isMac = false;
 }, { value: '0\n1\n2\n\n\n3\n4\n' });
+
+
+!isOldCodeMirror && testVim('<C-c>copy', async function(cm, vim, helpers) {
+  helpers.doKeys('v', 'e');
+  is(vim.visualMode);
+  typeKey.clipboard.$data = '';
+  helpers.doKeys('<C-c>');
+  eq(typeKey.clipboard.$data, 'hello');
+  await delay(0);
+  is(!vim.visualMode);
+  helpers.doKeys('w', 'i', '<S-C-Right>');
+  is(vim.insertMode);
+  helpers.doKeys('<C-c>');
+  is(vim.insertMode);
+  helpers.doKeys('<C-c>');
+  eq(typeKey.clipboard.$data, 'world');
+  await delay(0);
+  is(vim.insertMode);
+  helpers.doKeys('<C-c>');
+  is(!vim.insertMode);
+}, { value: 'hello world' })
 
 testVim('<C-r>_insert_mode', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 0);
@@ -5335,6 +5359,10 @@ testVim('<C-r>_insert_mode', function(cm, vim, helpers) {
   helpers.doKeys('<C-r>', '-');
   eq('456 123 ', cm.getValue());
 }, { value: '123 456 ' });
+
+async function delay(t) {
+  return await new Promise(resolve => setTimeout(resolve, t));
+}
 
 }
 
@@ -5447,12 +5475,16 @@ var typeKey = function() {
     if (!prevented) updateTextInput();
     emit("keyup", true);
 
-    function emitClipboard(type) {
+    function emitClipboard(eventType) {
       var data = {bubbles: true, cancelable:true};
-      var event = new KeyboardEvent(type, data);
+      var event = new KeyboardEvent(eventType, data);
       event.clipboardData = {
-        setData: function() {},
-        getData: function() {},
+        setData: function(mime, text) {
+          type.clipboard.$data = text;
+        },
+        getData: function() {
+          return type.clipboard.$data;
+        },
         clearData: function() {},
       };
       target.dispatchEvent(event);
@@ -5523,8 +5555,11 @@ var typeKey = function() {
         var isKeyName = controlKeys[key] || printableKeys[key] || shiftedKeys[key];
         if (!isKeyName) {
           var parts = key.split("-");
-          var modifier = alias[parts[0]] || parts[0];
-          if (!updateModifierStates(controlKeys[modifier])) {
+          var modifiers = parts.slice(0, parts.length - 1).map(function(part) {
+            return controlKeys[alias[part] || part];
+          });
+          var isValid = modifiers.length && modifiers.every(updateModifierStates);
+          if (!isValid) {
             type.apply(null, key.split(""));
             continue;
           }
@@ -5543,7 +5578,9 @@ var typeKey = function() {
   type.optionTextInput = function(letter, altText) {
     reset();
     sendKey(letter, {macAltText: altText});
-  }
+  };
+
+  type.clipboard = {};
 
   return type;
 }();

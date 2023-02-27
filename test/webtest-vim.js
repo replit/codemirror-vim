@@ -29,7 +29,7 @@ describe("Vim extension", () => {
       root.style.height = "300px";
       root.style.position = "fixed";
       root.style.top = "100px";
-      root.style.left = "200px";
+      root.style.right = "100px";
       root.style.width = "500px";
     }
     document.body.appendChild(root);
@@ -71,7 +71,11 @@ describe("Vim extension", () => {
     return view.cm;
   }
 
-  CM.$setPlatformForTest = CodeMirror.$setPlatformForTest;
+  Object.defineProperty(CM, "isMac",  {
+    get() { return CodeMirror.isMac },
+    set(value) { CodeMirror.isMac = value },
+    configurable: true,
+  });
   CM.defineMode = () => {};
   CM.on = CodeMirror.on;
   CM.off = CodeMirror.off;
@@ -105,9 +109,9 @@ describe("Vim extension", () => {
     }
     if (onlyType && localStorage[name] && localStorage[name] !== onlyType)
       return;
-    return it(name, function () {
+    return it(name, async function () {
       if (onlyType) localStorage[name] = "fail";
-      fn();
+      await fn();
       if (onlyType) localStorage[name] = "pass";
       if (lastView) {
         // TODO without calling destroy old cm instances throw errors and break the test runner

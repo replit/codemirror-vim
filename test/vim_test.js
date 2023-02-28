@@ -1712,6 +1712,16 @@ testVim('<C-x>/<C-a> search forward', function(cm, vim, helpers) {
     helpers.assertCursorAt(0, 11);
   });
 }, {value: '__jmp1 jmp2 jmp'});
+testVim('insert_ctrl_o', function(cm, vim, helpers) {
+  helpers.doKeys('i');
+  is(vim.insertMode);
+  helpers.doKeys('<C-o>');
+  is(!vim.insertMode);
+  helpers.doKeys('3', 'w');
+  is(vim.insertMode);
+  eqCursorPos(makeCursor(0, 14), cm.getCursor());
+  eq('vim-insert', cm.getOption('keyMap'));
+}, { value: 'one two three here' });
 testVim('insert_ctrl_u', function(cm, vim, helpers) {
   var curStart = makeCursor(0, 10);
   cm.setCursor(curStart);

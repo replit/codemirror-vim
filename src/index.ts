@@ -189,7 +189,7 @@ const vimPlugin = ViewPlugin.fromClass(
     }
     query = null;
     decorations = Decoration.none;
-
+    waitForCopy = false;
     handleKey(e: KeyboardEvent, view: EditorView) {
       const key = CodeMirror.vimKey(e);
       const cm = this.cm;
@@ -209,6 +209,12 @@ const vimPlugin = ViewPlugin.fromClass(
           cm.removeOverlay(searchState.getOverlay())
           searchState.setOverlay(null);
         }
+      }
+
+      let isCopy = key === "<C-c>" && !CodeMirror.isMac;
+      if (isCopy && cm.somethingSelected()) {
+        this.waitForCopy = true;
+        return true;
       }
 
       vim.status = (vim.status || "") + key;
@@ -241,6 +247,23 @@ const vimPlugin = ViewPlugin.fromClass(
   },
   {
     eventHandlers: {
+      copy: function(e: ClipboardEvent, view: EditorView) {
+        if (!this.waitForCopy) return;
+        this.waitForCopy = false;
+        Promise.resolve().then(() => {
+          var cm = this.cm;
+          var vim = cm.state.vim;
+          if (!vim) return;
+          if (vim.insertMode) {
+            cm.setSelection(cm.getCursor(), cm.getCursor());
+          } else {
+            cm.operation(() => {
+              if (cm.curOp) cm.curOp.isVimOp = true;
+              Vim.handleKey(cm, '<Esc>', 'user');
+            });
+          }
+        });
+      },
       keypress: function(e: KeyboardEvent, view: EditorView) {
         if (this.lastKeydown == "Dead")
           this.handleKey(e, view);

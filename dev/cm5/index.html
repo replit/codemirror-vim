@@ -111,12 +111,6 @@ int getchar(void)
     let allTests = {}
     vimTests(CodeMirror, function (name, func) {
       allTests[name] = func;
-    }, function (a, b) {
-      if (arguments.length == 1) {
-        if (!a) throw new Error("!" + a);
-      } else {
-        if (a != b) throw new Error(`${a} is not equal to ${b}`);
-      }
     });
 
     let container = document.getElementById("testNames");
@@ -141,9 +135,10 @@ int getchar(void)
     let testground = document.getElementById("testground");
     let failures = document.getElementById("failures");
     let statusDiv = document.getElementById("status");
-    function runTest(name) {
+    async function runTest(name) {
+      var testcase = allTests[name];
       try {
-        allTests[name]();
+        await testcase();
         testLinks[name].className = "pass";
         testground.textContent = "";
         return true;
@@ -159,15 +154,15 @@ int getchar(void)
       }
     }
 
-    function runTests() {
+    async function runTests() {
       prepareLinks();
       let toRun = Object.keys(allTests);
       let i = 0;
       let failures = 0;
-      function runNext() {
+      async function runNext() {
         if (!toRun[i]) return done();
         updateStatus();
-        let result = runTest(toRun[i]);
+        let result = await runTest(toRun[i]);
         if (!result) failures++;
         i++;
         setTimeout(runNext);

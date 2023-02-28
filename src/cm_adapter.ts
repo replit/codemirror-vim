@@ -8,8 +8,6 @@ import {
   undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
 } from "@codemirror/commands"
 
-var mac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);
-
 interface Pos { line: number, ch: number }
 interface CM5Range { anchor: Pos, head: Pos }
 function indexFromPos(doc: Text, pos: Pos): number {
@@ -129,9 +127,7 @@ function runHistoryCommand(cm: CodeMirror, revert: boolean) {
 }
 
 export class CodeMirror {
-  private static $setPlatformForTest(val: string) {
-    if (val == "mac") mac = true;
-  }
+  static isMac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);
   // --------------------------
   static Pos = Pos;
   static StringStream = StringStream;
@@ -204,7 +200,7 @@ export class CodeMirror {
     // on mac many characters are entered as option- combos
     // (e.g. on swiss keyboard { is option-8)
     // so we ignore lonely A- modifier for keypress event on mac
-    if (mac && e.altKey && !e.metaKey && !e.ctrlKey) {
+    if (CodeMirror.isMac && e.altKey && !e.metaKey && !e.ctrlKey) {
       name = name.slice(2);
     }
     if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }

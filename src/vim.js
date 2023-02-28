@@ -230,6 +230,7 @@ export function initVim(CodeMirror) {
     { keys: 'm<character>', type: 'action', action: 'setMark' },
     { keys: '"<character>', type: 'action', action: 'setRegister' },
     { keys: '<C-r><character>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
+    { keys: '<C-o>', type: 'action', action: 'oneNormalCommand', context: 'insert' },
     { keys: 'zz', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }},
     { keys: 'z.', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: 'zt', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'top' }},
@@ -684,6 +685,7 @@ export function initVim(CodeMirror) {
           lastMotion: null,
           marks: {},
           insertMode: false,
+          insertModeReturn: false,
           // Repeat count for changes made in insert mode, triggered by key
           // sequences like 3,i. Only exists when insertMode is true.
           insertModeRepeat: undefined,
@@ -2904,6 +2906,20 @@ export function initVim(CodeMirror) {
         if (text) {
           cm.replaceSelection(text);
         }
+      },
+      oneNormalCommand: function(cm, actionArgs, vim) {
+        exitInsertMode(cm, true);
+        vim.insertModeReturn = true;
+        CodeMirror.on(cm, 'vim-command-done', function handler() {
+          if (vim.visualMode) return;
+          if (vim.insertModeReturn) {
+            vim.insertModeReturn = false;
+            if (!vim.insertMode) {
+              actions.enterInsertMode(cm, {}, vim);
+            }
+          }
+          CodeMirror.off(cm, 'vim-command-done', handler);
+        });
       },
       setMark: function(cm, actionArgs, vim) {
         var markName = actionArgs.selectedCharacter;
@@ -5697,7 +5713,7 @@ export function initVim(CodeMirror) {
       call: cmKey
     };
 
-    function exitInsertMode(cm) {
+    function exitInsertMode(cm, keepCursor) {
       var vim = cm.state.vim;
       var macroModeState = vimGlobalState.macroModeState;
       var insertModeChangeRegister = vimGlobalState.registerController.getRegister('.');
@@ -5715,7 +5731,9 @@ export function initVim(CodeMirror) {
       }
       delete vim.insertModeRepeat;
       vim.insertMode = false;
-      cm.setCursor(cm.getCursor().line, cm.getCursor().ch-1);
+      if (!keepCursor) {
+        cm.setCursor(cm.getCursor().line, cm.getCursor().ch-1);
+      }
       cm.setOption('keyMap', 'vim');
       cm.setOption('disableInput', true);
       cm.toggleOverwrite(false); // exit replace mode if we were in it.

@@ -148,7 +148,9 @@ const vimPlugin = ViewPlugin.fromClass(
         }
       } else {
         dom.textContent = ""
-        this.statusButton.textContent = `--${(vim.mode || "normal").toUpperCase()}--`;
+        var status = (vim.mode || "normal").toUpperCase();
+        if (vim.insertModeReturn) status += "(C-O)"
+        this.statusButton.textContent = `--${status}--`;
         dom.appendChild(this.statusButton);
       }
 

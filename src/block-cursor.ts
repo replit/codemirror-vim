@@ -121,7 +121,8 @@ export class BlockCursorPlugin {
   },
   "&:not(.cm-focused) .cm-fat-cursor": {
     background: "none",
-    outline: "solid 1px #ff9696"
+    outline: "solid 1px #ff9696",
+    color: "transparent !important",
   },
 }
 

@@ -15,6 +15,7 @@ import {
   EditorView,
   showPanel,
   Panel,
+  keymap,
 } from "@codemirror/view";
 import { setSearchQuery } from "@codemirror/search";
 
@@ -216,7 +217,7 @@ const vimPlugin = ViewPlugin.fromClass(
       let isCopy = key === "<C-c>" && !CodeMirror.isMac;
       if (isCopy && cm.somethingSelected()) {
         this.waitForCopy = true;
-        return true;
+        return false;
       }
 
       vim.status = (vim.status || "") + key;
@@ -280,12 +281,18 @@ const vimPlugin = ViewPlugin.fromClass(
           this.useNextTextInput = true;
         } else {
           this.useNextTextInput = false;
-          this.handleKey(e, view);
         }
       },
     },
-    provide: () => {
+    provide: (plugin) => {
       return [
+         keymap.of([
+          {
+            any: function(view: EditorView, e: KeyboardEvent) {
+              return !!view.plugin(plugin)?.handleKey(e, view);
+            }
+          }
+        ]),
         EditorView.inputHandler.of((view, from, to, text) => {
           var cm = getCM(view);
           if (!cm) return false;

@@ -7,6 +7,7 @@ import { indentUnit } from "@codemirror/language";
 import { EditorState } from "@codemirror/state";
 import {indentWithTab} from "@codemirror/commands";
 import { keymap } from "@codemirror/view";
+import { autocompletion } from "@codemirror/autocomplete"
 
 /**@type {any}*/
 var disabled = {
@@ -46,6 +47,7 @@ describe("Vim extension", () => {
       extensions: [
         vim({}),
         basicSetup,
+        autocompletion({activateOnTyping: false}),
         options.mode == "xml" ? xml() : javascript(),
         EditorState.tabSize.of(options.tabSize || 4),
         indentUnit.of(

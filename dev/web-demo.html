@@ -625,19 +625,16 @@
             "crelt": "https://unpkg.com/crelt/dist/index.cjs",
             "@codemirror/lang-xml": "https://unpkg.com/@codemirror/lang-xml", 
             "@codemirror/lang-javascript": "https://unpkg.com/@codemirror/lang-javascript",
-            "dev": require.config.baseUrl.replace("dev", "dev"),
-            "src": require.config.baseUrl.replace("dev", "src"),
+            "dev/index": require.config.baseUrl.replace("dev", "dev/index.ts"),
             "src/index": require.config.baseUrl.replace("dev", "src/index.ts"),
             "src/block-cursor": require.config.baseUrl.replace("dev", "src/block-cursor.ts"),
             "src/cm_adapter": require.config.baseUrl.replace("dev", "src/cm_adapter.ts"),
             "src/vim": require.config.baseUrl.replace("dev", "src/vim.js"),
             
         }
-    })
+    });
     
-    require([
-        "dev/index.ts",
-    ], function() {})
+    require(Object.keys(require.config.paths), function() {})
 </script>
 </body>
 </html>

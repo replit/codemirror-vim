@@ -999,23 +999,28 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1 | 1, style: any, con
 }
 
 function findMatchingTag(cm: CodeMirror, pos: Pos) {
+}
+
+function findEnclosingTag(cm: CodeMirror, pos: Pos) {
   var state = cm.cm6.state;
-  var offset = cm.indexFromPos(pos)
-  var m = matchBrackets(state, offset + 1, -1, { brackets: "\n\n" })
-  if (m) {
-    if (!m.end || !m.start) return;
-    return {
-      open: convertRange(state.doc, m.end),
-      close: convertRange(state.doc, m.start),
-    };
+  var offset = cm.indexFromPos(pos);
+  if (offset < state.doc.length) {
+    var text = state.sliceDoc(offset, offset + 1)
+    if (text == "<") offset++;
   }
-  m = matchBrackets(state, offset, 1, { brackets: "\n\n" })
-  if (m) {
-    if (!m.end || !m.start) return;
-    return {
-      open: convertRange(state.doc, m.start),
-      close: convertRange(state.doc, m.end),
-    };
+  var tree = ensureSyntaxTree(state, offset);
+  var node = tree?.resolve(offset) || null;
+  while (node) {
+    if (
+      node.firstChild?.type.name == 'OpenTag'
+      && node.lastChild?.type.name == 'CloseTag'
+    ) {
+      return {
+        open: convertRange(state.doc, node.firstChild),
+        close: convertRange(state.doc, node.lastChild),
+      };
+    }
+    node = node.parent;
   }
 }
 
@@ -1026,22 +1031,6 @@ function convertRange(doc: Text, cm6Range: { from: number, to: number }) {
   }
 }
 
-function findEnclosingTag(cm: CodeMirror, pos: Pos) {
-  var state = cm.cm6.state;
-  var offset = cm.indexFromPos(pos)
-  var text = state.sliceDoc(0, offset);
-  var i = offset;
-  while (i > 0) {
-    var m = matchBrackets(state, i, 1, { brackets: "\n\n" })
-    if (m && m.start && m.end) {
-      return {
-        open: convertRange(state.doc, m.start),
-        close: convertRange(state.doc, m.end),
-      };
-    }
-    i = text.lastIndexOf(">", i - 1)
-  }
-}
 
 
 class Marker {

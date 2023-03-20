@@ -4323,13 +4323,16 @@ export function initVim(CodeMirror) {
       // then move the cursor forward
       if (cur.ch < firstIndex) {
         cur.ch = firstIndex;
-        // Why is this line even here???
-        // cm.setCursor(cur.line, firstIndex+1);
       }
       // otherwise if the cursor is currently on the closing symbol
       else if (firstIndex < cur.ch && chars[cur.ch] == symb) {
-        end = cur.ch; // assign end to the current cursor
-        --cur.ch; // make sure to look backwards
+        var stringAfter = /string/.test(cm.getTokenTypeAt(offsetCursor(head, 0, 1)));
+        var stringBefore = /string/.test(cm.getTokenTypeAt(head));
+        var isStringStart = stringAfter && !stringBefore
+        if (!isStringStart) {
+          end = cur.ch; // assign end to the current cursor
+          --cur.ch; // make sure to look backwards
+        }
       }
 
       // if we're currently on the symbol, we've got a start

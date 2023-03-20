@@ -1619,6 +1619,18 @@ testSelection('viw_eol', 'foo \tbAr', /r/, 'viw', 'bAr');
 testSelection('vi{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'vi{', '\n\tbar\n\t');
 testSelection('va{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'va{', '{\n\tbar\n\t}');
 
+testVim('ci" for two strings', function(cm, vim, helpers) {
+  cm.setCursor(0, 11);
+  helpers.doKeys('c', 'i', '"');
+  eq('   "":  "string2";', cm.getValue());
+  helpers.doKeys('<Esc>', 'u', 'f', '"', '<Right>');
+  helpers.doKeys('c', 'i', '"');
+  eq('   "string1""string2";', cm.getValue());
+  helpers.doKeys('<Esc>', 'u', 'f', '"');
+  helpers.doKeys('c', 'i', '"');
+  eq('   "string1":  "";', cm.getValue());
+}, {value: '   "string1":  "string2";'});
+
 testVim('mouse_select', function(cm, vim, helpers) {
   cm.setSelection(new Pos(0, 2), new Pos(0, 4), {origin: '*mouse'});
   is(cm.state.vim.visualMode);

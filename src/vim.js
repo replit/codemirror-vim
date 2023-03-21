@@ -2069,10 +2069,10 @@ export function initVim(CodeMirror) {
         return moveToWord(cm, head, motionArgs.repeat, !!motionArgs.forward,
             !!motionArgs.wordEnd, !!motionArgs.bigWord);
       },
-      moveTillCharacter: function(cm, _head, motionArgs) {
+      moveTillCharacter: function(cm, head, motionArgs) {
         var repeat = motionArgs.repeat;
         var curEnd = moveToCharacter(cm, repeat, motionArgs.forward,
-            motionArgs.selectedCharacter);
+            motionArgs.selectedCharacter, head);
         var increment = motionArgs.forward ? -1 : 1;
         recordLastCharacterSearch(increment, motionArgs);
         if (!curEnd) return null;
@@ -2083,7 +2083,7 @@ export function initVim(CodeMirror) {
         var repeat = motionArgs.repeat;
         recordLastCharacterSearch(0, motionArgs);
         return moveToCharacter(cm, repeat, motionArgs.forward,
-            motionArgs.selectedCharacter) || head;
+            motionArgs.selectedCharacter, head) || head;
       },
       moveToSymbol: function(cm, head, motionArgs) {
         var repeat = motionArgs.repeat;
@@ -3839,8 +3839,8 @@ export function initVim(CodeMirror) {
       return retval;
     }
 
-    function moveToCharacter(cm, repeat, forward, character) {
-      var cur = cm.getCursor();
+    function moveToCharacter(cm, repeat, forward, character, head) {
+      var cur = head || cm.getCursor();
       var start = cur.ch;
       var idx;
       for (var i = 0; i < repeat; i ++) {

@@ -3757,6 +3757,25 @@ testVim('Ty,;', function(cm, vim, helpers) {
   helpers.doKeys('y', ',', 'P');
   eq('01230123456789', cm.getValue());
 }, { value: '0123456789'});
+testVim('vFT', function(cm, vim, helpers) {
+  cm.setCursor(0, 0);
+  helpers.doKeys('v', 'f', '1');
+  helpers.assertCursorAt(0, 2);
+  helpers.doKeys('2', 't', ' ');
+  helpers.assertCursorAt(0, 8);
+  eqCursorPos(new Pos(0, 0), cm.getCursor('anchor'));
+  helpers.doKeys('<Esc>');
+  eqCursorPos(new Pos(0, 7), cm.getCursor('anchor'));
+  helpers.doKeys('v', 'F', '3');
+  helpers.assertCursorAt(0, 3);
+  eqCursorPos(new Pos(0, 8), cm.getCursor('anchor'));
+  helpers.doKeys('T', '1');
+  helpers.assertCursorAt(0, 2);
+  helpers.doKeys('F', '1');
+  helpers.assertCursorAt(0, 1);
+  helpers.doKeys('F', '1');
+  helpers.assertCursorAt(0, 0);
+}, { value: '1123 123 123'});
 testVim('page_motions', function(cm, vim, helpers) {
   var value = "x".repeat(200).split("").map((_, i)=>i).join("\n");
   cm.setValue(value);

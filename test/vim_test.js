@@ -4897,6 +4897,17 @@ testVim('ex_map_key2key_visual_api', function(cm, vim, helpers) {
   CodeMirror.commands.save = tmp;
   CodeMirror.Vim.mapclear();
 });
+testVim('ex_omap', function(cm, vim, helpers) {
+  helpers.doKeys('0', 'w', 'd', 'w');
+  eq(cm.getValue(), 'hello world');
+  helpers.doKeys('u');
+  helpers.doKeys(':', 'omap w $\n');
+  helpers.doKeys( '0', 'w');
+  helpers.assertCursorAt(0, 6);
+  helpers.doKeys('d', 'w');
+  eq(cm.getValue(), 'hello ');
+  CodeMirror.Vim.mapclear();
+}, {value: 'hello unfair world'});
 testVim('ex_imap', function(cm, vim, helpers) {
   CodeMirror.Vim.map('jk', '<Esc>', 'insert');
   helpers.doKeys('i');

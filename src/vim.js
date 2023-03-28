@@ -269,6 +269,7 @@ export function initVim(CodeMirror) {
     { name: 'imap', shortName: 'im' },
     { name: 'nmap', shortName: 'nm' },
     { name: 'vmap', shortName: 'vm' },
+    { name: 'omap', shortName: 'om' },
     { name: 'unmap' },
     { name: 'write', shortName: 'w' },
     { name: 'undo', shortName: 'u' },
@@ -3080,11 +3081,13 @@ export function initVim(CodeMirror) {
       // Partial matches are not applied. They inform the key handler
       // that the current key sequence is a subsequence of a valid key
       // sequence, so that the key buffer is not cleared.
+      var operatorPending = inputState.operator;
       var match, partial = [], full = [];
       for (var i = 0; i < keyMap.length; i++) {
         var command = keyMap[i];
         if (context == 'insert' && command.context != 'insert' ||
-            command.context && command.context != context ||
+            (command.context == "operatorPending" ? !operatorPending 
+              : command.context && command.context != context) ||
             inputState.operator && command.type == 'action' ||
             !(match = commandMatch(keys, command.keys))) { continue; }
         if (match == 'partial') { partial.push(command); }
@@ -5142,6 +5145,7 @@ export function initVim(CodeMirror) {
       imap: function(cm, params) { this.map(cm, params, 'insert'); },
       nmap: function(cm, params) { this.map(cm, params, 'normal'); },
       vmap: function(cm, params) { this.map(cm, params, 'visual'); },
+      omap: function(cm, params) { this.map(cm, params, 'operatorPending'); },
       unmap: function(cm, params, ctx) {
         var mapArgs = params.args;
         if (!mapArgs || mapArgs.length < 1 || !exCommandDispatcher.unmap(mapArgs[0], ctx)) {

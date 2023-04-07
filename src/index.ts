@@ -266,6 +266,9 @@ const vimPlugin = ViewPlugin.fromClass(
           }
         });
       },
+      compositionstart: function(e: Event, view: EditorView) {
+        this.useNextTextInput = true;
+      },
       keypress: function(e: KeyboardEvent, view: EditorView) {
         if (this.lastKeydown == "Dead")
           this.handleKey(e, view);

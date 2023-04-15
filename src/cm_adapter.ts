@@ -1,6 +1,6 @@
 import { EditorSelection, Text, MapMode, ChangeDesc } from "@codemirror/state"
 import { StringStream, matchBrackets, indentUnit, ensureSyntaxTree, foldCode } from "@codemirror/language"
-import { EditorView, ViewUpdate } from "@codemirror/view"
+import { EditorView, runScopeHandlers, ViewUpdate } from "@codemirror/view"
 import { RegExpCursor, setSearchQuery, SearchQuery } from "@codemirror/search"
 import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection,
@@ -126,6 +126,11 @@ function runHistoryCommand(cm: CodeMirror, revert: boolean) {
   }
 }
 
+var keys: any = {};
+"Left|Right|Up|Down|Backspace|Delete".split("|").forEach(key => {
+  keys[key] = (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: key}, "editor");
+});
+
 export class CodeMirror {
   static isMac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);
   // --------------------------
@@ -151,14 +156,7 @@ export class CodeMirror {
   static isWordChar = function (ch: string) {
     return wordChar.test(ch);
   };
-  static keys: any = {
-    Backspace: function (cm: CodeMirror) {
-      deleteCharBackward(cm.cm6);
-    },
-    Delete: function (cm: CodeMirror) {
-      deleteCharForward(cm.cm6);
-    }
-  };
+  static keys: any = keys;
   static keyMap = {
   };
   static addClass = function () { };

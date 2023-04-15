@@ -2178,10 +2178,18 @@ export function initVim(CodeMirror) {
         //     'iw', 'a[', 'i[', etc.
         var inclusive = !motionArgs.textObjectInner;
 
-        var tmp;
+        var tmp, move;
         if (mirroredPairs[character]) {
+          move = true;
           tmp = selectCompanionObject(cm, head, character, inclusive);
+          if (!tmp) {
+            var sc = cm.getSearchCursor(new RegExp("\\" + character, "g"), head)
+            if (sc.find()) {
+              tmp = selectCompanionObject(cm, sc.from(), character, inclusive);
+            }
+          }
         } else if (selfPaired[character]) {
+          move = true;
           tmp = findBeginningAndEnd(cm, head, character, inclusive);
         } else if (character === 'W') {
           tmp = expandWordUnderCursor(cm, inclusive, !inclusive /** innerWord */,
@@ -2225,7 +2233,7 @@ export function initVim(CodeMirror) {
         if (!cm.state.vim.visualMode) {
           return [tmp.start, tmp.end];
         } else {
-          return expandSelection(cm, tmp.start, tmp.end);
+          return expandSelection(cm, tmp.start, tmp.end, move);
         }
       },
 
@@ -3315,10 +3323,10 @@ export function initVim(CodeMirror) {
                            'visualLine': vim.visualLine,
                            'visualBlock': vim.visualBlock};
     }
-    function expandSelection(cm, start, end) {
+    function expandSelection(cm, start, end, move) {
       var sel = cm.state.vim.sel;
-      var head = sel.head;
-      var anchor = sel.anchor;
+      var head = move ? start: sel.head;
+      var anchor = move ? start: sel.anchor;
       var tmp;
       if (cursorIsBefore(end, start)) {
         tmp = end;
@@ -4288,9 +4296,7 @@ export function initVim(CodeMirror) {
       start = cm.scanForBracket(new Pos(cur.line, cur.ch + offset), -1, undefined, {'bracketRegex': bracketRegexp});
       end = cm.scanForBracket(new Pos(cur.line, cur.ch + offset), 1, undefined, {'bracketRegex': bracketRegexp});
 
-      if (!start || !end) {
-        return { start: cur, end: cur };
-      }
+      if (!start || !end) return null;
 
       start = start.pos;
       end = end.pos;

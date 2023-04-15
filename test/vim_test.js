@@ -1618,6 +1618,7 @@ testSelection('viw_end_spc', 'foo \tbAr\t baz', /r/, 'viw', 'bAr');
 testSelection('viw_eol', 'foo \tbAr', /r/, 'viw', 'bAr');
 testSelection('vi{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'vi{', '\n\tbar\n\t');
 testSelection('va{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'va{', '{\n\tbar\n\t}');
+testSelection('va{outside', 'xa{\n\tbar\n\t}b', /x/, 'va{', '{\n\tbar\n\t}');
 
 testVim('ci" for two strings', function(cm, vim, helpers) {
   cm.setCursor(0, 11);

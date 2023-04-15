@@ -11,6 +11,7 @@ class Piece {
               readonly fontSize: string,
               readonly fontWeight: string,
               readonly color: string,
+              readonly tabSize: string,
               readonly className: string,
               readonly letter: string,
               readonly partial: boolean) {}
@@ -31,6 +32,7 @@ class Piece {
     elt.style.fontSize = this.fontSize;
     elt.style.fontWeight = this.fontWeight;
     elt.style.color = this.partial ? "transparent" : this.color;
+    elt.style.tabSize = this.tabSize;
 
     elt.className = this.className;
     elt.textContent = this.letter;
@@ -176,7 +178,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     }
     let h = (pos.bottom - pos.top);
     return new Piece(pos.left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
-                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color, style.tabSize,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)
   } else {

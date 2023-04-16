@@ -4870,6 +4870,10 @@ export function initVim(CodeMirror) {
     }
 
     function getLastEditPos(cm) {
+      if (cm.getLastEditEnd) {
+        return cm.getLastEditEnd();
+      }
+      // for old cm
       var done = cm.doc.history.done;
       for (var i = done.length; i--;) {
         if (done[i].changes) {

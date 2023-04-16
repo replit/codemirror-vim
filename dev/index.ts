@@ -59,7 +59,16 @@ var options = {
   }),
 };
 
-
+var focusEditorButton = document.createElement("button");
+focusEditorButton.onclick = function(e) {
+  e.preventDefault();
+  view?.focus();
+}
+focusEditorButton.textContent = "focusEditor";
+focusEditorButton.onmousedown = function(e) {
+  e.preventDefault();
+}
+document.getElementById("toolbar")?.append(focusEditorButton," ")
   
  
 let global = window as any;

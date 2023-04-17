@@ -300,7 +300,7 @@ const vimPlugin = ViewPlugin.fromClass(
           var vimPlugin = cm.state.vimPlugin;
 
           if (vim && !vim.insertMode && !cm.curOp?.isVimOp) {
-            if (text == "\0\0") {
+            if (text === "\0\0") {
               return true;
             }
             if (text.length == 1 && vimPlugin.useNextTextInput) {

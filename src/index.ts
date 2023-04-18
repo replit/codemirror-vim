@@ -18,6 +18,10 @@ import {
 } from "@codemirror/view";
 import { setSearchQuery } from "@codemirror/search";
 
+var FIREFOX_LINUX = typeof navigator != "undefined"
+  && /linux/i.test(navigator.platform)
+  && / Gecko\/\d+/.exec(navigator.userAgent);
+
 const Vim = initVim(CodeMirror);
 
 const HighlightMargin = 250;
@@ -296,6 +300,9 @@ const vimPlugin = ViewPlugin.fromClass(
           var vimPlugin = cm.state.vimPlugin;
 
           if (vim && !vim.insertMode && !cm.curOp?.isVimOp) {
+            if (text === "\0\0") {
+              return true;
+            }
             if (text.length == 1 && vimPlugin.useNextTextInput) {
               vimPlugin.handleKey({
                 key: text,
@@ -315,9 +322,22 @@ const vimPlugin = ViewPlugin.fromClass(
   }
 );
 
+/**
+ * removes contenteditable element and adds it back to end
+ * IME composition in normal mode
+ * this method works on all browsers except for Firefox on Linux
+ * where we need to reset textContent of editor 
+ * (which doesn't work on other browsers)
+ */
 function forceEndComposition(view: EditorView) {
   var parent = view.scrollDOM.parentElement;
   if (!parent) return;
+
+  if (FIREFOX_LINUX) {
+    view.contentDOM.textContent = "\0\0";
+    view.contentDOM.dispatchEvent(new CustomEvent("compositionend"));
+    return;
+  }
   var sibling = view.scrollDOM.nextSibling;
   var selection = window.getSelection();
   var savedSelection = selection && {

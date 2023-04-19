@@ -11,7 +11,6 @@ class Piece {
               readonly fontSize: string,
               readonly fontWeight: string,
               readonly color: string,
-              readonly tabSize: string,
               readonly className: string,
               readonly letter: string,
               readonly partial: boolean) {}
@@ -32,7 +31,6 @@ class Piece {
     elt.style.fontSize = this.fontSize;
     elt.style.fontWeight = this.fontWeight;
     elt.style.color = this.partial ? "transparent" : this.color;
-    elt.style.tabSize = this.tabSize;
 
     elt.className = this.className;
     elt.textContent = this.letter;
@@ -171,14 +169,22 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       node = node.parentNode;
     }
     let style = getComputedStyle(node as HTMLElement);
-    if (!letter || letter == "\n" || letter == "\r") letter = "\xa0";
-    else if ((/[\uD800-\uDBFF]/.test(letter) && head < view.state.doc.length - 1)) {
+    let left = pos.left;
+    if (!letter || letter == "\n" || letter == "\r") {
+      letter = "\xa0";
+    } else if (letter == "\t") {
+      letter = "\xa0";
+      var nextPos = view.coordsAtPos(head + 1, -1);
+      if (nextPos) {
+        left = nextPos.left - (nextPos.left - pos.left) / parseInt(style.tabSize);
+      }
+    } else if ((/[\uD800-\uDBFF]/.test(letter) && head < view.state.doc.length - 1)) {
       // include the second half of a surrogate pair in cursor
       letter += view.state.sliceDoc(head + 1, head + 2);
     }
     let h = (pos.bottom - pos.top);
-    return new Piece(pos.left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
-                     style.fontFamily, style.fontSize, style.fontWeight, style.color, style.tabSize,
+    return new Piece(left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)
   } else {

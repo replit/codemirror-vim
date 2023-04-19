@@ -4,3 +4,12 @@
 .tern-*
 rollup.config.js
 tsconfig.json
+.cache
+.config
+.github
+.replit
+.upm
+CHANGELOG.md
+dev
+pull_request_template.md
+replit.nix

@@ -4269,6 +4269,15 @@ testVim('ex_global', function(cm, vim, helpers) {
   helpers.doEx('g/^ /');
   eq(' one one\n two one', helpers.getNotificationText());
 }, {value: 'one one\n one one\n one one'});
+testVim('ex_normal', function(cm, vim, helpers) {
+  cm.setCursor(0, 0);
+  helpers.doEx('g/one/normal    cw 1<lt>Esc><Esc>$i$');
+  helpers.doKeys("rt");
+  eq(' 1<Esc> on$e\nxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
+  helpers.doKeys('/', '<', '\n');
+  helpers.doKeys('x', 'x', 'p');
+  eq(' 1sEc> on$e\nxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
+}, {value: 'one one\nxx\none one\none one'});
 testVim('ex_global_substitute_join', function(cm, vim, helpers) {
   helpers.doEx('g/o/s/\\n/;');
   eq('one;two\nthree\nfour;five\n', cm.getValue());

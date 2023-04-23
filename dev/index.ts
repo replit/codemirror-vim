@@ -211,3 +211,36 @@ function createView() {
 
 
 updateView()
+
+// save and  restor search history
+
+
+function saveHistory(name) {
+  var controller = Vim.getVimGlobalState_()[name];
+  var json = JSON.stringify(controller);
+  if (json.length > 10000) {
+    var toTrim = JSON.parse(json);
+    toTrim.historyBuffer = toTrim.historyBuffer.slice(toTrim.historyBuffer.lenght/2);
+    toTrim.iterator = toTrim.historyBuffer.lenght;
+    json = JSON.stringify(toTrim);
+  }
+  localStorage[name] = json;
+}
+function restoreHistory(name) {
+  try {
+    var json = JSON.parse(localStorage[name]);
+    var controller = Vim.getVimGlobalState_()[name];
+    controller.historyBuffer = json.historyBuffer.filter(x => typeof x == "string" && x)
+    controller.iterator = Math.min(parseInt(json.iterator) || Infinity, controller.historyBuffer.length)
+  } catch(e) {
+
+  }
+}
+
+restoreHistory('exCommandHistoryController');
+restoreHistory('searchHistoryController');
+
+window.onunload = function() {
+  saveHistory('exCommandHistoryController');
+  saveHistory('searchHistoryController');
+}

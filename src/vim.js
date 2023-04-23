@@ -286,6 +286,7 @@ export function initVim(CodeMirror) {
     { name: 'vglobal', shortName: 'v' },
     { name: 'delete', shortName: 'd' },
     { name: 'join', shortName: 'j' },
+    { name: 'normal', shortName: 'norm' },
     { name: 'global', shortName: 'g' }
   ];
 
@@ -350,6 +351,11 @@ export function initVim(CodeMirror) {
 
     var modifiers = {Shift:'S',Ctrl:'C',Alt:'A',Cmd:'D',Mod:'A',CapsLock:''};
     var specialKeys = {Enter:'CR',Backspace:'BS',Delete:'Del',Insert:'Ins'};
+    var vimToCmKeyMap = {};
+    'Left|Right|Up|Down|End|Home'.split('|').concat(Object.keys(specialKeys)).forEach(function(x) {
+      vimToCmKeyMap[(specialKeys[x] || '').toLowerCase()]
+         = vimToCmKeyMap[x.toLowerCase()] = x;
+    });
     function cmKeyToVimKey(key) {
       if (key.charAt(0) == '\'') {
         // Keypress character binding of format "'a'"
@@ -901,18 +907,6 @@ export function initVim(CodeMirror) {
             return true;
           }
         }
-        function doKeyToKey(keys) {
-          // TODO: prevent infinite recursion.
-          var match;
-          while (keys) {
-            // Pull off one command key, which is either a single character
-            // or a special sequence wrapped in '<' and '>', e.g. '<Space>'.
-            match = (/<\w+-.+?>|<\w+>|./).exec(keys);
-            key = match[0];
-            keys = keys.substring(match.index + key.length);
-            vimApi.handleKey(cm, key, 'mapping');
-          }
-        }
 
         function handleKeyInsertMode() {
           if (handleEsc()) { return true; }
@@ -1002,7 +996,7 @@ export function initVim(CodeMirror) {
               cm.curOp.isVimOp = true;
               try {
                 if (command.type == 'keyToKey') {
-                  doKeyToKey(command.toKeys);
+                  doKeyToKey(cm, command.toKeys, key);
                 } else {
                   commandDispatcher.processCommand(cm, vim, command);
                 }
@@ -1035,6 +1029,52 @@ export function initVim(CodeMirror) {
       exitVisualMode: exitVisualMode,
       exitInsertMode: exitInsertMode
     };
+
+    var keyToKeyStack = [];
+    function doKeyToKey(cm, keys, fromKey) {
+      // prevent infinite recursion.
+      if (fromKey) {
+        if (keyToKeyStack.indexOf(fromKey) != -1) return;
+        keyToKeyStack.push(fromKey);
+      }
+
+      try {
+        var vim = maybeInitVimState(cm);
+        var keyRe = /<(?:[CSMA]-)*\w+>|./gi;
+
+        var match;
+        // Pull off one command key, which is either a single character
+        // or a special sequence wrapped in '<' and '>', e.g. '<Space>'.
+        while ((match = keyRe.exec(keys))) {
+          var key = match[0];
+          var wasInsert = vim.insertMode;
+          var result = vimApi.handleKey(cm, key, 'mapping');
+
+          if (!result && wasInsert && vim.insertMode) {
+            if (key[0] == "<") {
+              var lowerKey = key.toLowerCase().slice(1, -1);
+              var parts = lowerKey.split('-');
+              var lowerKey = parts.pop();
+              if (lowerKey == 'lt') key = '<';
+              else if (lowerKey == 'space') key = ' ';
+              else if (lowerKey == 'cr') key = '\n';
+              else if (vimToCmKeyMap.hasOwnProperty(lowerKey)) {
+                // todo support codemirror  keys in insertmode vimToCmKeyMap
+                key = vimToCmKeyMap[lowerKey];
+                sendCmKey(cm, key);
+                continue;
+              } else {
+                key = key[0];
+                keyRe.lastIndex = match.index + 1;
+              }
+            }
+            cm.replaceSelection(key);
+          }
+        }
+      } finally {
+        keyToKeyStack.length = 0;
+      }
+    }
 
     // Represents the current input state.
     function InputState() {
@@ -5348,6 +5388,29 @@ export function initVim(CodeMirror) {
         // global inspects params.commandName
         this.global(cm, params);
       },
+      normal: function(cm, params) {
+        var argString = params.argString && params.argString.trimStart();
+        if (!argString) {
+          showConfirm(cm, 'Argument is required.');
+          return;
+        }
+        var line = params.line;
+        if (typeof line == 'number') {
+          var lineEnd = isNaN(params.lineEnd) ? line : params.lineEnd;
+          for (var i = line; i <= lineEnd; i++) {
+            cm.setCursor(i, 0);
+            doKeyToKey(cm, params.argString.trimStart());
+            if (cm.state.vim.insertMode) {
+              exitInsertMode(cm, true);
+            }
+          }
+        } else {
+          doKeyToKey(cm, params.argString.trimStart());
+          if (cm.state.vim.insertMode) {
+            exitInsertMode(cm, true);
+          }
+        }
+      },
       global: function(cm, params) {
         // a global command is of the form
         // :[range]g/pattern/[cmd]
@@ -6024,15 +6087,17 @@ export function initVim(CodeMirror) {
       macroModeState.isPlaying = false;
     }
 
-    function repeatInsertModeChanges(cm, changes, repeat) {
-      function keyHandler(binding) {
+    function sendCmKey(cm, key) {
+      CodeMirror.lookupKey(key, 'vim-insert', function keyHandler(binding) {
         if (typeof binding == 'string') {
           CodeMirror.commands[binding](cm);
         } else {
           binding(cm);
         }
         return true;
-      }
+      });
+    }
+    function repeatInsertModeChanges(cm, changes, repeat) {
       var head = cm.getCursor('head');
       var visualBlock = vimGlobalState.macroModeState.lastInsertModeChanges.visualBlock;
       if (visualBlock) {
@@ -6048,7 +6113,7 @@ export function initVim(CodeMirror) {
         for (var j = 0; j < changes.length; j++) {
           var change = changes[j];
           if (change instanceof InsertModeKey) {
-            CodeMirror.lookupKey(change.keyName, 'vim-insert', keyHandler);
+            sendCmKey(cm, change.keyName);
           } else if (typeof change == "string") {
             cm.replaceSelection(change);
           } else {

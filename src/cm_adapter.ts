@@ -126,7 +126,7 @@ function runHistoryCommand(cm: CodeMirror, revert: boolean) {
   }
 }
 
-var keys: any = {};
+var keys: Record<string, (cm: CodeMirror) => void> = {};
 "Left|Right|Up|Down|Backspace|Delete".split("|").forEach(key => {
   keys[key] = (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: key}, "editor");
 });

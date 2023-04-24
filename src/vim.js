@@ -2830,7 +2830,6 @@ export function initVim(CodeMirror) {
           cur.ch += actionArgs.after ? 1 : 0;
         }
         var curPosFinal;
-        var idx;
         if (vim.visualMode) {
           //  save the pasted text for reselection if the need arises
           vim.lastPastedText = text;
@@ -2892,20 +2891,14 @@ export function initVim(CodeMirror) {
           } else {
             cm.replaceRange(text, cur);
             // Now fine tune the cursor to where we want it.
-            if (linewise && actionArgs.after) {
-              curPosFinal = new Pos(
-                cur.line + 1,
-                findFirstNonWhiteSpaceCharacter(cm.getLine(cur.line + 1)));
-            } else if (linewise && !actionArgs.after) {
-              curPosFinal = new Pos(
-                cur.line,
-                findFirstNonWhiteSpaceCharacter(cm.getLine(cur.line)));
-            } else if (!linewise && actionArgs.after) {
-              idx = cm.indexFromPos(cur);
-              curPosFinal = cm.posFromIndex(idx + text.length - 1);
+            if (linewise) {
+              var line = actionArgs.after ? cur.line + 1 : cur.line;
+              curPosFinal = new Pos(line, findFirstNonWhiteSpaceCharacter(cm.getLine(line)));
             } else {
-              idx = cm.indexFromPos(cur);
-              curPosFinal = cm.posFromIndex(idx + text.length);
+              curPosFinal = copyCursor(cur);
+              if (!/\n/.test(text)) {
+                curPosFinal.ch += text.length - (actionArgs.after ? 1 : 0);
+              }
             }
           }
         }

@@ -1964,14 +1964,20 @@ testVim('p', function(cm, vim, helpers) {
   helpers.getRegisterController().pushText('"', 'yank', 'abc\ndef', false);
   helpers.doKeys('p');
   eq('__abc\ndef_', cm.getValue());
-  helpers.assertCursorAt(1, 2);
+  helpers.assertCursorAt(0, 2);
+  helpers.doKeys('y', 'e', 'p');
+  eq('__aabcbc\ndef_', cm.getValue());
+  helpers.assertCursorAt(0, 5);
+  helpers.doKeys('u');
+  // helpers.assertCursorAt(0, 2); // TODO  undo should return  to the same position
+
 }, { value: '___' });
 testVim('p_register', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
   helpers.getRegisterController().getRegister('a').setText('abc\ndef', false);
   helpers.doKeys('"', 'a', 'p');
   eq('__abc\ndef_', cm.getValue());
-  helpers.assertCursorAt(1, 2);
+  helpers.assertCursorAt(0, 2);
 }, { value: '___' });
 testVim('p_wrong_register', function(cm, vim, helpers) {
   cm.setCursor(0, 1);
@@ -2024,7 +2030,12 @@ testVim('P', function(cm, vim, helpers) {
   helpers.getRegisterController().pushText('"', 'yank', 'abc\ndef', false);
   helpers.doKeys('P');
   eq('_abc\ndef__', cm.getValue());
-  helpers.assertCursorAt(1, 3);
+  helpers.assertCursorAt(0, 1);
+  helpers.doKeys('y', 'e', 'P');
+  eq('_abcabc\ndef__', cm.getValue());
+  helpers.assertCursorAt(0, 4);
+  helpers.doKeys('u');
+  // helpers.assertCursorAt(0, 1); // TODO  undo should return  to the same position
 }, { value: '___' });
 testVim('P_line', function(cm, vim, helpers) {
   cm.setCursor(0, 1);

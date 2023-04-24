@@ -186,8 +186,8 @@ function testVim(name, run, opts, expectedFail) {
         }
     });
 
-    function doKeysFn(cm) {
-      return function() {
+    var helpers = {
+      doKeys: function() {
         var args = arguments[0]
         if (!Array.isArray(args)) { args = arguments; }
         for (var i = 0; i < args.length; i++) {
@@ -197,15 +197,11 @@ function testVim(name, run, opts, expectedFail) {
           }
           typeKey(key);
         }
-      }
-    }
-    function doExFn(cm) {
-      return function(command) {
+      },
+      doEx: function(command) {
         helpers.doKeys(':', command, '\n');
-      }
-    }
-    function assertCursorAtFn(cm) {
-      return function(line, ch) {
+      },
+      assertCursorAt: function(line, ch) {
         var pos;
         if (ch == null && typeof line.line == 'number') {
           pos = line;
@@ -213,12 +209,7 @@ function testVim(name, run, opts, expectedFail) {
           pos = makeCursor(line, ch);
         }
         eqCursorPos(cm.getCursor(), pos);
-      }
-    }
-    var helpers = {
-      doKeys: doKeysFn(cm),
-      doEx: doExFn(cm),
-      assertCursorAt: assertCursorAtFn(cm),
+      },
       getRegisterController: function() {
         return CodeMirror.Vim.getRegisterController();
       },
@@ -226,7 +217,7 @@ function testVim(name, run, opts, expectedFail) {
         var container = cm.getWrapperElement().querySelector(".cm-vim-message");
         return container && container.textContent;
       }
-    }
+    };
     CodeMirror.Vim.resetVimGlobalState_();
     var successful = false;
     try {
@@ -5033,7 +5024,14 @@ testVim('map <Esc> in normal mode', function(cm, vim, helpers) {
 });
 
 testVim('noremap', function(cm, vim, helpers) {
-  CodeMirror.Vim.noremap(';', 'l');
+  helpers.doEx('noremap ; l');
+  helpers.doEx('map l $');
+  helpers.doEx('map q l');
+  helpers.doKeys('l');
+  helpers.assertCursorAt(0, 4);
+  cm.setCursor(0, 0);
+  helpers.doKeys('q');
+  helpers.assertCursorAt(0, 4);
   cm.setCursor(0, 0);
   eq('wOrd1', cm.getValue());
   // Mapping should work in normal mode.
@@ -5044,7 +5042,17 @@ testVim('noremap', function(cm, vim, helpers) {
   helpers.doKeys('i', ';', '<Esc>');
   eq('w;1rd1', cm.getValue());
   // unmap all mappings
-  CodeMirror.Vim.mapclear();
+  helpers.doEx('mapclear');
+  cm.setCursor(0, 0);
+  helpers.doKeys('l');
+  helpers.assertCursorAt(0, 1);
+  // map key to itself
+  helpers.doKeys('x', 'p', 'l');
+  eq('w1;rd1', cm.getValue());
+  helpers.doEx('noremap x "_x');
+  helpers.doKeys('x', 'p');
+  eq('w1;d;1', cm.getValue());
+  helpers.doEx('mapclear');
 }, { value: 'wOrd1' });
 // noremap should capture all mappings of the rhs 
 testVim('noremap_all_mappings', function(cm, vim, helpers) {

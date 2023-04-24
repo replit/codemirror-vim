@@ -3426,11 +3426,23 @@ testVim('exCommand_clear', function(cm, vim, helpers) {
   helpers.doKeys('<C-u>');
   eq(document.activeElement.value, '');
 });
-testVim('.', function(cm, vim, helpers) {
+testVim('._normal', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('2', 'd', 'w');
   helpers.doKeys('.');
   eq('5 6', cm.getValue());
+
+  helpers.doKeys('a');
+  cm.operation(function() {
+    cm.curOp.isVimOp = true;
+    cm.replaceSelection("()");
+    var pos = cm.getCursor();
+    pos.ch--;
+    cm.setCursor(pos);
+  });
+  helpers.doKeys('x', 'y', '<Esc>');
+  helpers.doKeys('.');
+  eq('5(xy(xy)) 6', cm.getValue());
 }, { value: '1 2 3 4 5 6'});
 testVim('._repeat', function(cm, vim, helpers) {
   cm.setCursor(0, 0);

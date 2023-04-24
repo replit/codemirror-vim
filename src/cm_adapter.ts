@@ -669,22 +669,8 @@ export class CodeMirror {
     this.removeOverlay();
   };
 
-  // TODO change vim.js to not use obscure api
-  doc = {
-    history: {
-      done: [
-        {
-          changes: [
-            {
-              cm: this as CodeMirror,
-              get to() {
-                return this.cm.posFromIndex(this.cm.$lastChangeEndOffset)
-              }
-            }
-          ]
-        }
-      ]
-    }
+  getLastEditEnd() {
+    return this.posFromIndex(this.$lastChangeEndOffset);
   };
   $lastChangeEndOffset = 0;
   $lineHandleChanges: undefined|ViewUpdate[]

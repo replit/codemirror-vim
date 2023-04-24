@@ -2623,6 +2623,8 @@ export function initVim(CodeMirror) {
         if (!vimGlobalState.macroModeState.isPlaying) {
           // Only record if not replaying.
           cm.on('change', onChange);
+          if (vim.insertEnd) vim.insertEnd.clear();
+          vim.insertEnd = cm.setBookmark(head, {insertLeft: true});
           CodeMirror.on(cm.getInputField(), 'keydown', onKeyEventTargetKeyDown);
         }
         if (vim.visualMode) {
@@ -4888,6 +4890,10 @@ export function initVim(CodeMirror) {
     }
 
     function getLastEditPos(cm) {
+      if (cm.getLastEditEnd) {
+        return cm.getLastEditEnd();
+      }
+      // for old cm
       var done = cm.doc.history.done;
       for (var i = done.length; i--;) {
         if (done[i].changes) {
@@ -5786,6 +5792,8 @@ export function initVim(CodeMirror) {
       var lastChange = macroModeState.lastInsertModeChanges;
       if (!isPlaying) {
         cm.off('change', onChange);
+        if (vim.insertEnd) vim.insertEnd.clear();
+        vim.insertEnd = null;
         CodeMirror.off(cm.getInputField(), 'keydown', onKeyEventTargetKeyDown);
       }
       if (!isPlaying && vim.insertModeRepeat > 1) {
@@ -5914,6 +5922,7 @@ export function initVim(CodeMirror) {
       var macroModeState = vimGlobalState.macroModeState;
       var lastChange = macroModeState.lastInsertModeChanges;
       if (!macroModeState.isPlaying) {
+        var vim = cm.state.vim;
         while(changeObj) {
           lastChange.expectCursorActivityForChange = true;
           if (lastChange.ignoreCount > 1) {
@@ -5932,7 +5941,18 @@ export function initVim(CodeMirror) {
               if (cm.state.overwrite && !/\n/.test(text)) {
                 lastChange.changes.push([text]);
               } else {
-                lastChange.changes.push(text);
+                if (text.length > 1) {
+                  var insertEnd = vim && vim.insertEnd && vim.insertEnd.find()
+                  var cursor = cm.getCursor();
+                  if (insertEnd && insertEnd.line == cursor.line) {
+                    var offset = insertEnd.ch - cursor.ch;
+                    if (offset > 0 && offset < text.length) {
+                      lastChange.changes.push([text, offset]);
+                      text = '';
+                    }
+                  }
+                }
+                if (text) lastChange.changes.push(text);
               }
             }
           }
@@ -5957,6 +5977,8 @@ export function initVim(CodeMirror) {
         } else {
           // Cursor moved outside the context of an edit. Reset the change.
           lastChange.maybeReset = true;
+          if (vim.insertEnd) vim.insertEnd.clear();
+          vim.insertEnd = cm.setBookmark(cm.getCursor(), {insertLeft: true});
         }
       } else if (!cm.curOp.isVimOp) {
         handleExternalSelection(cm, vim);
@@ -6107,8 +6129,8 @@ export function initVim(CodeMirror) {
             cm.replaceSelection(change);
           } else {
             var start = cm.getCursor();
-            var end = offsetCursor(start, 0, change[0].length);
-            cm.replaceRange(change[0], start, end);
+            var end = offsetCursor(start, 0, change[0].length - (change[1] || 0));
+            cm.replaceRange(change[0], start, change[1] ? start: end);
             cm.setCursor(end);
           }
         }
@@ -6122,6 +6144,7 @@ export function initVim(CodeMirror) {
     function cloneVimState(state) {
       var n = new state.constructor();
       Object.keys(state).forEach(function(key) {
+        if (key == "insertEnd") return;
         var o = state[key];
         if (Array.isArray(o))
           o = o.slice();

@@ -2303,22 +2303,13 @@ export function initVim(CodeMirror) {
               text = text.slice(0, - match[0].length);
             }
           }
-          var prevLineEnd = new Pos(anchor.line - 1, Number.MAX_VALUE);
-          var wasLastLine = cm.firstLine() == cm.lastLine();
-          if (head.line > cm.lastLine() && args.linewise && !wasLastLine) {
-            cm.replaceRange('', prevLineEnd, head);
-          } else {
-            cm.replaceRange('', anchor, head);
-          }
           if (args.linewise) {
-            // Push the next line back down, if there is a next line.
-            if (!wasLastLine) {
-              cm.setCursor(prevLineEnd);
-              CodeMirror.commands.newlineAndIndent(cm);
+            anchor = new Pos(anchor.line, findFirstNonWhiteSpaceCharacter(cm.getLine(anchor.line)));
+            if (head.line > anchor.line) {
+              head = new Pos(head.line - 1, Number.MAX_VALUE)
             }
-            // make sure cursor ends up at the end of the line.
-            anchor.ch = Number.MAX_VALUE;
           }
+          cm.replaceRange('', anchor, head);
           finalHead = anchor;
         } else if (args.fullLine) {
             head.ch = Number.MAX_VALUE;

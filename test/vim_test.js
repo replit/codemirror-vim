@@ -1097,9 +1097,12 @@ testVim('dd_only_line', function(cm, vim, helpers) {
 testVim('cG', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('c', 'G', 'inserted');
-  eq('inserted\n', cm.getValue());
+  eq('inserted', cm.getValue());
   helpers.assertCursorAt(0, 8);
-}, { value: 'line1\nline2'});
+  cm.setValue("    indented\nlines");
+  helpers.doKeys('<Esc>', 'c', 'G', 'inserted');
+  eq('    inserted', cm.getValue());
+}, { value: 'line1\nline2\n'});
 // Yank commands should behave the exact same as d commands, expect that nothing
 // gets deleted.
 testVim('yw_repeat', function(cm, vim, helpers) {
@@ -2744,15 +2747,15 @@ testVim('S_normal', function(cm, vim, helpers) {
   helpers.assertCursorAt(1, 1);
   eq('aa{\n  \ncc', cm.getValue());
   helpers.doKeys('j', 'S');
-  eq('aa{\n  \n  ', cm.getValue());
-  helpers.assertCursorAt(2, 2);
+  eq('aa{\n  \n', cm.getValue());
+  helpers.assertCursorAt(2, 0);
   helpers.doKeys('<Esc>');
   helpers.doKeys('d', 'd', 'd', 'd');
   helpers.assertCursorAt(0, 0);
   helpers.doKeys('S');
   is(vim.insertMode);
   eq('', cm.getValue());
-}, { value: 'aa{\nbb\ncc'});
+}, { value: 'aa{\n  bb\ncc'});
 testVim('blockwise_paste', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('<C-v>', '3', 'j', 'l', 'y');

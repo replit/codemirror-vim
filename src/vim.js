@@ -270,7 +270,17 @@ export function initVim(CodeMirror) {
     { name: 'nmap', shortName: 'nm' },
     { name: 'vmap', shortName: 'vm' },
     { name: 'omap', shortName: 'om' },
+    { name: 'noremap', shortName: 'no' },
+    { name: 'nnoremap', shortName: 'nn' },
+    { name: 'vnoremap', shortName: 'vn' },
+    { name: 'inoremap', shortName: 'ino' },
+    { name: 'onoremap', shortName: 'ono' },
     { name: 'unmap' },
+    { name: 'mapclear', shortName: 'mapc' },
+    { name: 'nmapclear', shortName: 'nmapc' },
+    { name: 'vmapclear', shortName: 'vmapc' },
+    { name: 'imapclear', shortName: 'imapc' },
+    { name: 'omapclear', shortName: 'omapc' },
     { name: 'write', shortName: 'w' },
     { name: 'undo', shortName: 'u' },
     { name: 'redo', shortName: 'red' },
@@ -771,44 +781,7 @@ export function initVim(CodeMirror) {
       // NOTE: This will not create mappings to key maps that aren't present
       // in the default key map. See TODO at bottom of function.
       noremap: function(lhs, rhs, ctx) {
-        function toCtxArray(ctx) {
-          return ctx ? [ctx] : ['normal', 'insert', 'visual'];
-        }
-        var ctxsToMap = toCtxArray(ctx);
-        // Look through all actual defaults to find a map candidate.
-        var actualLength = defaultKeymap.length, origLength = defaultKeymapLength;
-        var goodMappings = []
-        for (var i = actualLength - origLength;
-             i < actualLength && ctxsToMap.length;
-             i++) {
-          var mapping = defaultKeymap[i];
-          // Omit mappings that operate in the wrong context(s) and those of invalid type.
-          if (mapping.keys == rhs &&
-              (!ctx || !mapping.context || mapping.context === ctx) &&
-              mapping.type.substr(0, 2) !== 'ex' &&
-              mapping.type.substr(0, 3) !== 'key') {
-            // Make a shallow copy of the original keymap entry.
-            var newMapping = {};
-            for (var key in mapping) {
-              newMapping[key] = mapping[key];
-            }
-            // Modify it point to the new mapping with the proper context.
-            newMapping.keys = lhs;
-            if (ctx && !newMapping.context) {
-              newMapping.context = ctx;
-            }
-            // Add it to the list of keymaps to add
-            goodMappings.unshift(newMapping);
-            // Record the mapped contexts as complete.
-            var mappedCtxs = toCtxArray(mapping.context);
-            ctxsToMap = ctxsToMap.filter(function(el) { return mappedCtxs.indexOf(el) === -1; });
-          }
-        }
-        for (var newMapping of goodMappings){
-          // Add new mappings with a higher priority than the originals.
-          this._mapCommand(newMapping);
-        }
-        // TODO: Create non-recursive keyToKey mappings for the unmapped contexts once those exist.
+        exCommandDispatcher.map(lhs, rhs, ctx, true);
       },
       // Remove all user-defined mappings for the provided context.
       mapclear: function(ctx) {
@@ -996,7 +969,7 @@ export function initVim(CodeMirror) {
               cm.curOp.isVimOp = true;
               try {
                 if (command.type == 'keyToKey') {
-                  doKeyToKey(cm, command.toKeys, key);
+                  doKeyToKey(cm, command.toKeys, command);
                 } else {
                   commandDispatcher.processCommand(cm, vim, command);
                 }
@@ -1031,11 +1004,13 @@ export function initVim(CodeMirror) {
     };
 
     var keyToKeyStack = [];
+    var noremap = false;
     function doKeyToKey(cm, keys, fromKey) {
       // prevent infinite recursion.
       if (fromKey) {
         if (keyToKeyStack.indexOf(fromKey) != -1) return;
         keyToKeyStack.push(fromKey);
+        noremap = fromKey.noremap;
       }
 
       try {
@@ -1072,6 +1047,7 @@ export function initVim(CodeMirror) {
           }
         }
       } finally {
+        noremap = false;
         keyToKeyStack.length = 0;
       }
     }
@@ -3131,7 +3107,9 @@ export function initVim(CodeMirror) {
       // sequence, so that the key buffer is not cleared.
       var operatorPending = inputState.operator;
       var match, partial = [], full = [];
-      for (var i = 0; i < keyMap.length; i++) {
+      // if currently expanded key comes from a noremap, searcg only in default keys
+      var startIndex = noremap ? keyMap.length - defaultKeymapLength : 0;
+      for (var i = startIndex; i < keyMap.length; i++) {
         var command = keyMap[i];
         if (context == 'insert' && command.context != 'insert' ||
             (command.context == "operatorPending" ? !operatorPending 
@@ -4676,11 +4654,11 @@ export function initVim(CodeMirror) {
     }
 
     function makePrompt(prefix, desc) {
-      return dom(document.createDocumentFragment(),
-               dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre'},
+      return dom('div', {$display: 'flex'},
+               dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre', $flex: 1},
                  prefix,
                  dom('input', {type: 'text', autocorrect: 'off',
-                               autocapitalize: 'off', spellcheck: 'false'})),
+                               autocapitalize: 'off', spellcheck: 'false', $width: '100%'})),
                desc && dom('span', {$color: '#888'}, desc));
     }
 
@@ -5104,7 +5082,7 @@ export function initVim(CodeMirror) {
           this.commandMap_[key] = command;
         }
       },
-      map: function(lhs, rhs, ctx) {
+      map: function(lhs, rhs, ctx, noremap) {
         if (lhs != ':' && lhs.charAt(0) == ':') {
           if (ctx) { throw Error('Mode not supported for ex mappings'); }
           var commandName = lhs.substring(1);
@@ -5140,7 +5118,8 @@ export function initVim(CodeMirror) {
             var mapping = {
               keys: lhs,
               type: 'keyToKey',
-              toKeys: rhs
+              toKeys: rhs,
+              noremap: noremap
             };
             if (ctx) { mapping.context = ctx; }
             defaultKeymap.unshift(mapping);
@@ -5178,7 +5157,7 @@ export function initVim(CodeMirror) {
         }
         cm.setOption('theme', params.args[0]);
       },
-      map: function(cm, params, ctx) {
+      map: function(cm, params, ctx, defaultOnly) {
         var mapArgs = params.args;
         if (!mapArgs || mapArgs.length < 2) {
           if (cm) {
@@ -5186,12 +5165,17 @@ export function initVim(CodeMirror) {
           }
           return;
         }
-        exCommandDispatcher.map(mapArgs[0], mapArgs[1], ctx);
+        exCommandDispatcher.map(mapArgs[0], mapArgs[1], ctx, defaultOnly);
       },
       imap: function(cm, params) { this.map(cm, params, 'insert'); },
       nmap: function(cm, params) { this.map(cm, params, 'normal'); },
       vmap: function(cm, params) { this.map(cm, params, 'visual'); },
       omap: function(cm, params) { this.map(cm, params, 'operatorPending'); },
+      noremap: function(cm, params) { this.map(cm, params, undefined, true); },
+      inoremap: function(cm, params) { this.map(cm, params, 'insert', true); },
+      nnoremap: function(cm, params) { this.map(cm, params, 'normal', true); },
+      vnoremap: function(cm, params) { this.map(cm, params, 'visual', true); },
+      onoremap: function(cm, params) { this.map(cm, params, 'operatorPending', true); },
       unmap: function(cm, params, ctx) {
         var mapArgs = params.args;
         if (!mapArgs || mapArgs.length < 1 || !exCommandDispatcher.unmap(mapArgs[0], ctx)) {
@@ -5200,6 +5184,11 @@ export function initVim(CodeMirror) {
           }
         }
       },
+      mapclear: function(cm, params) { vimApi.mapclear(); },
+      imapclear: function(cm, params) { vimApi.mapclear('insert'); },
+      nmapclear: function(cm, params) { vimApi.mapclear('normal'); },
+      vmapclear: function(cm, params) { vimApi.mapclear('visual'); },
+      omapclear: function(cm, params) { vimApi.mapclear('operatorPending'); },
       move: function(cm, params) {
         commandDispatcher.processCommand(cm, cm.state.vim, {
             type: 'motion',

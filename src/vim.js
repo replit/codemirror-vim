@@ -81,12 +81,12 @@ export function initVim(CodeMirror) {
     { keys: 'g<Up>', type: 'keyToKey', toKeys: 'gk' },
     { keys: 'g<Down>', type: 'keyToKey', toKeys: 'gj' },
     { keys: '<Space>', type: 'keyToKey', toKeys: 'l' },
-    { keys: '<BS>', type: 'keyToKey', toKeys: 'h', context: 'normal'},
-    { keys: '<Del>', type: 'keyToKey', toKeys: 'x', context: 'normal'},
+    { keys: '<BS>', type: 'keyToKey', toKeys: 'h'},
+    { keys: '<Del>', type: 'keyToKey', toKeys: 'x' },
     { keys: '<C-Space>', type: 'keyToKey', toKeys: 'W' },
-    { keys: '<C-BS>', type: 'keyToKey', toKeys: 'B', context: 'normal' },
+    { keys: '<C-BS>', type: 'keyToKey', toKeys: 'B' },
     { keys: '<S-Space>', type: 'keyToKey', toKeys: 'w' },
-    { keys: '<S-BS>', type: 'keyToKey', toKeys: 'b', context: 'normal' },
+    { keys: '<S-BS>', type: 'keyToKey', toKeys: 'b' },
     { keys: '<C-n>', type: 'keyToKey', toKeys: 'j' },
     { keys: '<C-p>', type: 'keyToKey', toKeys: 'k' },
     { keys: '<C-[>', type: 'keyToKey', toKeys: '<Esc>' },
@@ -1006,11 +1006,12 @@ export function initVim(CodeMirror) {
     var keyToKeyStack = [];
     var noremap = false;
     function doKeyToKey(cm, keys, fromKey) {
+      var noremapBefore = noremap;
       // prevent infinite recursion.
       if (fromKey) {
         if (keyToKeyStack.indexOf(fromKey) != -1) return;
         keyToKeyStack.push(fromKey);
-        noremap = fromKey.noremap;
+        noremap = fromKey.noremap != false;
       }
 
       try {
@@ -1029,7 +1030,7 @@ export function initVim(CodeMirror) {
             if (key[0] == "<") {
               var lowerKey = key.toLowerCase().slice(1, -1);
               var parts = lowerKey.split('-');
-              var lowerKey = parts.pop();
+              lowerKey = parts.pop() || '';
               if (lowerKey == 'lt') key = '<';
               else if (lowerKey == 'space') key = ' ';
               else if (lowerKey == 'cr') key = '\n';
@@ -1047,8 +1048,8 @@ export function initVim(CodeMirror) {
           }
         }
       } finally {
-        noremap = false;
-        keyToKeyStack.length = 0;
+        keyToKeyStack.pop();
+        noremap = keyToKeyStack.length ? noremapBefore : false;
       }
     }
 
@@ -3091,15 +3092,14 @@ export function initVim(CodeMirror) {
       // Partial matches are not applied. They inform the key handler
       // that the current key sequence is a subsequence of a valid key
       // sequence, so that the key buffer is not cleared.
-      var operatorPending = inputState.operator;
+      if (inputState.operator) context = "operatorPending";
       var match, partial = [], full = [];
       // if currently expanded key comes from a noremap, searcg only in default keys
       var startIndex = noremap ? keyMap.length - defaultKeymapLength : 0;
       for (var i = startIndex; i < keyMap.length; i++) {
         var command = keyMap[i];
         if (context == 'insert' && command.context != 'insert' ||
-            (command.context == "operatorPending" ? !operatorPending 
-              : command.context && command.context != context) ||
+            (command.context && command.context != context) ||
             inputState.operator && command.type == 'action' ||
             !(match = commandMatch(keys, command.keys))) { continue; }
         if (match == 'partial') { partial.push(command); }
@@ -5109,7 +5109,7 @@ export function initVim(CodeMirror) {
               keys: lhs,
               type: 'keyToKey',
               toKeys: rhs,
-              noremap: noremap
+              noremap: !!noremap
             };
             if (ctx) { mapping.context = ctx; }
             defaultKeymap.unshift(mapping);
@@ -5368,7 +5368,12 @@ export function initVim(CodeMirror) {
         this.global(cm, params);
       },
       normal: function(cm, params) {
-        var argString = params.argString && params.argString.trimStart();
+        var argString = params.argString;
+        if (argString && argString[0] == '!') {
+            argString = argString.slice(1);
+            noremap = true;
+        }
+        argString = argString.trimStart();
         if (!argString) {
           showConfirm(cm, 'Argument is required.');
           return;

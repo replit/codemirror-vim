@@ -81,12 +81,12 @@ export function initVim(CodeMirror) {
     { keys: 'g<Up>', type: 'keyToKey', toKeys: 'gk' },
     { keys: 'g<Down>', type: 'keyToKey', toKeys: 'gj' },
     { keys: '<Space>', type: 'keyToKey', toKeys: 'l' },
-    { keys: '<BS>', type: 'keyToKey', toKeys: 'h', context: 'normal'},
-    { keys: '<Del>', type: 'keyToKey', toKeys: 'x', context: 'normal'},
+    { keys: '<BS>', type: 'keyToKey', toKeys: 'h'},
+    { keys: '<Del>', type: 'keyToKey', toKeys: 'x' },
     { keys: '<C-Space>', type: 'keyToKey', toKeys: 'W' },
-    { keys: '<C-BS>', type: 'keyToKey', toKeys: 'B', context: 'normal' },
+    { keys: '<C-BS>', type: 'keyToKey', toKeys: 'B' },
     { keys: '<S-Space>', type: 'keyToKey', toKeys: 'w' },
-    { keys: '<S-BS>', type: 'keyToKey', toKeys: 'b', context: 'normal' },
+    { keys: '<S-BS>', type: 'keyToKey', toKeys: 'b' },
     { keys: '<C-n>', type: 'keyToKey', toKeys: 'j' },
     { keys: '<C-p>', type: 'keyToKey', toKeys: 'k' },
     { keys: '<C-[>', type: 'keyToKey', toKeys: '<Esc>' },
@@ -3091,15 +3091,14 @@ export function initVim(CodeMirror) {
       // Partial matches are not applied. They inform the key handler
       // that the current key sequence is a subsequence of a valid key
       // sequence, so that the key buffer is not cleared.
-      var operatorPending = inputState.operator;
+      if (inputState.operator) context = "operatorPending";
       var match, partial = [], full = [];
       // if currently expanded key comes from a noremap, searcg only in default keys
       var startIndex = noremap ? keyMap.length - defaultKeymapLength : 0;
       for (var i = startIndex; i < keyMap.length; i++) {
         var command = keyMap[i];
         if (context == 'insert' && command.context != 'insert' ||
-            (command.context == "operatorPending" ? !operatorPending 
-              : command.context && command.context != context) ||
+            (command.context && command.context != context) ||
             inputState.operator && command.type == 'action' ||
             !(match = commandMatch(keys, command.keys))) { continue; }
         if (match == 'partial') { partial.push(command); }

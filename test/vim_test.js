@@ -4935,6 +4935,23 @@ testVim('ex_omap', function(cm, vim, helpers) {
   eq(cm.getValue(), 'hello ');
   CodeMirror.Vim.mapclear();
 }, {value: 'hello unfair world'});
+testVim('ex_nmap', function(cm, vim, helpers) {
+  cm.setCursor(0, 3);
+  helpers.doEx('nmap k gj');
+  helpers.doKeys('k');
+  helpers.assertCursorAt(1, 3);
+  helpers.doKeys('d', 'k');
+  eq(cm.getValue(), 'world');
+  helpers.doKeys('u');
+  cm.setCursor(1, 3);
+  helpers.doEx('map k gj');
+  helpers.doKeys('d', 'k');
+  eq(cm.getValue(), 'hello\nunfld');
+  helpers.assertCursorAt(1, 3);
+  helpers.doKeys('<Up>');
+  // helpers.assertCursorAt(0, 3);
+  CodeMirror.Vim.mapclear();
+}, {value: 'hello\nunfair\nworld'});
 testVim('ex_imap', function(cm, vim, helpers) {
   CodeMirror.Vim.map('jk', '<Esc>', 'insert');
   helpers.doKeys('i');

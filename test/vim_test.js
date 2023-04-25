@@ -11,7 +11,7 @@ function eqCursorPos(a, b) {
        eqCursorPos
       );
 }
-function eq(a, b) {
+function eq(a, b, _reason) {
   if(a != b)
     throw failure("Expected " + a +  " to be equal to " + b, eq);
 }
@@ -176,6 +176,7 @@ function testVim(name, run, opts, expectedFail) {
     place.style.visibility = "visible";
     var cm = CodeMirror(place, vimOpts);
     var vim = CodeMirror.Vim.maybeInitVimState_(cm);
+    CodeMirror.Vim.mapclear();
 
     cm.focus();
     // workaround for cm5 slow polling in blurred window
@@ -4294,6 +4295,12 @@ testVim('ex_normal', function(cm, vim, helpers) {
   helpers.doKeys('/', '<', '\n');
   helpers.doKeys('x', 'x', 'p');
   eq(' 1sEc> on$e\nxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
+  cm.setCursor(0, 0);
+  helpers.doEx('map k j');
+  helpers.doEx('normal kkk');
+  helpers.assertCursorAt(3, 0);
+  helpers.doEx('normal! kkk');
+  helpers.assertCursorAt(0, 0);
 }, {value: 'one one\nxx\none one\none one'});
 testVim('ex_global_substitute_join', function(cm, vim, helpers) {
   helpers.doEx('g/o/s/\\n/;');
@@ -4822,7 +4829,6 @@ testVim('mapclear', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 4);
   helpers.doKeys('w');
   helpers.assertCursorAt(0, 5);
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc abc' });
 testVim('mapclear_context', function(cm, vim, helpers) {
   CodeMirror.Vim.map('w', 'l', 'normal');
@@ -4833,7 +4839,6 @@ testVim('mapclear_context', function(cm, vim, helpers) {
   CodeMirror.Vim.mapclear('normal');
   helpers.doKeys('w');
   helpers.assertCursorAt(0, 4);
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc abc' });
 
 testVim('ex_map_key2key', function(cm, vim, helpers) {
@@ -4841,21 +4846,18 @@ testVim('ex_map_key2key', function(cm, vim, helpers) {
   helpers.doKeys('a');
   helpers.assertCursorAt(0, 0);
   eq('bc', cm.getValue());
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 testVim('ex_unmap_key2key', function(cm, vim, helpers) {
   helpers.doEx('map a x');
   helpers.doEx('unmap a');
   helpers.doKeys('a');
   eq('vim-insert', cm.getOption('keyMap'));
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 testVim('ex_unmap_key2key_does_not_remove_default', function(cm, vim, helpers) {
   helpers.doEx('unmap a');
   is(/No such mapping: unmap a/.test(helpers.getNotificationText()));
   helpers.doKeys('a');
   eq('vim-insert', cm.getOption('keyMap'));
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 testVim('ex_map_key2key_to_colon', function(cm, vim, helpers) {
   helpers.doEx('map ; :');
@@ -4865,14 +4867,12 @@ testVim('ex_map_key2key_to_colon', function(cm, vim, helpers) {
   }
   helpers.doKeys(';');
   eq(dialogOpened, true);
-  CodeMirror.Vim.mapclear();
 });
 testVim('ex_map_ex2key:', function(cm, vim, helpers) {
   helpers.doEx('map :del x');
   helpers.doEx('del');
   helpers.assertCursorAt(0, 0);
   eq('bc', cm.getValue());
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 testVim('ex_map_ex2ex', function(cm, vim, helpers) {
   helpers.doEx('map :del :w');
@@ -4887,7 +4887,6 @@ testVim('ex_map_ex2ex', function(cm, vim, helpers) {
   CodeMirror.commands.save = tmp;
   eq(written, true);
   eq(actualCm, cm);
-  CodeMirror.Vim.mapclear();
 });
 testVim('ex_map_key2ex', function(cm, vim, helpers) {
   helpers.doEx('map a :w');
@@ -4902,7 +4901,6 @@ testVim('ex_map_key2ex', function(cm, vim, helpers) {
   CodeMirror.commands.save = tmp;
   eq(written, true);
   eq(actualCm, cm);
-  CodeMirror.Vim.mapclear();
 });
 testVim('ex_map_key2key_visual_api', function(cm, vim, helpers) {
   CodeMirror.Vim.map('b', ':w', 'visual');
@@ -4922,7 +4920,6 @@ testVim('ex_map_key2key_visual_api', function(cm, vim, helpers) {
   eq(actualCm, cm);
 
   CodeMirror.commands.save = tmp;
-  CodeMirror.Vim.mapclear();
 });
 testVim('ex_omap', function(cm, vim, helpers) {
   helpers.doKeys('0', 'w', 'd', 'w');
@@ -4933,7 +4930,6 @@ testVim('ex_omap', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 6);
   helpers.doKeys('d', 'w');
   eq(cm.getValue(), 'hello ');
-  CodeMirror.Vim.mapclear();
 }, {value: 'hello unfair world'});
 testVim('ex_nmap', function(cm, vim, helpers) {
   cm.setCursor(0, 3);
@@ -4950,7 +4946,6 @@ testVim('ex_nmap', function(cm, vim, helpers) {
   helpers.assertCursorAt(1, 3);
   helpers.doKeys('<Up>');
   helpers.assertCursorAt(0, 3);
-  CodeMirror.Vim.mapclear();
 }, {value: 'hello\nunfair\nworld'});
 testVim('ex_imap', function(cm, vim, helpers) {
   CodeMirror.Vim.map('jk', '<Esc>', 'insert');
@@ -4993,14 +4988,12 @@ testVim('ex_imap', function(cm, vim, helpers) {
     eq('xox4\nfox8\nfoodxfg', cm.getValue());
     eq(3, cm.listSelections().length);
   }
-  CodeMirror.Vim.mapclear();
 }, { value: '1234\n5678\nabcdefg' });
 testVim('ex_unmap_api', function(cm, vim, helpers) {
   CodeMirror.Vim.map('<Alt-X>', 'gg', 'normal');
   is(CodeMirror.Vim.handleKey(cm, "<Alt-X>", "normal"), "Alt-X key is mapped");
   CodeMirror.Vim.unmap("<Alt-X>", "normal");
   is(!CodeMirror.Vim.handleKey(cm, "<Alt-X>", "normal"), "Alt-X key is unmapped");
-  CodeMirror.Vim.mapclear();
 });
 // Testing registration of functions as ex-commands and mapping to <Key>-keys
 testVim('ex_api_test', function(cm, vim, helpers) {
@@ -5015,7 +5008,6 @@ testVim('ex_api_test', function(cm, vim, helpers) {
   CodeMirror.Vim.map('<C-CR><Space>',':ext');
   helpers.doKeys('<C-CR>','<Space>');
   is(res,'Mapping to key failed');
-  CodeMirror.Vim.mapclear();
 });
 // Testing ex-commands with non-alpha names.
 testVim('ex_special_names', function(cm, vim, helpers) {
@@ -5054,7 +5046,6 @@ testVim('ex_map_key2key_from_colon', function(cm, vim, helpers) {
   helpers.doKeys(':');
   helpers.assertCursorAt(0, 0);
   eq('bc', cm.getValue());
-  CodeMirror.Vim.mapclear();
 }, { value: 'abc' });
 
 testVim('map <Esc> in normal mode', function(cm, vim, helpers) {
@@ -5063,7 +5054,6 @@ testVim('map <Esc> in normal mode', function(cm, vim, helpers) {
   is(vim.insertMode, "Didn't switch to insert mode.");
   helpers.doKeys('<Esc>');
   is(!vim.insertMode, "Didn't switch to normal mode.");
-  CodeMirror.Vim.mapclear();
 });
 
 testVim('noremap', function(cm, vim, helpers) {
@@ -5109,8 +5099,6 @@ testVim('noremap_all_mappings', function(cm, vim, helpers) {
   // lowercase
   helpers.doKeys('V', 'a');
   eq('hey', cm.getValue());
-  // unmap all mappings
-  CodeMirror.Vim.mapclear();
 }, { value: 'HeY' });
 testVim('noremap_swap', function(cm, vim, helpers) {
   CodeMirror.Vim.noremap('i', 'a', 'normal');
@@ -5122,8 +5110,6 @@ testVim('noremap_swap', function(cm, vim, helpers) {
   // ...and 'i' should act like 'a'.
   helpers.doKeys('<Esc>', 'i');
   eqCursorPos(new Pos(0, 1), cm.getCursor());
-  // unmap all mappings
-  CodeMirror.Vim.mapclear();
 }, { value: 'foo' });
 testVim('noremap_map_interaction', function(cm, vim, helpers) {
   // noremap should clobber map
@@ -5139,8 +5125,6 @@ testVim('noremap_map_interaction', function(cm, vim, helpers) {
   CodeMirror.Vim.map('m', ';');
   helpers.doKeys('m');
   eqCursorPos(new Pos(1, 2), cm.getCursor());
-  // unmap all mappings
-  CodeMirror.Vim.mapclear();
 }, { value: 'wOrd1\nwOrd2' });
 testVim('noremap_map_interaction2', function(cm, vim, helpers) {
   // map should point to the most recent noremap
@@ -5152,8 +5136,6 @@ testVim('noremap_map_interaction2', function(cm, vim, helpers) {
   eqCursorPos(new Pos(0, 1), cm.getCursor());
   helpers.doKeys('m');
   eqCursorPos(new Pos(0, 0), cm.getCursor());
-  // unmap all mappings
-  CodeMirror.Vim.mapclear();
 }, { value: 'wOrd1\nwOrd2' });
 
 testVim('updateStatus', function(cm, vim, helpers) {

@@ -5368,7 +5368,12 @@ export function initVim(CodeMirror) {
         this.global(cm, params);
       },
       normal: function(cm, params) {
-        var argString = params.argString && params.argString.trimStart();
+        var argString = params.argString;
+        if (argString && argString[0] == '!') {
+            argString = argString.slice(1);
+            noremap = true;
+        }
+        argString = argString.trimStart();
         if (!argString) {
           showConfirm(cm, 'Argument is required.');
           return;

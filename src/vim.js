@@ -1006,11 +1006,12 @@ export function initVim(CodeMirror) {
     var keyToKeyStack = [];
     var noremap = false;
     function doKeyToKey(cm, keys, fromKey) {
+      var noremapBefore = noremap;
       // prevent infinite recursion.
       if (fromKey) {
         if (keyToKeyStack.indexOf(fromKey) != -1) return;
         keyToKeyStack.push(fromKey);
-        noremap = fromKey.noremap;
+        noremap = fromKey.noremap != false;
       }
 
       try {
@@ -1029,7 +1030,7 @@ export function initVim(CodeMirror) {
             if (key[0] == "<") {
               var lowerKey = key.toLowerCase().slice(1, -1);
               var parts = lowerKey.split('-');
-              var lowerKey = parts.pop();
+              lowerKey = parts.pop() || '';
               if (lowerKey == 'lt') key = '<';
               else if (lowerKey == 'space') key = ' ';
               else if (lowerKey == 'cr') key = '\n';
@@ -1047,8 +1048,8 @@ export function initVim(CodeMirror) {
           }
         }
       } finally {
-        noremap = false;
-        keyToKeyStack.length = 0;
+        keyToKeyStack.pop();
+        noremap = keyToKeyStack.length ? noremapBefore : false;
       }
     }
 
@@ -5108,7 +5109,7 @@ export function initVim(CodeMirror) {
               keys: lhs,
               type: 'keyToKey',
               toKeys: rhs,
-              noremap: noremap
+              noremap: !!noremap
             };
             if (ctx) { mapping.context = ctx; }
             defaultKeymap.unshift(mapping);

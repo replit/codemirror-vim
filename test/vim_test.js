@@ -4949,7 +4949,7 @@ testVim('ex_nmap', function(cm, vim, helpers) {
   eq(cm.getValue(), 'hello\nunfld');
   helpers.assertCursorAt(1, 3);
   helpers.doKeys('<Up>');
-  // helpers.assertCursorAt(0, 3);
+  helpers.assertCursorAt(0, 3);
   CodeMirror.Vim.mapclear();
 }, {value: 'hello\nunfair\nworld'});
 testVim('ex_imap', function(cm, vim, helpers) {

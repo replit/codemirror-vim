@@ -749,6 +749,9 @@ export class CodeMirror {
       case "keyMap":
         this.state.keyMap = val;
         break;
+      case "textwidth":
+        this.state.textwidth = val;
+        break;
       // TODO cm6 doesn't provide any method to reconfigure these
       case "tabSize":
       case "indentWithTabs":
@@ -763,6 +766,7 @@ export class CodeMirror {
       case "readonly": return this.cm6.state.readOnly;
       case "indentWithTabs": return this.cm6.state.facet(indentUnit) == "\t"; // TODO
       case "indentUnit": return this.cm6.state.facet(indentUnit).length || 2;
+      case "textwidth": return this.state.textwidth;
       // for tests
       case "keyMap": return this.state.keyMap || "vim";
     }
@@ -818,6 +822,10 @@ export class CodeMirror {
     }
     this.cm6.dispatch({ selection: this.virtualSelection })
     this.virtualSelection = null;
+  }
+
+  hardWrap(options) {
+    return hardWrap(this, options);
   }
 };
 
@@ -1040,3 +1048,83 @@ class Marker {
       this.offset = change.mapPos(this.offset, this.assoc, MapMode.TrackDel)
   }
 }
+
+
+
+function hardWrap(cm, options) {
+  var max = options.column || cm.getOption('textwidth') || 80;
+  var allowMerge = options.allowMerge != false;
+     
+  var row = Math.min(options.from, options.to);
+  var endRow = Math.max(options.from, options.to);
+  
+  while (row <= endRow) {
+    var line = cm.getLine(row);
+    if (line.length > max) {
+      var space = findSpace(line, max, 5);
+      if (space) {
+          var indentation = /^\s*/.exec(line)[0];
+          cm.replaceRange("\n" + indentation, new Pos(row, space.start), new Pos(row, space.end));
+      }
+      endRow++;
+    } else if (allowMerge && /\S/.test(line) && row != endRow) {
+      var nextLine = cm.getLine(row + 1);
+      if (nextLine && /\S/.test(nextLine)) {
+        var trimmedLine = line.replace(/\s+$/, "");
+        var trimmedNextLine = nextLine.replace(/^\s+/, "");
+        var mergedLine = trimmedLine + " " + trimmedNextLine;
+
+        var space = findSpace(mergedLine, max, 5);
+        if (space && space.start > trimmedLine.length || mergedLine.length < max) {
+          cm.replaceRange(" ", new Pos(row, trimmedLine.length), new Pos(row + 1, nextLine.length - trimmedNextLine.length));
+          row--;
+          endRow--;
+        } else if (trimmedLine.length < line.length) {
+          cm.replaceRange("", new Pos(row, trimmedLine.length), new Pos(row, line.length));
+        }
+      }
+    }
+    row++;
+  }
+  return row;
+
+  function findSpace(line, max, min) {
+    if (line.length < max)
+      return;
+    var before = line.slice(0, max);
+    var after = line.slice(max);
+    var spaceAfter = /^(?:(\s+)|(\S+)(\s+))/.exec(after);
+    var spaceBefore = /(?:(\s+)|(\s+)(\S+))$/.exec(before);
+    var start = 0;
+    var end = 0;
+    if (spaceBefore && !spaceBefore[2]) {
+      start = max - spaceBefore[1].length;
+      end = max;
+    }
+    if (spaceAfter && !spaceAfter[2]) {
+      if (!start)
+        start = max;
+      end = max + spaceAfter[1].length;
+    }
+    if (start) {
+      return {
+        start: start,
+        end: end
+      };
+    }
+    if (spaceBefore && spaceBefore[2] && spaceBefore.index > min) {
+      return {
+        start: spaceBefore.index,
+        end: spaceBefore.index + spaceBefore[2].length
+      };
+    }
+    if (spaceAfter && spaceAfter[2]) {
+      start =  max + spaceAfter[2].length;
+      return {
+        start: start,
+        end: start + spaceAfter[3].length
+      };
+    }
+  }
+}
+

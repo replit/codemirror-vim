@@ -5138,6 +5138,39 @@ testVim('noremap_map_interaction2', function(cm, vim, helpers) {
   eqCursorPos(new Pos(0, 0), cm.getCursor());
 }, { value: 'wOrd1\nwOrd2' });
 
+testVim('gq_and_gw', function(cm, vim, helpers) {
+  cm.setValue(
+    "1\n2\nhello world\n"
+    + "xxx ".repeat(20)
+    + "\nyyy"
+    + "\n\nnext\nparagraph"
+  );
+  cm.setCursor(2,5);
+  helpers.doKeys("gqgq");
+  helpers.assertCursorAt(2, 0);
+  eq(cm.getLine(2), "hello world");
+
+  helpers.doKeys("gqj");
+  helpers.assertCursorAt(3, 0);
+  eq(cm.getLine(3), "xxx xxx xxx ")
+
+  helpers.doKeys("gq}")
+  helpers.assertCursorAt(4, 0);
+  eq(cm.getLine(3), "xxx xxx xxx yyy")
+
+  helpers.doKeys("gqG");
+  helpers.doKeys("gqgg");
+  helpers.doKeys(":set tw=15\n");
+
+  helpers.doKeys("gg", "V", "gq");
+  eq(cm.getLine(0), "1 2 hello world");
+  eq(cm.getLine(5), "xxx xxx xxx xxx yyy");
+  helpers.doKeys(":6\n");
+  helpers.doKeys("gqq");
+
+  eq(cm.getLine(6), "yyy");
+}, { value: 'wOrd1\nwOrd2' });
+
 testVim('updateStatus', function(cm, vim, helpers) {
   var keys = '';
   CodeMirror.on(cm, 'vim-keypress', function(key) {

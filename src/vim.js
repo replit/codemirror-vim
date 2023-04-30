@@ -178,6 +178,8 @@ export function initVim(CodeMirror) {
     { keys: 'N', type: 'motion', motion: 'findNext', motionArgs: { forward: false, toJumplist: true }},
     { keys: 'gn', type: 'motion', motion: 'findAndSelectNextInclusive', motionArgs: { forward: true }},
     { keys: 'gN', type: 'motion', motion: 'findAndSelectNextInclusive', motionArgs: { forward: false }},
+    { keys: 'gq', type: 'operator', operator: 'hardWrap' },
+    { keys: 'gw', type: 'operator', operator: 'hardWrap', operatorArgs: {keepCursor: true}},
     // Operator-Motion dual commands
     { keys: 'x', type: 'operatorMotion', operator: 'delete', motion: 'moveByCharacters', motionArgs: { forward: true }, operatorMotionArgs: { visualLine: false }},
     { keys: 'X', type: 'operatorMotion', operator: 'delete', motion: 'moveByCharacters', motionArgs: { forward: false }, operatorMotionArgs: { visualLine: true }},
@@ -551,6 +553,22 @@ export function initVim(CodeMirror) {
       } else {
         var mode = name == '' ? 'null' : name;
         cm.setOption('mode', mode);
+      }
+    });
+    defineOption('textwidth', 80, 'number', ['tw'], function(width, cm) {
+      // Option is local. Do nothing for global.
+      if (cm === undefined) {
+        return;
+      }
+      // The 'filetype' option proxies to the CodeMirror 'mode' option.
+      if (width === undefined) {
+        var value = cm.getOption('textwidth');
+        return value;
+      } else {
+        var column = Math.round(width);
+        if (column > 1) {
+          cm.setOption('textwidth', column);
+        }
       }
     });
 
@@ -2398,6 +2416,15 @@ export function initVim(CodeMirror) {
       indentAuto: function(cm, _args, ranges) {
         cm.execCommand("indentAuto");
         return motions.moveToFirstNonWhiteSpaceCharacter(cm, ranges[0].anchor);
+      },
+      hardWrap: function(cm, operatorArgs, ranges, oldAnchor, newHead) {
+        if (!cm.hardWrap) return;
+        var from = ranges[0].anchor.line;
+        var to = ranges[0].head.line;
+        if (operatorArgs.linewise) to--;
+        var endRow = cm.hardWrap({from: from, to: to});
+        if (endRow > from && operatorArgs.linewise) endRow--;
+        return operatorArgs.keepCursor ? oldAnchor : new Pos(endRow, 0);
       },
       changeCase: function(cm, args, ranges, oldAnchor, newHead) {
         var selections = cm.getSelections();

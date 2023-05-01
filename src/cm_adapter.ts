@@ -467,7 +467,11 @@ export class CodeMirror {
     else if (name == "goLineLeft") cursorLineBoundaryBackward(this.cm6);
     else if (name == "goLineRight") {
       cursorLineBoundaryForward(this.cm6);
-      cursorCharBackward(this.cm6)
+      let state = this.cm6.state
+      let cur = state.selection.main.head; 
+      if (cur < state.doc.length && state.sliceDoc(cur, cur + 1) !== "\n") {
+        cursorCharBackward(this.cm6);
+      }
     }
     else console.log(name + " is not implemented");
   };

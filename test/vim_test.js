@@ -539,6 +539,10 @@ testVim('g0_g$', function(cm, vim, helpers) {
   is(startCoords.left < endCoords.left);
   is(startCoords.top == endCoords.top);
   is(start.ch < end.ch && end.ch < cm.getValue().length / 2);
+  is(/\.$/.test(cm.getValue()));
+  helpers.doKeys('$', 'g', '0', 'd', 'g', '$');
+  is(!/\.$/.test(cm.getValue()));
+  
 },{ lineNumbers: false, lineWrapping:true, value: 'This line is long to test movement of g$ and g0 over wrapped lines.' });
 testVim('}', function(cm, vim, helpers) {
   cm.setCursor(0, 0);

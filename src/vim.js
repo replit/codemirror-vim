@@ -5578,8 +5578,8 @@ export function initVim(CodeMirror) {
         var cursor = cm.getSearchCursor(query, startPos);
         doReplace(cm, confirm, global, lineStart, lineEnd, cursor, query, replacePart, params.callback);
       },
-      startinsert: function(cm) {
-        actions.enterInsertMode(cm, { insertAt: params.argString=="!" ? 'charAfter' : "" }, cm.state.vim)
+      startinsert: function(cm, params) {
+        doKeyToKey(cm, params.argString == '!' ? 'A' : 'i', {});
       },
       redo: CodeMirror.commands.redo,
       undo: CodeMirror.commands.undo,

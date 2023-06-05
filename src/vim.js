@@ -291,6 +291,7 @@ export function initVim(CodeMirror) {
     { name: 'setglobal', shortName: 'setg' },
     { name: 'sort', shortName: 'sor' },
     { name: 'substitute', shortName: 's', possiblyAsync: true },
+    { name: 'startinsert', shortName: 'start' },
     { name: 'nohlsearch', shortName: 'noh' },
     { name: 'yank', shortName: 'y' },
     { name: 'delmarks', shortName: 'delm' },
@@ -5576,6 +5577,9 @@ export function initVim(CodeMirror) {
         var startPos = clipCursorToContent(cm, new Pos(lineStart, 0));
         var cursor = cm.getSearchCursor(query, startPos);
         doReplace(cm, confirm, global, lineStart, lineEnd, cursor, query, replacePart, params.callback);
+      },
+      startinsert: function(cm, params) {
+        doKeyToKey(cm, params.argString == '!' ? 'A' : 'i', {});
       },
       redo: CodeMirror.commands.redo,
       undo: CodeMirror.commands.undo,

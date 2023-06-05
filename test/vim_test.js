@@ -1315,6 +1315,7 @@ testVim('on_mode_change', async function(cm, vim, helpers) {
   test('v', 'visual');
   test(':', ''); // Event for Command-line mode not implemented.
   test('y\n', 'normal');
+  test(":startinsert", "insert");
 });
 
 // Swapcase commands edit in place and do not modify registers.
@@ -3485,6 +3486,21 @@ testVim('._insert', function(cm, vim, helpers) {
   eq('xy\nxy\ntestestt', cm.getValue());
   helpers.assertCursorAt(1, 1);
 }, { value: ''});
+testVim('._startinsert', function(cm, vim, helpers) {
+  helpers.doEx('map i x');
+  helpers.doKeys('i');
+  eq('', cm.getValue());
+  helpers.doEx('start');
+  helpers.doKeys('test');
+  helpers.doKeys('<Esc>');
+  helpers.doKeys('.');
+  eq('testestt', cm.getValue());
+  helpers.assertCursorAt(0, 6);
+  helpers.doEx('start!');
+  helpers.doKeys('xyz');
+  eq('testesttxyz', cm.getValue());
+  helpers.assertCursorAt(0, 11);
+}, { value: 'x'});
 testVim('._insert_repeat', function(cm, vim, helpers) {
   helpers.doKeys('i');
   helpers.doKeys('test')

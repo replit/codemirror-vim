@@ -159,12 +159,6 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     if (!pos) return null;
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);
-    if (domAtPos && domAtPos.node.nodeType === 3 &&  domAtPos.offset == domAtPos.node.length &&
-        domAtPos.node.parentNode?.nextSibling?.className=="cm-widgetBuffer"
-) {
-        debugger
-    }
-
     let node = domAtPos ? domAtPos.node : view.contentDOM;
     while (domAtPos && domAtPos.node instanceof HTMLElement) {
       node = domAtPos.node;

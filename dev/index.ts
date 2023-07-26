@@ -6,8 +6,6 @@ import { css } from '@codemirror/lang-css';
 import { Vim, vim } from "../src/index"
 import {syntaxTree} from "@codemirror/language"
 
-import { colorPicker } from '@replit/codemirror-css-color-picker';
-
 import * as commands from "@codemirror/commands";
 import { Annotation, Compartment, EditorState, Extension, Transaction } from '@codemirror/state';
 
@@ -78,12 +76,8 @@ class CheckboxWidget extends WidgetType {
         return (true);
     }
     toDOM() {
-        const picker = document.createElement('span');
-        // picker.type = 'color';
-        picker.value = this.a // "#4488aa";
         const wrapper = document.createElement('span');
-        // wrapper.appendChild(picker);
-wrapper.textContent =  this.a
+        wrapper.textContent =  " " + this.a + " "
         wrapper.className = 'cm-css-color-picker-wrapper';
         return wrapper;
     }
@@ -95,22 +89,13 @@ wrapper.textContent =  this.a
 function checkboxes(view: EditorView) {
   let widgets = []
   var last = 0
-  for (let {from, to} of view.visibleRanges) {
-    syntaxTree(view.state).iterate({
-      from, to,
-      enter: (node) => {
-          last = node.to - node.from
-        if ( last > 20 || last < 4 || widgets.length > 10) return
-          let isTrue = view.state.doc.sliceString(node.from, node.to) == "true"
-            let side = widgets.length % 2 ? 1 : -1
-          let deco = Decoration.widget({
-            widget: new CheckboxWidget(side),
-            side: side
-          })
-          widgets.push(deco.range(node.to-1))
-        
-      }
+  for (let i = 0; i < 10; i++) {
+    let side = widgets.length % 2 ? 1 : -1
+    let deco = Decoration.widget({
+      widget: new CheckboxWidget(side),
+      side: side
     })
+    widgets.push(deco.range(10 * i))
   }
   widgets.sort((a,b)=> {
       return a.from - b.from
@@ -135,26 +120,9 @@ const checkboxPlugin = ViewPlugin.fromClass(class {
 
   eventHandlers: {
     mousedown: (e, view) => {
-      let target = e.target as HTMLElement
-      if (target.nodeName == "INPUT" &&
-          target.parentElement!.classList.contains("cm-boolean-toggle"))
-        return toggleBoolean(view, view.posAtDOM(target))
     }
   }
 })
-
-function toggleBoolean(view: EditorView, pos: number) {
-  let before = view.state.doc.sliceString(Math.max(0, pos - 5), pos)
-  let change
-  if (before == "false")
-    change = {from: pos - 5, to: pos, insert: "true"}
-  else if (before.endsWith("true"))
-    change = {from: pos - 4, to: pos, insert: "false"}
-  else
-    return false
-  view.dispatch({changes: change})
-  return true
-}
 
 var options = {
   wrap: addOption("wrap"),
@@ -210,7 +178,6 @@ var defaultExtensions = [
       }
     }
   ])
-  colorPicker,
   checkboxPlugin,
 ]
 

@@ -1,8 +1,12 @@
 import { basicSetup, EditorView } from 'codemirror'
-import { highlightActiveLine, keymap } from '@codemirror/view';
+import { highlightActiveLine, keymap, Decoration, DecorationSet, ViewPlugin } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
+import { css } from '@codemirror/lang-css';
 import { Vim, vim } from "../src/index"
+import {syntaxTree} from "@codemirror/language"
+
+import { colorPicker } from '@replit/codemirror-css-color-picker';
 
 import * as commands from "@codemirror/commands";
 import { Annotation, Compartment, EditorState, Extension, Transaction } from '@codemirror/state';
@@ -22,6 +26,7 @@ new EditorView({
   parent: document.querySelector('#editor'),
 });
 
+true false
 `;
 
 function addOption(name, description?, onclick?) {
@@ -42,6 +47,113 @@ function addOption(name, description?, onclick?) {
   }
   document.getElementById("toolbar")?.append(checkbox, label, " ")
   return value
+}
+
+import {WidgetType} from "@codemirror/view"
+
+class CheckboxWidget1 extends WidgetType {
+  constructor(readonly checked: boolean) { super() }
+
+  eq(other: CheckboxWidget) { return other.checked == this.checked }
+
+  toDOM() {
+    let wrap = document.createElement("span")
+    wrap.setAttribute("aria-hidden", "true")
+    wrap.className = "cm-boolean-toggle"
+    let box = wrap.appendChild(document.createElement("input"))
+    box.type = "checkbox"
+    box.checked = this.checked
+    return wrap
+  }
+
+  ignoreEvent() { return false }
+}
+
+class CheckboxWidget extends WidgetType {
+    constructor(_a) {
+        super(); 
+        this.a = _a
+    }
+    eq(other) {
+        return (true);
+    }
+    toDOM() {
+        const picker = document.createElement('span');
+        // picker.type = 'color';
+        picker.value = this.a // "#4488aa";
+        const wrapper = document.createElement('span');
+        // wrapper.appendChild(picker);
+wrapper.textContent =  this.a
+        wrapper.className = 'cm-css-color-picker-wrapper';
+        return wrapper;
+    }
+    ignoreEvent() {
+        return false;
+    }
+}
+
+function checkboxes(view: EditorView) {
+  let widgets = []
+  var last = 0
+  for (let {from, to} of view.visibleRanges) {
+    syntaxTree(view.state).iterate({
+      from, to,
+      enter: (node) => {
+          last = node.to - node.from
+        if ( last > 20 || last < 4 || widgets.length > 10) return
+          let isTrue = view.state.doc.sliceString(node.from, node.to) == "true"
+            let side = widgets.length % 2 ? 1 : -1
+          let deco = Decoration.widget({
+            widget: new CheckboxWidget(side),
+            side: side
+          })
+          widgets.push(deco.range(node.to-1))
+        
+      }
+    })
+  }
+  widgets.sort((a,b)=> {
+      return a.from - b.from
+  })
+  console.log(widgets)
+  return Decoration.set(widgets)
+}
+
+const checkboxPlugin = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(view: EditorView) {
+    this.decorations = checkboxes(view)
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged)
+      this.decorations = checkboxes(update.view)
+  }
+}, {
+  decorations: v => v.decorations,
+
+  eventHandlers: {
+    mousedown: (e, view) => {
+      let target = e.target as HTMLElement
+      if (target.nodeName == "INPUT" &&
+          target.parentElement!.classList.contains("cm-boolean-toggle"))
+        return toggleBoolean(view, view.posAtDOM(target))
+    }
+  }
+})
+
+function toggleBoolean(view: EditorView, pos: number) {
+  let before = view.state.doc.sliceString(Math.max(0, pos - 5), pos)
+  let change
+  if (before == "false")
+    change = {from: pos - 5, to: pos, insert: "true"}
+  else if (before.endsWith("true"))
+    change = {from: pos - 4, to: pos, insert: "false"}
+  else
+    return false
+  view.dispatch({changes: change})
+  return true
 }
 
 var options = {
@@ -98,6 +210,8 @@ var defaultExtensions = [
       }
     }
   ])
+  colorPicker,
+  checkboxPlugin,
 ]
 
 function saveTab(name) {
@@ -115,7 +229,7 @@ var tabs = {
   }),
   html: EditorState.create({
     doc: document.documentElement.outerHTML,
-    extensions: [...defaultExtensions, xml(), saveTab("html")]
+    extensions: [...defaultExtensions, css(), saveTab("html")]
   })
 }
 

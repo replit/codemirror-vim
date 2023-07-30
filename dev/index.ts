@@ -1,13 +1,14 @@
 import { basicSetup, EditorView } from 'codemirror'
-import { highlightActiveLine, keymap } from '@codemirror/view';
+import { highlightActiveLine, keymap, Decoration, DecorationSet,
+   ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/index"
 
 import * as commands from "@codemirror/commands";
-import { Annotation, Compartment, EditorState, Extension, Transaction } from '@codemirror/state';
+import { Annotation, Compartment, EditorState, Extension, Transaction, Range } from '@codemirror/state';
 
-const doc = `//🌞
+const doc = `//\t🌞 אבג
 import { basicSetup, EditorView } from 'codemirror'
 import { javascript } from '@codemirror/lang-javascript';
 import { vim } from "../src/"
@@ -43,6 +44,58 @@ function addOption(name, description?, onclick?) {
   document.getElementById("toolbar")?.append(checkbox, label, " ")
   return value
 }
+
+class TestWidget extends WidgetType {
+    constructor(private side: number) {
+        super(); 
+    }
+    eq(other) {
+        return (true);
+    }
+    toDOM() {
+        const wrapper = document.createElement('span');
+        wrapper.textContent =  " widget" + this.side + " "
+        wrapper.style.opacity = '0.4';
+        return wrapper;
+    }
+    ignoreEvent() {
+        return false;
+    }
+}
+
+function widgets(view: EditorView) {
+  let widgets: Range<Decoration>[] = [];
+  for (let i = 0; i < 10; i++) {
+    let side = widgets.length % 2 ? 1 : -1
+    let deco = Decoration.widget({
+      widget: new TestWidget(side),
+      side: side
+    })
+    widgets.push(deco.range(200 + 10 * i))
+  }
+  console.log(widgets)
+  return Decoration.set(widgets)
+}
+
+const testWidgetPlugin = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(view: EditorView) {
+    this.decorations = widgets(view)
+  }
+
+  update(update: ViewUpdate) {
+    if (update.docChanged || update.viewportChanged)
+      this.decorations = widgets(update.view)
+  }
+}, {
+  decorations: v => v.decorations,
+
+  eventHandlers: {
+    mousedown: (e, view) => {
+    }
+  }
+})
 
 var options = {
   wrap: addOption("wrap"),
@@ -97,7 +150,7 @@ var defaultExtensions = [
         return true
       }
     }
-  ])
+  ]),
 ]
 
 function saveTab(name) {
@@ -115,7 +168,7 @@ var tabs = {
   }),
   html: EditorState.create({
     doc: document.documentElement.outerHTML,
-    extensions: [...defaultExtensions, xml(), saveTab("html")]
+    extensions: [...defaultExtensions, testWidgetPlugin, xml(), saveTab("html")]
   })
 }
 

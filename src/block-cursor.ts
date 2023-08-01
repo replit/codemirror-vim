@@ -83,7 +83,7 @@ export class BlockCursorPlugin {
     for (let r of state.selection.ranges) {
       let prim = r == state.selection.main
       let piece = measureCursor(this.cm, this.view, r, prim)
-      if (piece) cursors.push(piece)      
+      if (piece) cursors.push(piece)
     }
     return {cursors}
   }
@@ -170,6 +170,11 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     }
     let style = getComputedStyle(node as HTMLElement);
     let left = pos.left;
+    // TODO remove coordsAtPos when all supported versions of codemirror have coordsForChar api
+    let charCoords = (view as any).coordsForChar?.(head);
+    if (charCoords) {
+      left = charCoords.left;
+    }
     if (!letter || letter == "\n" || letter == "\r") {
       letter = "\xa0";
     } else if (letter == "\t") {

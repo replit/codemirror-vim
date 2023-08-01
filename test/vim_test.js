@@ -4717,6 +4717,15 @@ testVim('ex_set_boolean', function(cm, vim, helpers) {
   // Test setOption
   helpers.doEx('set notestoption');
   is(!CodeMirror.Vim.getOption('testoption'));
+  // Test toggle with !
+  helpers.doEx('set notestoption!');
+  is(CodeMirror.Vim.getOption('testoption'));
+  helpers.doEx('set notestoption!');
+  is(!CodeMirror.Vim.getOption('testoption'));
+  helpers.doEx('set testoption!');
+  is(CodeMirror.Vim.getOption('testoption'));
+  helpers.doEx('set testoption!');
+  is(!CodeMirror.Vim.getOption('testoption'));
 });
 testVim('set_string', function(cm, vim, helpers) {
   CodeMirror.Vim.defineOption('testoption', 'a', 'string');

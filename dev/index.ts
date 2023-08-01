@@ -59,6 +59,15 @@ var options = {
   }),
 };
 
+
+
+Vim.defineOption('wrap', false, 'boolean', null, function(val, cm) {
+  if (val == undefined) return options.wrap;
+  var checkbox = document.getElementById("wrap");
+  checkbox.checked = val;
+  checkbox.onclick();
+});
+
 var focusEditorButton = document.createElement("button");
 focusEditorButton.onclick = function(e) {
   e.preventDefault();
@@ -102,9 +111,7 @@ var defaultExtensions = [
 
 function saveTab(name) {
   return EditorView.updateListener.of((v) => {
-    if (v.docChanged) {
-      tabs[name] = v.state;
-    }
+    tabs[name] = v.state;
   })
 }
 

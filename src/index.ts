@@ -309,9 +309,9 @@ const vimPlugin = ViewPlugin.fromClass(
                 preventDefault: ()=>{},
                 stopPropagation: ()=>{}
               });
+              forceEndComposition(view);
+              return true;
             }
-            forceEndComposition(view);
-            return true;
           }
           return false;
         })

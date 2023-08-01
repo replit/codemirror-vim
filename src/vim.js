@@ -5230,12 +5230,16 @@ export function initVim(CodeMirror) {
         var optionName = expr[0];
         var value = expr[1];
         var forceGet = false;
+        var forceToggle = false;
 
         if (optionName.charAt(optionName.length - 1) == '?') {
           // If post-fixed with ?, then the set is actually a get.
           if (value) { throw Error('Trailing characters: ' + params.argString); }
           optionName = optionName.substring(0, optionName.length - 1);
           forceGet = true;
+        } else if (optionName.charAt(optionName.length - 1) == '!') {
+          optionName = optionName.substring(0, optionName.length - 1);
+          forceToggle = true;
         }
         if (value === undefined && optionName.substring(0, 2) == 'no') {
           // To set boolean options to false, the option name is prefixed with
@@ -5245,9 +5249,13 @@ export function initVim(CodeMirror) {
         }
 
         var optionIsBoolean = options[optionName] && options[optionName].type == 'boolean';
-        if (optionIsBoolean && value == undefined) {
-          // Calling set with a boolean option sets it to true.
-          value = true;
+        if (optionIsBoolean) {
+          if (forceToggle) {
+            value = !getOption(optionName, cm, setCfg);
+          } else if (value == undefined) {
+            // Calling set with a boolean option sets it to true.
+            value = true;
+          }
         }
         // If no value is provided, then we assume this is a get.
         if (!optionIsBoolean && value === undefined || forceGet) {

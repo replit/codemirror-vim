@@ -2,6 +2,15 @@ import { SelectionRange, Prec } from "@codemirror/state"
 import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
 import { CodeMirror } from "."
 
+// backwards compatibility for old versions not supporting getDrawSelectionConfig
+import * as View  from "@codemirror/view"
+let getDrawSelectionConfig = View.getDrawSelectionConfig || function() {
+  let defaultConfig = {cursorBlinkRate: 1200};
+  return function() {
+    return defaultConfig;
+  }
+}();
+
 type Measure = {cursors: Piece[]}
 
 class Piece {
@@ -63,7 +72,9 @@ export class BlockCursorPlugin {
   }
 
   setBlinkRate() {
-    this.cursorLayer.style.animationDuration = 1200 + "ms"
+    let config = getDrawSelectionConfig(this.cm.cm6.state);
+    let blinkRate = config.cursorBlinkRate;
+    this.cursorLayer.style.animationDuration = blinkRate + "ms";
   }
 
   update(update: ViewUpdate) {
@@ -71,6 +82,7 @@ export class BlockCursorPlugin {
       this.view.requestMeasure(this.measureReq)
       this.cursorLayer.style.animationName = this.cursorLayer.style.animationName == "cm-blink" ? "cm-blink2" : "cm-blink"
      }
+     if (configChanged(update)) this.setBlinkRate();
   }
 
   scheduleRedraw() {
@@ -105,6 +117,9 @@ export class BlockCursorPlugin {
   destroy() {
     this.cursorLayer.remove()
   }
+}
+function configChanged(update: ViewUpdate) {
+  return getDrawSelectionConfig(update.startState) != getDrawSelectionConfig(update.state)
 }
 
  const themeSpec = {

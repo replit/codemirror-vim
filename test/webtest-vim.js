@@ -4,9 +4,11 @@ import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
 import {vimTests} from "./vim_test.js"
 import { indentUnit } from "@codemirror/language";
-import { EditorState } from "@codemirror/state";
+import { EditorState, Compartment } from "@codemirror/state";
 import {indentWithTab} from "@codemirror/commands";
-import { keymap } from "@codemirror/view";
+import { keymap, drawSelection } from "@codemirror/view";
+
+import * as View from "@codemirror/view";
 
 /**@type {any}*/
 var disabled = {
@@ -121,4 +123,52 @@ describe("Vim extension", () => {
     });
   }
   vimTests(CM, transformTest);
+
+  // extra tests 
+  it("should update cursor blinkrate", function() {
+
+    let compartement = new Compartment();
+    var view = new EditorView({
+      doc: "hello world",
+      extensions: [
+        vim({
+          status: true
+        }),
+        basicSetup,
+        compartement.of([
+          drawSelection({cursorBlinkRate: 100})
+        ])
+    ].filter(Boolean),
+      parent: root,
+    }); 
+
+    let vimCursorLayer = view.dom.querySelector(".cm-vimCursorLayer");
+    if (!View.getDrawSelectionConfig) {
+      eq(vimCursorLayer.style.animationDuration, "1200ms");
+      return;
+    }
+    eq(vimCursorLayer.style.animationDuration, "100ms");
+    view.dispatch({
+      effects: compartement.reconfigure(drawSelection({cursorBlinkRate: 1000}))
+    });
+    vimCursorLayer = view.dom.querySelector(".cm-vimCursorLayer");
+    eq(vimCursorLayer.style.animationDuration, "1000ms");
+  })
 });
+
+
+
+
+function eq(a, b, _reason) {
+  if(a != b)
+    throw failure("Expected " + a +  " to be equal to " + b, eq);
+}
+function is(a) {
+  if (!a) throw failure("Expected " + a +  " to be truthy", is);
+}
+function failure(message, root) {
+  var error = new Error(message);
+  if (Error.captureStackTrace)
+    Error.captureStackTrace(error, root);
+  return error;
+}

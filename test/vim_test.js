@@ -754,6 +754,23 @@ testVim('sentence_selections', function(cm, vim, helpers) {
 
 }, { value: 'Test sentence. Test question?\nAgain.Never. Again.Test.\n\nHello. This is more text. No end of sentence symbol\n' });
 
+testVim('w_text_object_repeat', function(cm, vim, helpers) {
+  cm.setCursor(0, 2);
+  helpers.doKeys('v', '3', 'a', 'w');
+  eq('w1  ++  w_2   ', cm.getSelection());
+  helpers.doKeys('<Esc>', 'v', 'a', 'w');
+  eq('   \n w3', cm.getSelection());
+  
+  helpers.doKeys('2', 'a', 'w');
+  eq('   \n w3   xx \n', cm.getSelection());
+  helpers.doKeys('a', 'w');
+  eq('   \n w3   xx \n\nw4', cm.getSelection());
+
+  cm.setValue("  w0 word1  word2  word3    word4")
+  cm.setCursor(0, 8);
+  helpers.doKeys('c', '3', 'a', 'w');
+  eq('  w0 word4', cm.getValue());
+}, { value: ' w1  ++  w_2   \n w3   xx \n\nw4\nword5\nword6' });
 
 // Operator tests
 testVim('dl', function(cm, vim, helpers) {

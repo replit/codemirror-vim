@@ -1,6 +1,6 @@
 import { basicSetup, EditorView } from 'codemirror'
 import { highlightActiveLine, keymap, Decoration, DecorationSet,
-   ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+   ViewPlugin, ViewUpdate, WidgetType, drawSelection } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/index"
@@ -190,6 +190,7 @@ function updateView() {
   var extensions = [
     enableVim && vim({status: options.status}),
     options.wrap && EditorView.lineWrapping,
+    drawSelection({cursorBlinkRate: window.blinkRate})
   ].filter((x)=>!!x) as Extension[];
   
   view.dispatch({

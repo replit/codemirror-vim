@@ -1533,17 +1533,15 @@ export function initVim(CodeMirror) {
             }
             break;
           case 'wordUnderCursor':
-            var word = expandWordUnderCursor(cm, false /** inclusive */,
-                false /** innerWord */, false /** bigWord */,
-                true /** noSymbol */);
+            var word = expandWordUnderCursor(cm, {noSymbol: true});
             var isKeyword = true;
             if (!word) {
-              word = expandWordUnderCursor(cm, false /** inclusive */,
-                  false /** innerWord */, false /** bigWord */,
-                  false /** noSymbol */);
+              word = expandWordUnderCursor(cm, {noSymbol: false});
               isKeyword = false;
             }
             if (!word) {
+              showConfirm(cm, 'No word under cursor');
+              clearInputState(cm);
               return;
             }
             var query = cm.getLine(word.start.line).substring(word.start.ch,
@@ -2227,12 +2225,21 @@ export function initVim(CodeMirror) {
         } else if (selfPaired[character]) {
           move = true;
           tmp = findBeginningAndEnd(cm, head, character, inclusive);
-        } else if (character === 'W') {
-          tmp = expandWordUnderCursor(cm, inclusive, !inclusive /** innerWord */,
-                                                     true /** bigWord */);
-        } else if (character === 'w') {
-          tmp = expandWordUnderCursor(cm, inclusive, !inclusive /** innerWord */,
-                                                     false /** bigWord */);
+        } else if (character === 'W' || character === 'w') {
+          var repeat = motionArgs.repeat || 1;
+          while (repeat-- > 0) {
+            var repeated = expandWordUnderCursor(cm, {
+              inclusive,
+              innerWord: !inclusive,
+              bigWord: character === 'W',
+              noSymbol: character === 'W',
+              multiline: true
+            }, tmp && tmp.end);
+            if (repeated) {
+              if (!tmp) tmp = repeated;
+              tmp.end = repeated.end;
+            }
+          }
         } else if (character === 'p') {
           tmp = findParagraph(cm, head, motionArgs.repeat, 0, inclusive);
           motionArgs.linewise = true;
@@ -3515,11 +3522,15 @@ export function initVim(CodeMirror) {
       return firstNonWS == -1 ? text.length : firstNonWS;
     }
 
-    function expandWordUnderCursor(cm, inclusive, innerWord, bigWord, noSymbol) {
-      var cur = getHead(cm);
+    function expandWordUnderCursor(cm, {inclusive, innerWord, bigWord, noSymbol, multiline}, cursor) {
+      var cur = cursor || getHead(cm);
       var line = cm.getLine(cur.line);
+      var endLine = line;
+      var startLineNumber = cur.line
+      var endLineNumber = startLineNumber;
       var idx = cur.ch;
 
+      var wordOnNextLine;
       // Seek to first word or non-whitespace character, depending on if
       // noSymbol is true.
       var test = noSymbol ? wordCharTest[0] : bigWordCharTest [0];
@@ -3528,7 +3539,12 @@ export function initVim(CodeMirror) {
       } else {
         while (!test(line.charAt(idx))) {
           idx++;
-          if (idx >= line.length) { return null; }
+          if (idx >= line.length) {
+            if (!multiline) return null;
+            idx--;
+            wordOnNextLine = findWord(cm, cur, true, bigWord, true);
+            break
+          }
         }
 
         if (bigWord) {
@@ -3542,22 +3558,33 @@ export function initVim(CodeMirror) {
       }
 
       var end = idx, start = idx;
-      while (test(line.charAt(end)) && end < line.length) { end++; }
       while (test(line.charAt(start)) && start >= 0) { start--; }
       start++;
+      if (wordOnNextLine) {
+        end = wordOnNextLine.to;
+        endLineNumber = wordOnNextLine.line;
+        endLine = cm.getLine(endLineNumber);
+        if (!endLine && end == 0) end++;
+      } else {
+        while (test(line.charAt(end)) && end < line.length) { end++; }
+      }
 
       if (inclusive) {
         // If present, include all whitespace after word.
         // Otherwise, include all whitespace before word, except indentation.
         var wordEnd = end;
-        while (/\s/.test(line.charAt(end)) && end < line.length) { end++; }
-        if (wordEnd == end) {
+        var startsWithSpace = cur.ch <= start && /\s/.test(line.charAt(cur.ch));
+        if (!startsWithSpace) {
+          while (/\s/.test(endLine.charAt(end)) && end < endLine.length) { end++; }
+        }
+        if (wordEnd == end || startsWithSpace) {
           var wordStart = start;
           while (/\s/.test(line.charAt(start - 1)) && start > 0) { start--; }
-          if (!start) { start = wordStart; }
+          if (!start && !startsWithSpace) { start = wordStart; }
         }
       }
-      return { start: new Pos(cur.line, start), end: new Pos(cur.line, end) };
+
+      return { start: new Pos(startLineNumber, start), end: new Pos(endLineNumber, end) };
     }
 
     /**

@@ -1024,6 +1024,47 @@ export function initVim(CodeMirror) {
 
     var keyToKeyStack = [];
     var noremap = false;
+    var virtualPrompt;
+    function sendKeyToPrompt(key) {
+      if (key[0] == "<") {
+        var lowerKey = key.toLowerCase().slice(1, -1);
+        var parts = lowerKey.split('-');
+        lowerKey = parts.pop() || '';
+        if (lowerKey == 'lt') key = '<';
+        else if (lowerKey == 'space') key = ' ';
+        else if (lowerKey == 'cr') key = '\n';
+        else if (vimToCmKeyMap[lowerKey]) {
+          var value = virtualPrompt.value;
+          var event =  {
+            key: vimToCmKeyMap[lowerKey],
+            target: {
+              value: value,
+              selectionEnd: value.length,
+              selectionStart: value.length
+            }
+          }
+          if (virtualPrompt.onKeyDown) {
+            virtualPrompt.onKeyDown(event, virtualPrompt.value, close);
+          }
+          if (virtualPrompt && virtualPrompt.onKeyUp) {
+            virtualPrompt.onKeyUp(event, virtualPrompt.value, close);
+          }
+          return;
+        }
+      }
+      if (key == '\n') {
+        var prompt = virtualPrompt;
+        virtualPrompt = null;
+        prompt.onClose && prompt.onClose(prompt.value);
+      } else {
+        virtualPrompt.value = (virtualPrompt.value || '') + key;
+      }
+
+      function close(value) {
+        if (typeof value == 'string') { virtualPrompt.value = value; }
+        else { virtualPrompt = null; }
+      }
+    }
     function doKeyToKey(cm, keys, fromKey) {
       var noremapBefore = noremap;
       // prevent infinite recursion.
@@ -1043,6 +1084,11 @@ export function initVim(CodeMirror) {
         while ((match = keyRe.exec(keys))) {
           var key = match[0];
           var wasInsert = vim.insertMode;
+          if (virtualPrompt) {
+            sendKeyToPrompt(key);
+            continue;
+          }
+
           var result = vimApi.handleKey(cm, key, 'mapping');
 
           if (!result && wasInsert && vim.insertMode) {
@@ -1069,6 +1115,11 @@ export function initVim(CodeMirror) {
       } finally {
         keyToKeyStack.pop();
         noremap = keyToKeyStack.length ? noremapBefore : false;
+        if (!keyToKeyStack.length && virtualPrompt) {
+          var promptOptions = virtualPrompt;
+          virtualPrompt = null;
+          showPrompt(cm, promptOptions);
+        }
       }
     }
 
@@ -4704,6 +4755,11 @@ export function initVim(CodeMirror) {
     }
 
     function showPrompt(cm, options) {
+      if (keyToKeyStack.length) {
+        if (!options.value) options.value = '';
+        virtualPrompt = options;
+        return;
+      }
       var template = makePrompt(options.prefix, options.desc);
       if (cm.openDialog) {
         cm.openDialog(template, options.onClose, {
@@ -4788,9 +4844,12 @@ export function initVim(CodeMirror) {
     var highlightTimeout = 0;
     function highlightSearchMatches(cm, query) {
       clearTimeout(highlightTimeout);
+      var searchState = getSearchState(cm);
+      searchState.highlightTimeout = highlightTimeout;
       highlightTimeout = setTimeout(function() {
         if (!cm.state.vim) return;
         var searchState = getSearchState(cm);
+        searchState.highlightTimeout = null;
         var overlay = searchState.getOverlay();
         if (!overlay || query != overlay.query) {
           if (overlay) {
@@ -4874,6 +4933,10 @@ export function initVim(CodeMirror) {
     }
     function clearSearchHighlight(cm) {
       var state = getSearchState(cm);
+      if (state.highlightTimeout) {
+        clearTimeout(state.highlightTimeout);
+        state.highlightTimeout = null;
+      }
       cm.removeOverlay(getSearchState(cm).getOverlay());
       state.setOverlay(null);
       if (state.getScrollbarAnnotate()) {
@@ -4989,9 +5052,7 @@ export function initVim(CodeMirror) {
             this.parseCommandArgs_(inputStream, params, command);
             if (command.type == 'exToKey') {
               // Handle Ex to Key mapping.
-              for (var i = 0; i < command.toKeys.length; i++) {
-                vimApi.handleKey(cm, command.toKeys[i], 'mapping');
-              }
+              doKeyToKey(cm, command.toKeys, command);
               return;
             } else if (command.type == 'exToEx') {
               // Handle Ex to Ex mapping.
@@ -5149,26 +5210,15 @@ export function initVim(CodeMirror) {
             };
           }
         } else {
-          if (rhs != ':' && rhs.charAt(0) == ':') {
-            // Key to Ex mapping.
-            var mapping = {
-              keys: lhs,
-              type: 'keyToEx',
-              exArgs: { input: rhs.substring(1) }
-            };
-            if (ctx) { mapping.context = ctx; }
-            defaultKeymap.unshift(mapping);
-          } else {
-            // Key to key mapping
-            var mapping = {
-              keys: lhs,
-              type: 'keyToKey',
-              toKeys: rhs,
-              noremap: !!noremap
-            };
-            if (ctx) { mapping.context = ctx; }
-            defaultKeymap.unshift(mapping);
-          }
+          // Key to key or ex mapping
+          var mapping = {
+            keys: lhs,
+            type: 'keyToKey',
+            toKeys: rhs,
+            noremap: !!noremap
+          };
+          if (ctx) { mapping.context = ctx; }
+          defaultKeymap.unshift(mapping);
         }
       },
       unmap: function(lhs, ctx) {

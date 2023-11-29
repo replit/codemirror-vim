@@ -144,15 +144,6 @@ function forEach(arr, func) {
   }
 }
 
-function expectFail(fn) {
-    try {
-        fn();
-    } catch(expected) {
-        return;
-    };
-    throw new Error("Expected to throw an error");
-}
-
 function vimKeyToKeyName(key) {
   return key.replace(/[CS]-|CR|BS/g, function(part) {
     return {"C-": "Ctrl-", "S-": "Shift-", CR: "Return", BS: "Backspace"}[part];
@@ -4864,6 +4855,38 @@ testVim('ex_set_filetype_null', function(cm, vim, helpers) {
   eq('null', cm.getMode().name);
 });
 
+testVim('map_prompt', function(cm, vim, helpers) {
+  function highlighted() {
+    return vim.searchState_ && (vim.searchState_.getOverlay() || vim.searchState_.highlightTimeout);
+  }
+  is(!highlighted());
+
+  helpers.doKeys('/a\n');
+  helpers.doKeys('i');
+  is(highlighted());
+  helpers.doKeys('<Esc>');
+  helpers.doEx('nohl');
+  is(!highlighted());
+  helpers.assertCursorAt(1, 2);
+
+  helpers.doEx('nnoremap i :nohl<CR>i<space>xx<lt>');
+  helpers.doEx('map :sayhi ihi<Esc>');
+  helpers.doEx('map j :sayhi<CR>/<up><up>b');
+
+  helpers.doKeys('/1\n');
+  helpers.assertCursorAt(1, 1);
+
+  helpers.doKeys('j');
+  eq(cm.getWrapperElement().querySelector("input").value, "ab");
+  helpers.doKeys('<CR>');
+  is(highlighted());
+  helpers.doKeys('i');
+  is(!highlighted());
+
+  eq(cm.getValue(), ' 0 xyz\n hi1  xx<abc \n 2 abc');
+
+  helpers.doKeys('mapclear');
+}, { value: ' 0 xyz\n 1 abc \n 2 abc' });
 testVim('mapclear', function(cm, vim, helpers) {
   CodeMirror.Vim.map('w', 'l');
   cm.setCursor(0, 0);
@@ -4935,7 +4958,7 @@ testVim('ex_map_ex2ex', function(cm, vim, helpers) {
   eq(actualCm, cm);
 });
 testVim('ex_map_key2ex', function(cm, vim, helpers) {
-  helpers.doEx('map a :w');
+  helpers.doEx('map a :w<CR>');
   var tmp = CodeMirror.commands.save;
   var written = false;
   var actualCm;
@@ -4949,7 +4972,7 @@ testVim('ex_map_key2ex', function(cm, vim, helpers) {
   eq(actualCm, cm);
 });
 testVim('ex_map_key2key_visual_api', function(cm, vim, helpers) {
-  CodeMirror.Vim.map('b', ':w', 'visual');
+  CodeMirror.Vim.map('b', ':w<CR>', 'visual');
   var tmp = CodeMirror.commands.save;
   var written = false;
   var actualCm;
@@ -5051,7 +5074,7 @@ testVim('ex_api_test', function(cm, vim, helpers) {
   });
   helpers.doEx(':ext to');
   eq(val,'to','Defining ex-command failed');
-  CodeMirror.Vim.map('<C-CR><Space>',':ext');
+  CodeMirror.Vim.map('<C-CR><Space>',':ext<CR>');
   helpers.doKeys('<C-CR>','<Space>');
   is(res,'Mapping to key failed');
 });

@@ -744,7 +744,11 @@ export function initVim(CodeMirror) {
           lastPastedText: null,
           sel: {},
           // Buffer-local/window-local values of vim options.
-          options: {}
+          options: {},
+          // Whether the next character should be interpreted literally
+          // Necassary for correct implementation of f<character>, r<character> etc.
+          // in terms of langmaps.
+          expectLiteralNext: false
         };
       }
       return cm.state.vim;
@@ -882,8 +886,7 @@ export function initVim(CodeMirror) {
       findKey: function(cm, rawKey, origin) {
         var vim = maybeInitVimState(cm);
 
-        let key = langmapRemapKey(rawKey);
-        console.log(`${rawKey} -> ${key}`);
+        let key = vim.expectLiteralNext ? rawKey : langmapRemapKey(rawKey);
 
         function handleMacroRecording() {
           var macroModeState = vimGlobalState.macroModeState;
@@ -925,6 +928,7 @@ export function initVim(CodeMirror) {
 
           if (match.type == 'none') { clearInputState(cm); return false; }
           else if (match.type == 'partial') {
+            if (match.expectLiteralNext) vim.expectLiteralNext = true;
             if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
             lastInsertModeKeyTimer = keysAreChars && window.setTimeout(
               function() { if (vim.insertMode && vim.inputState.keyBuffer.length) { clearInputState(cm); } },
@@ -943,6 +947,7 @@ export function initVim(CodeMirror) {
             }
             return !keysAreChars;
           }
+          vim.expectLiteralNext = false;
 
           if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
           if (match.command && changeQueue) {
@@ -976,7 +981,10 @@ export function initVim(CodeMirror) {
           }
           var match = commandDispatcher.matchCommand(mainKey, defaultKeymap, vim.inputState, context);
           if (match.type == 'none') { clearInputState(cm); return false; }
-          else if (match.type == 'partial') { return true; }
+          else if (match.type == 'partial') {
+            if (match.expectLiteralNext) vim.expectLiteralNext = true;
+            return true;
+          }
           else if (match.type == 'clear') { clearInputState(cm); return true; }
 
           vim.inputState.keyBuffer.length = 0;
@@ -1174,6 +1182,7 @@ export function initVim(CodeMirror) {
 
     function clearInputState(cm, reason) {
       cm.state.vim.inputState = new InputState();
+      cm.state.vim.expectLiteralNext = false;
       CodeMirror.signal(cm, 'vim-command-done', reason);
     }
 
@@ -1381,7 +1390,10 @@ export function initVim(CodeMirror) {
         if (!matches.full && !matches.partial) {
           return {type: 'none'};
         } else if (!matches.full && matches.partial) {
-          return {type: 'partial'};
+          return {
+            type: 'partial',
+            expectLiteralNext: matches.partial.length == 1 && matches.partial[0].keys.slice(-11) == '<character>' // langmap literal logic
+          };
         }
 
         var bestMatch;

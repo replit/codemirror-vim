@@ -150,8 +150,8 @@ export function initVim(CodeMirror) {
     { keys: 'T<character>', type: 'motion', motion: 'moveTillCharacter', motionArgs: { forward: false }},
     { keys: ';', type: 'motion', motion: 'repeatLastCharacterSearch', motionArgs: { forward: true }},
     { keys: ',', type: 'motion', motion: 'repeatLastCharacterSearch', motionArgs: { forward: false }},
-    { keys: '\'<character>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true, linewise: true}},
-    { keys: '`<character>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true}},
+    { keys: '\'<register>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true, linewise: true}},
+    { keys: '`<register>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true}},
     { keys: ']`', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: true } },
     { keys: '[`', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: false } },
     { keys: ']\'', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: true, linewise: true } },
@@ -220,8 +220,8 @@ export function initVim(CodeMirror) {
     { keys: 'p', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: true, isEdit: true }},
     { keys: 'P', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: false, isEdit: true }},
     { keys: 'r<character>', type: 'action', action: 'replace', isEdit: true },
-    { keys: '@<character>', type: 'action', action: 'replayMacro' },
-    { keys: 'q<character>', type: 'action', action: 'enterMacroRecordMode' },
+    { keys: '@<register>', type: 'action', action: 'replayMacro' },
+    { keys: 'q<register>', type: 'action', action: 'enterMacroRecordMode' },
     // Handle Replace-mode as a special case of insert mode.
     { keys: 'R', type: 'action', action: 'enterInsertMode', isEdit: true, actionArgs: { replace: true }, context: 'normal'},
     { keys: 'R', type: 'operator', operator: 'change', operatorArgs: { linewise: true, fullLine: true }, context: 'visual', exitVisualBlock: true},
@@ -229,9 +229,9 @@ export function initVim(CodeMirror) {
     { keys: 'u', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: true}, context: 'visual', isEdit: true },
     { keys: 'U', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: false}, context: 'visual', isEdit: true },
     { keys: '<C-r>', type: 'action', action: 'redo' },
-    { keys: 'm<character>', type: 'action', action: 'setMark' },
-    { keys: '"<character>', type: 'action', action: 'setRegister' },
-    { keys: '<C-r><character>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
+    { keys: 'm<register>', type: 'action', action: 'setMark' },
+    { keys: '"<register>', type: 'action', action: 'setRegister' },
+    { keys: '<C-r><register>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
     { keys: '<C-o>', type: 'action', action: 'oneNormalCommand', context: 'insert' },
     { keys: 'zz', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }},
     { keys: 'z.', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
@@ -1404,7 +1404,7 @@ export function initVim(CodeMirror) {
             bestMatch = match;
           }
         }
-        if (bestMatch.keys.slice(-11) == '<character>') {
+        if (bestMatch.keys.slice(-11) == '<character>' || bestMatch.keys.slice(-10) == '<register>') {
           var character = lastChar(keys);
           if (!character || character.length > 1) return {type: 'clear'};
           inputState.selectedCharacter = character;
@@ -2630,6 +2630,10 @@ export function initVim(CodeMirror) {
         cm.scrollTo(null, y);
       },
       replayMacro: function(cm, actionArgs, vim) {
+        // when replaying a macro, we must not "double remap" characters
+        const savedLangMap = langmap;
+        langmap = parseLangmap('');
+
         var registerName = actionArgs.selectedCharacter;
         var repeat = actionArgs.repeat;
         var macroModeState = vimGlobalState.macroModeState;
@@ -2641,6 +2645,9 @@ export function initVim(CodeMirror) {
         while(repeat--){
           executeMacroRegister(cm, vim, macroModeState, registerName);
         }
+
+        // restore langmap
+        langmap = savedLangMap;
       },
       enterMacroRecordMode: function(cm, actionArgs) {
         var macroModeState = vimGlobalState.macroModeState;
@@ -3225,9 +3232,11 @@ export function initVim(CodeMirror) {
       };
     }
     function commandMatch(pressed, mapped) {
-      if (mapped.slice(-11) == '<character>') {
+      const isLastCharacter = mapped.slice(-11) == '<character>';
+      const isLastRegister = mapped.slice(-10) == '<register>';
+      if (isLastCharacter || isLastRegister) {
         // Last character matches anything.
-        var prefixLen = mapped.length - 11;
+        var prefixLen = mapped.length - (isLastCharacter ? 11 : 10);
         var pressedPrefix = pressed.slice(0, prefixLen);
         var mappedPrefix = mapped.slice(0, prefixLen);
         return pressedPrefix == mappedPrefix && pressed.length > prefixLen ? 'full' :

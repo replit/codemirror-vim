@@ -986,6 +986,7 @@ export function initVim(CodeMirror) {
             return true;
           }
           else if (match.type == 'clear') { clearInputState(cm); return true; }
+          vim.expectLiteralNext = false;
 
           vim.inputState.keyBuffer.length = 0;
           keysMatcher = /^(\d*)(.*)$/.exec(keys);

@@ -1219,15 +1219,8 @@ export function initVim(CodeMirror) {
 
       return { toQwerty: toQwerty, fromQwerty: fromQwerty, string: langmapString };
     }
-    function _langmapMap(map, key) {
-      return (key.length !== 1 || !(key in map)) ? key : map[key];
-
-    }
     function langmapRemapKey(key) {
-      return _langmapMap(langmap.toQwerty, key)
-    }
-    function langmapUnmapKey(key) {
-      return _langmapMap(langmap.fromQwerty, key)
+      return (key.length !== 1 || !(key in langmap.toQwerty)) ? key : langmap.toQwerty[key];
     }
 
     // Represents the current input state.

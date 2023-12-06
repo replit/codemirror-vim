@@ -5557,6 +5557,84 @@ testVim('<C-r>_insert_mode', function(cm, vim, helpers) {
   eq('456 123 ', cm.getValue());
 }, { value: '123 456 ' });
 
+//
+//  test correct langmap function
+//
+const dvorakLangmap = "'q,\\,w,.e,pr,yt,fy,gu,ci,ro,lp,/[,=],aa,os,ed,uf,ig,dh,hj,tk,nl,s\\;,-',\\;z,qx,jc,kv,xb,bn,mm,w\\,,v.,z/,[-,]=,\"Q,<W,>E,PR,YT,FY,GU,CI,RO,LP,?{,+},AA,OS,ED,UF,IG,DH,HJ,TK,NL,S:,_\",:Z,QX,JC,KV,XB,BN,MM,W<,V>,Z?";
+// this test makes sure that remapping works on an example binding
+testVim('langmap_dd', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  cm.setCursor(0, 3);
+  var expectedBuffer = cm.getRange(new Pos(0, 0),
+    new Pos(1, 0));
+  var expectedLineCount = cm.lineCount() - 1;
+
+  helpers.doKeys('e', 'e');
+
+  eq(expectedLineCount, cm.lineCount());
+  var register = helpers.getRegisterController().getRegister();
+  eq(expectedBuffer, register.toString());
+  is(register.linewise);
+  helpers.assertCursorAt(0, lines[1].textStart);
+});
+// this test serves two functions:
+// - make sure that "dd" is **not** interpreted as delete line (correct unmapping)
+// - make sure that "dd" **is** interpreted as move left twice (correct mapping)
+testVim('langmap_hh', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  const startPos = word1.end;
+  const endPos = offsetCursor(word1.end, 0, -2);
+
+  cm.setCursor(startPos);
+  helpers.doKeys('d', 'd');
+  helpers.assertCursorAt(endPos);
+});
+// this test serves two functions:
+// - make sure tha the register is properly remapped so that special registers aren't mixed up
+// - make sure that recording and replaying macros works without "double remapping"
+testVim('langmap_qqddq@q', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  cm.setCursor(0, 3);
+  var expectedBuffer = cm.getRange(new Pos(1, 0),
+    new Pos(2, 0));
+  var expectedLineCount = cm.lineCount() - 2;
+
+  helpers.doKeys('\'\'', 'e', 'e', '\'', '@\'');
+
+  eq(expectedLineCount, cm.lineCount());
+  var register = helpers.getRegisterController().getRegister();
+  eq(expectedBuffer, register.toString());
+  is(register.linewise);
+  helpers.assertCursorAt(0, lines[2].textStart);
+});
+// this test makes sure that <character> directives are interpreted literally
+testVim('langmap_fd', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  cm.setCursor(0, 0);
+  helpers.doKeys('u', 'd');
+  helpers.assertCursorAt(0, 4);
+});
+// this test makes sure that markers work properly
+testVim('langmap_mark', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  cm.setCursor(2, 2);
+  helpers.doKeys('m', '\'');
+  cm.setCursor(0, 0);
+  helpers.doKeys('`', '\'');
+  helpers.assertCursorAt(2, 2);
+  cm.setCursor(2, 0);
+  cm.replaceRange('   h', cm.getCursor());
+  cm.setCursor(0, 0);
+  helpers.doKeys('-', '\'');
+  helpers.assertCursorAt(2, 3);
+});
+
+
 async function delay(t) {
   return await new Promise(resolve => setTimeout(resolve, t));
 }

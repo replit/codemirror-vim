@@ -1167,60 +1167,31 @@ export function initVim(CodeMirror) {
                 characters.  Example: "abc;ABC"
       */
 
-      // Step 0: Shortcut for empty langmap
-      let toQwerty = {};
-      let fromQwerty = {};
-      if (langmapString === '') return { toQwerty: toQwerty, fromQwerty: fromQwerty, string: '' };
+      let keymap = {};
+      if (langmapString == '') return { keymap: keymap, string: '' };
 
-      // Step 1: Separate into parts.
-      // Technically the regex /(?<!(^|[^\\])\\(\\\\)*)\,/ should do the trick,
-      // but Javascript's implementation disagrees.
-      const separators = [...langmapString.matchAll(/(?<!(^|[^\\])\\(\\\\)*)\,|$/g)].map((x) => x.index);
-      const parts = separators.map((separatorIndex, arrayIndex) =>
-        langmapString.substring(
-          arrayIndex === 0 ? 0 : (separators[arrayIndex - 1]) + 1,
-          separatorIndex,
-        ),
-      );
-
-      // Step 2: Parse each part
       function getEscaped(list) {
-        const characters = [];
-        let escaped = false;
-        for (const character of list) {
-          if (character === '\\') {
-            escaped = !escaped;
-            if (escaped) continue;
-          }
-          characters.push(character);
-        }
-        return characters;
+        return list.split(/\\?(.)/).filter(Boolean);
       }
-
-      for (const part of parts) {
-        const semicolon = [...part.matchAll(/(?<!(^|[^\\])\\(\\\\)*)\;/g)].map((x) => x.index);
-        if (semicolon.length > 1) continue; // skip over malformed part
-        if (semicolon.length === 0) {
-          // List of pairs of "from" and "to" characters
+      langmapString.split(/((?:[^\\,]|\\.)+),/).map(part => {
+        if (!part) return;
+        const semicolon = part.split(/((?:[^\\;]|\\.)+);/);
+        if (semicolon.length == 3) {
+          const from = getEscaped(semicolon[1]);
+          const to = getEscaped(semicolon[2]);
+          if (from.length !== to.length) return; // skip over malformed part
+          for (let i = 0; i < from.length; ++i) keymap[from[i]] = to[i];
+        } else if (semicolon.length == 1) {
           const pairs = getEscaped(part);
-          if (pairs.length % 2 !== 0) continue; // skip over malformed part
-          for (let i = 0; i < pairs.length; i += 2) toQwerty[pairs[i]] = pairs[i + 1];
-        } else {
-          // List of "from" characters and list of "to" characters
-          const from = getEscaped(part.substring(0, semicolon[0]));
-          const to = getEscaped(part.substring((semicolon[0]) + 1));
-          if (from.length !== to.length) continue; // skip over malformed part
-          for (let i = 0; i < from.length; ++i) toQwerty[from[i]] = to[i];
+          if (pairs.length % 2 !== 0) return; // skip over malformed part
+          for (let i = 0; i < pairs.length; i += 2) keymap[pairs[i]] = pairs[i + 1];
         }
-      }
+      });
 
-      // Step 3: Reverse mapping
-      Object.fromEntries(Object.entries(toQwerty).map((x) => [x[1], x[0]])); 
-
-      return { toQwerty: toQwerty, fromQwerty: fromQwerty, string: langmapString };
+      return { keymap: keymap, string: langmapString };
     }
     function langmapRemapKey(key) {
-      return (key.length !== 1 || !(key in langmap.toQwerty)) ? key : langmap.toQwerty[key];
+      return (key.length !== 1 || !(key in langmap.keymap)) ? key : langmap.keymap[key];
     }
 
     // Represents the current input state.

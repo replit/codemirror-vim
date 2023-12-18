@@ -851,6 +851,9 @@ export function initVim(CodeMirror) {
       langmap: function(langmapString, remapCtrl = true) {
         updateLangmap(langmapString, remapCtrl);
       },
+      langmapRemapKey: function(key) {
+        return langmapRemapKey(key);
+      },
       // TODO: Expose setOption and getOption as instance methods. Need to decide how to namespace
       // them, or somehow make them work with the existing CodeMirror setOption/getOption API.
       setOption: setOption,
@@ -883,10 +886,8 @@ export function initVim(CodeMirror) {
        * execute the bound command if a a key is matched. The function always
        * returns true.
        */
-      findKey: function(cm, rawKey, origin) {
+      findKey: function(cm, key, origin) {
         var vim = maybeInitVimState(cm);
-
-        let key = vim.expectLiteralNext ? rawKey : langmapRemapKey(rawKey);
 
         function handleMacroRecording() {
           var macroModeState = vimGlobalState.macroModeState;
@@ -2687,10 +2688,6 @@ export function initVim(CodeMirror) {
         cm.scrollTo(null, y);
       },
       replayMacro: function(cm, actionArgs, vim) {
-        // when replaying a macro, we must not "double remap" characters
-        const savedLangMap = langmap;
-        langmap = parseLangmap('');
-
         var registerName = actionArgs.selectedCharacter;
         var repeat = actionArgs.repeat;
         var macroModeState = vimGlobalState.macroModeState;
@@ -2702,9 +2699,6 @@ export function initVim(CodeMirror) {
         while(repeat--){
           executeMacroRegister(cm, vim, macroModeState, registerName);
         }
-
-        // restore langmap
-        langmap = savedLangMap;
       },
       enterMacroRecordMode: function(cm, actionArgs) {
         var macroModeState = vimGlobalState.macroModeState;

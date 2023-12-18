@@ -1150,7 +1150,10 @@ export function initVim(CodeMirror) {
 
     // langmap support
     function updateLangmap(langmapString, remapCtrl = true) {
-      if (langmap != null && langmap.string == langmapString) return;
+      if (langmap != null && langmap.string == langmapString) {
+        langmap.remapCtrl = remapCtrl;
+        return;
+      }
       langmap = parseLangmap(langmapString, remapCtrl);
     }
     function langmapIsLiteralMode(vim) {

@@ -150,8 +150,8 @@ export function initVim(CodeMirror) {
     { keys: 'T<character>', type: 'motion', motion: 'moveTillCharacter', motionArgs: { forward: false }},
     { keys: ';', type: 'motion', motion: 'repeatLastCharacterSearch', motionArgs: { forward: true }},
     { keys: ',', type: 'motion', motion: 'repeatLastCharacterSearch', motionArgs: { forward: false }},
-    { keys: '\'<character>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true, linewise: true}},
-    { keys: '`<character>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true}},
+    { keys: '\'<register>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true, linewise: true}},
+    { keys: '`<register>', type: 'motion', motion: 'goToMark', motionArgs: {toJumplist: true}},
     { keys: ']`', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: true } },
     { keys: '[`', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: false } },
     { keys: ']\'', type: 'motion', motion: 'jumpToMark', motionArgs: { forward: true, linewise: true } },
@@ -220,8 +220,8 @@ export function initVim(CodeMirror) {
     { keys: 'p', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: true, isEdit: true }},
     { keys: 'P', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: false, isEdit: true }},
     { keys: 'r<character>', type: 'action', action: 'replace', isEdit: true },
-    { keys: '@<character>', type: 'action', action: 'replayMacro' },
-    { keys: 'q<character>', type: 'action', action: 'enterMacroRecordMode' },
+    { keys: '@<register>', type: 'action', action: 'replayMacro' },
+    { keys: 'q<register>', type: 'action', action: 'enterMacroRecordMode' },
     // Handle Replace-mode as a special case of insert mode.
     { keys: 'R', type: 'action', action: 'enterInsertMode', isEdit: true, actionArgs: { replace: true }, context: 'normal'},
     { keys: 'R', type: 'operator', operator: 'change', operatorArgs: { linewise: true, fullLine: true }, context: 'visual', exitVisualBlock: true},
@@ -229,9 +229,9 @@ export function initVim(CodeMirror) {
     { keys: 'u', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: true}, context: 'visual', isEdit: true },
     { keys: 'U', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: false}, context: 'visual', isEdit: true },
     { keys: '<C-r>', type: 'action', action: 'redo' },
-    { keys: 'm<character>', type: 'action', action: 'setMark' },
-    { keys: '"<character>', type: 'action', action: 'setRegister' },
-    { keys: '<C-r><character>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
+    { keys: 'm<register>', type: 'action', action: 'setMark' },
+    { keys: '"<register>', type: 'action', action: 'setRegister' },
+    { keys: '<C-r><register>', type: 'action', action: 'insertRegister', context: 'insert', isEdit: true },
     { keys: '<C-o>', type: 'action', action: 'oneNormalCommand', context: 'insert' },
     { keys: 'zz', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }},
     { keys: 'z.', type: 'action', action: 'scrollToCursor', actionArgs: { position: 'center' }, motion: 'moveToFirstNonWhiteSpaceCharacter' },
@@ -245,8 +245,8 @@ export function initVim(CodeMirror) {
     { keys: '<C-t>', type: 'action', action: 'indent', actionArgs: { indentRight: true }, context: 'insert' },
     { keys: '<C-d>', type: 'action', action: 'indent', actionArgs: { indentRight: false }, context: 'insert' },
     // Text object motions
-    { keys: 'a<character>', type: 'motion', motion: 'textObjectManipulation' },
-    { keys: 'i<character>', type: 'motion', motion: 'textObjectManipulation', motionArgs: { textObjectInner: true }},
+    { keys: 'a<register>', type: 'motion', motion: 'textObjectManipulation' },
+    { keys: 'i<register>', type: 'motion', motion: 'textObjectManipulation', motionArgs: { textObjectInner: true }},
     // Search
     { keys: '/', type: 'search', searchArgs: { forward: true, querySrc: 'prompt', toJumplist: true }},
     { keys: '?', type: 'search', searchArgs: { forward: false, querySrc: 'prompt', toJumplist: true }},
@@ -302,6 +302,14 @@ export function initVim(CodeMirror) {
     { name: 'normal', shortName: 'norm' },
     { name: 'global', shortName: 'g' }
   ];
+
+  /**
+   * Langmap
+   * Determines how to interpret keystrokes in Normal and Visual mode.
+   * Useful for people who use a different keyboard layout than QWERTY
+   */
+  var langmap;
+  updateLangmap('');
 
     function enterVimMode(cm) {
       cm.setOption('disableInput', true);
@@ -733,7 +741,11 @@ export function initVim(CodeMirror) {
           lastPastedText: null,
           sel: {},
           // Buffer-local/window-local values of vim options.
-          options: {}
+          options: {},
+          // Whether the next character should be interpreted literally
+          // Necassary for correct implementation of f<character>, r<character> etc.
+          // in terms of langmaps.
+          expectLiteralNext: false
         };
       }
       return cm.state.vim;
@@ -836,6 +848,12 @@ export function initVim(CodeMirror) {
           }
         }
       },
+      langmap: function(langmapString, remapCtrl = true) {
+        updateLangmap(langmapString, remapCtrl);
+      },
+      langmapRemapKey: function(key) {
+        return langmapRemapKey(key);
+      },
       // TODO: Expose setOption and getOption as instance methods. Need to decide how to namespace
       // them, or somehow make them work with the existing CodeMirror setOption/getOption API.
       setOption: setOption,
@@ -870,6 +888,7 @@ export function initVim(CodeMirror) {
        */
       findKey: function(cm, key, origin) {
         var vim = maybeInitVimState(cm);
+
         function handleMacroRecording() {
           var macroModeState = vimGlobalState.macroModeState;
           if (macroModeState.isRecording) {
@@ -910,6 +929,7 @@ export function initVim(CodeMirror) {
 
           if (match.type == 'none') { clearInputState(cm); return false; }
           else if (match.type == 'partial') {
+            if (match.expectLiteralNext) vim.expectLiteralNext = true;
             if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
             lastInsertModeKeyTimer = keysAreChars && window.setTimeout(
               function() { if (vim.insertMode && vim.inputState.keyBuffer.length) { clearInputState(cm); } },
@@ -928,6 +948,7 @@ export function initVim(CodeMirror) {
             }
             return !keysAreChars;
           }
+          vim.expectLiteralNext = false;
 
           if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }
           if (match.command && changeQueue) {
@@ -961,8 +982,12 @@ export function initVim(CodeMirror) {
           }
           var match = commandDispatcher.matchCommand(mainKey, defaultKeymap, vim.inputState, context);
           if (match.type == 'none') { clearInputState(cm); return false; }
-          else if (match.type == 'partial') { return true; }
+          else if (match.type == 'partial') {
+            if (match.expectLiteralNext) vim.expectLiteralNext = true;
+            return true;
+          }
           else if (match.type == 'clear') { clearInputState(cm); return true; }
+          vim.expectLiteralNext = false;
 
           vim.inputState.keyBuffer.length = 0;
           keysMatcher = /^(\d*)(.*)$/.exec(keys);
@@ -1123,6 +1148,63 @@ export function initVim(CodeMirror) {
       }
     }
 
+    // langmap support
+    function updateLangmap(langmapString, remapCtrl = true) {
+      if (langmap != null && langmap.string == langmapString) {
+        langmap.remapCtrl = remapCtrl;
+        return;
+      }
+      langmap = parseLangmap(langmapString, remapCtrl);
+    }
+    function langmapIsLiteralMode(vim) {
+      // Determine if keystrokes should be interpreted literally
+      return vim.insertMode;
+    }
+    function parseLangmap(langmapString, remapCtrl) {
+      // From :help langmap
+      /*
+        The 'langmap' option is a list of parts, separated with commas.  Each
+            part can be in one of two forms:
+            1.  A list of pairs.  Each pair is a "from" character immediately
+                followed by the "to" character.  Examples: "aA", "aAbBcC".
+            2.  A list of "from" characters, a semi-colon and a list of "to"
+                characters.  Example: "abc;ABC"
+      */
+
+      let keymap = {};
+      if (langmapString == '') return { keymap: keymap, string: '', remapCtrl: remapCtrl };
+
+      function getEscaped(list) {
+        return list.split(/\\?(.)/).filter(Boolean);
+      }
+      langmapString.split(/((?:[^\\,]|\\.)+),/).map(part => {
+        if (!part) return;
+        const semicolon = part.split(/((?:[^\\;]|\\.)+);/);
+        if (semicolon.length == 3) {
+          const from = getEscaped(semicolon[1]);
+          const to = getEscaped(semicolon[2]);
+          if (from.length !== to.length) return; // skip over malformed part
+          for (let i = 0; i < from.length; ++i) keymap[from[i]] = to[i];
+        } else if (semicolon.length == 1) {
+          const pairs = getEscaped(part);
+          if (pairs.length % 2 !== 0) return; // skip over malformed part
+          for (let i = 0; i < pairs.length; i += 2) keymap[pairs[i]] = pairs[i + 1];
+        }
+      });
+
+      return { keymap: keymap, string: langmapString, remapCtrl: remapCtrl };
+    }
+    function langmapRemapKey(key) {
+      console.log(`remapCtrl: ${langmap.remapCtrl}`);;
+      if (key.length == 1) {
+        return key in langmap.keymap ? langmap.keymap[key] : key;
+      } else if (langmap.remapCtrl && key.match(/<C-.>/)) {
+        return key[3] in langmap.keymap ? `<C-${langmap.keymap[key[3]]}>` : key;
+      } else {
+        return key;
+      }
+    }
+
     // Represents the current input state.
     function InputState() {
       this.prefixRepeat = [];
@@ -1159,6 +1241,7 @@ export function initVim(CodeMirror) {
 
     function clearInputState(cm, reason) {
       cm.state.vim.inputState = new InputState();
+      cm.state.vim.expectLiteralNext = false;
       CodeMirror.signal(cm, 'vim-command-done', reason);
     }
 
@@ -1366,7 +1449,10 @@ export function initVim(CodeMirror) {
         if (!matches.full && !matches.partial) {
           return {type: 'none'};
         } else if (!matches.full && matches.partial) {
-          return {type: 'partial'};
+          return {
+            type: 'partial',
+            expectLiteralNext: matches.partial.length == 1 && matches.partial[0].keys.slice(-11) == '<character>' // langmap literal logic
+          };
         }
 
         var bestMatch;
@@ -1376,7 +1462,7 @@ export function initVim(CodeMirror) {
             bestMatch = match;
           }
         }
-        if (bestMatch.keys.slice(-11) == '<character>') {
+        if (bestMatch.keys.slice(-11) == '<character>' || bestMatch.keys.slice(-10) == '<register>') {
           var character = lastChar(keys);
           if (!character || character.length > 1) return {type: 'clear'};
           inputState.selectedCharacter = character;
@@ -3197,9 +3283,11 @@ export function initVim(CodeMirror) {
       };
     }
     function commandMatch(pressed, mapped) {
-      if (mapped.slice(-11) == '<character>') {
+      const isLastCharacter = mapped.slice(-11) == '<character>';
+      const isLastRegister = mapped.slice(-10) == '<register>';
+      if (isLastCharacter || isLastRegister) {
         // Last character matches anything.
-        var prefixLen = mapped.length - 11;
+        var prefixLen = mapped.length - (isLastCharacter ? 11 : 10);
         var pressedPrefix = pressed.slice(0, prefixLen);
         var mappedPrefix = mapped.slice(0, prefixLen);
         return pressedPrefix == mappedPrefix && pressed.length > prefixLen ? 'full' :

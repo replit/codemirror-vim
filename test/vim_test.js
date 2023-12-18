@@ -5633,6 +5633,34 @@ testVim('langmap_mark', function(cm, vim, helpers) {
   helpers.doKeys('-', '\'');
   helpers.assertCursorAt(2, 3);
 });
+// check that ctrl remapping works properly
+testVim('langmap_visual_block', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap);
+
+  cm.setCursor(0, 1);
+  helpers.doKeys('<C-k>', '2', 'h', 'n', 'n', 'n', 'j');
+  helpers.doKeys('hello');
+  eq('1hello\n5hello\nahellofg', cm.getValue());
+  helpers.doKeys('<Esc>');
+  cm.setCursor(2, 3);
+  helpers.doKeys('<C-k>', '2', 't', 'd', 'J');
+  helpers.doKeys('world');
+  eq('1hworld\n5hworld\nahworld', cm.getValue());
+}, {value: '1234\n5678\nabcdefg'});
+// check that ctrl remapping can be disabled
+testVim('langmap_visual_block_no_ctrl_remap', function(cm, vim, helpers) {
+  CodeMirror.Vim.langmap(dvorakLangmap, false);
+
+  cm.setCursor(0, 1);
+  helpers.doKeys('<C-v>', '2', 'h', 'n', 'n', 'n', 'j');
+  helpers.doKeys('hello');
+  eq('1hello\n5hello\nahellofg', cm.getValue());
+  helpers.doKeys('<Esc>');
+  cm.setCursor(2, 3);
+  helpers.doKeys('<C-v>', '2', 't', 'd', 'J');
+  helpers.doKeys('world');
+  eq('1hworld\n5hworld\nahworld', cm.getValue());
+}, {value: '1234\n5678\nabcdefg'});
 
 
 async function delay(t) {

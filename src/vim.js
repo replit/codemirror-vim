@@ -848,8 +848,8 @@ export function initVim(CodeMirror) {
           }
         }
       },
-      langmap: function(langmapString) {
-        updateLangmap(langmapString);
+      langmap: function(langmapString, remapCtrl = true) {
+        updateLangmap(langmapString, remapCtrl);
       },
       // TODO: Expose setOption and getOption as instance methods. Need to decide how to namespace
       // them, or somehow make them work with the existing CodeMirror setOption/getOption API.
@@ -1148,15 +1148,15 @@ export function initVim(CodeMirror) {
     }
 
     // langmap support
-    function updateLangmap(langmapString) {
+    function updateLangmap(langmapString, remapCtrl = true) {
       if (langmap != null && langmap.string == langmapString) return;
-      langmap = parseLangmap(langmapString);
+      langmap = parseLangmap(langmapString, remapCtrl);
     }
     function langmapIsLiteralMode(vim) {
       // Determine if keystrokes should be interpreted literally
       return vim.insertMode;
     }
-    function parseLangmap(langmapString) {
+    function parseLangmap(langmapString, remapCtrl) {
       // From :help langmap
       /*
         The 'langmap' option is a list of parts, separated with commas.  Each
@@ -1168,7 +1168,7 @@ export function initVim(CodeMirror) {
       */
 
       let keymap = {};
-      if (langmapString == '') return { keymap: keymap, string: '' };
+      if (langmapString == '') return { keymap: keymap, string: '', remapCtrl: remapCtrl };
 
       function getEscaped(list) {
         return list.split(/\\?(.)/).filter(Boolean);
@@ -1188,10 +1188,17 @@ export function initVim(CodeMirror) {
         }
       });
 
-      return { keymap: keymap, string: langmapString };
+      return { keymap: keymap, string: langmapString, remapCtrl: remapCtrl };
     }
     function langmapRemapKey(key) {
-      return (key.length !== 1 || !(key in langmap.keymap)) ? key : langmap.keymap[key];
+      console.log(`remapCtrl: ${langmap.remapCtrl}`);;
+      if (key.length == 1) {
+        return key in langmap.keymap ? langmap.keymap[key] : key;
+      } else if (langmap.remapCtrl && key.match(/<C-.>/)) {
+        return key[3] in langmap.keymap ? `<C-${langmap.keymap[key[3]]}>` : key;
+      } else {
+        return key;
+      }
     }
 
     // Represents the current input state.

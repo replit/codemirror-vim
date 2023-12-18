@@ -308,8 +308,7 @@ export function initVim(CodeMirror) {
    * Determines how to interpret keystrokes in Normal and Visual mode.
    * Useful for people who use a different keyboard layout than QWERTY
    */
-  var langmap;
-  updateLangmap('');
+  var langmap = parseLangmap('');
 
     function enterVimMode(cm) {
       cm.setOption('disableInput', true);
@@ -848,12 +847,8 @@ export function initVim(CodeMirror) {
           }
         }
       },
-      langmap: function(langmapString, remapCtrl = true) {
-        updateLangmap(langmapString, remapCtrl);
-      },
-      langmapRemapKey: function(key) {
-        return langmapRemapKey(key);
-      },
+      langmap: updateLangmap,
+      vimKeyFromEvent: vimKeyFromEvent,
       // TODO: Expose setOption and getOption as instance methods. Need to decide how to namespace
       // them, or somehow make them work with the existing CodeMirror setOption/getOption API.
       setOption: setOption,
@@ -1148,19 +1143,59 @@ export function initVim(CodeMirror) {
       }
     }
 
-    // langmap support
-    function updateLangmap(langmapString, remapCtrl = true) {
-      if (langmap != null && langmap.string == langmapString) {
-        langmap.remapCtrl = remapCtrl;
-        return;
+    var specialKey = {
+      Return: 'CR', Backspace: 'BS', 'Delete': 'Del', Escape: 'Esc', Insert: 'Ins',
+      ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
+      Enter: 'CR', ' ': 'Space'
+    };
+    var ignoredKeys = { Shift: 1, Alt: 1, Command: 1, Control: 1,
+      CapsLock: 1, AltGraph: 1, Dead: 1, Unidentified: 1 };
+    
+    function vimKeyFromEvent(e, vim) {
+      var key = e.key;
+      if (ignoredKeys[key]) return;
+      if (key.length > 1 && key[0] == "n") {
+        key = key.replace("Numpad", "");
       }
-      langmap = parseLangmap(langmapString, remapCtrl);
+      key = specialKey[key] || key;
+
+      var name = '';
+      if (e.ctrlKey) { name += 'C-'; }
+      if (e.altKey) { name += 'A-'; }
+      if (e.metaKey) { name += 'M-'; }
+      // on mac many characters are entered as option- combos
+      // (e.g. on swiss keyboard { is option-8)
+      // so we ignore lonely A- modifier for keypress event on mac
+      if (CodeMirror.isMac && e.altKey && !e.metaKey && !e.ctrlKey) {
+        name = name.slice(2);
+      }
+      if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }
+  
+      if (!vim.expectLiteralNext && key.length == 1) {
+        if (langmap.keymap && key in langmap.keymap) {
+          if (langmap.remapCtrl || !name)
+            key = langmap.keymap[key];
+        } else if (key.charCodeAt(0) > 255) {
+          var code = e.code?.slice(-1) || "";
+          if (!e.shiftKey) code = code.toLowerCase();
+          if (code) key = code;
+        }
+      }
+
+      name += key;
+      if (name.length > 1) { name = '<' + name + '>'; }
+      return name;
+    };
+
+    // langmap support
+    function updateLangmap(langmapString, remapCtrl) {
+      if (langmap.string !== langmapString) {
+        langmap = parseLangmap(langmapString);
+      }
+      if (remapCtrl != null)
+        langmap.remapCtrl = remapCtrl;
     }
-    function langmapIsLiteralMode(vim) {
-      // Determine if keystrokes should be interpreted literally
-      return vim.insertMode;
-    }
-    function parseLangmap(langmapString, remapCtrl) {
+    function parseLangmap(langmapString) {
       // From :help langmap
       /*
         The 'langmap' option is a list of parts, separated with commas.  Each
@@ -1172,7 +1207,7 @@ export function initVim(CodeMirror) {
       */
 
       let keymap = {};
-      if (langmapString == '') return { keymap: keymap, string: '', remapCtrl: remapCtrl };
+      if (!langmapString) return { keymap: keymap, string: '' };
 
       function getEscaped(list) {
         return list.split(/\\?(.)/).filter(Boolean);
@@ -1192,18 +1227,17 @@ export function initVim(CodeMirror) {
         }
       });
 
-      return { keymap: keymap, string: langmapString, remapCtrl: remapCtrl };
+      return { keymap: keymap, string: langmapString, remapCtrl: true };
     }
-    function langmapRemapKey(key) {
-      console.log(`remapCtrl: ${langmap.remapCtrl}`);;
-      if (key.length == 1) {
-        return key in langmap.keymap ? langmap.keymap[key] : key;
-      } else if (langmap.remapCtrl && key.match(/<C-.>/)) {
-        return key[3] in langmap.keymap ? `<C-${langmap.keymap[key[3]]}>` : key;
+
+    defineOption('langmap', undefined, 'string', ['lmap'], function(name, cm) {
+      // The 'filetype' option proxies to the CodeMirror 'mode' option.
+      if (name === undefined) {
+        return langmap.string;
       } else {
-        return key;
+        updateLangmap(name);
       }
-    }
+    });
 
     // Represents the current input state.
     function InputState() {

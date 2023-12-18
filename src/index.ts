@@ -197,12 +197,15 @@ const vimPlugin = ViewPlugin.fromClass(
     decorations = Decoration.none;
     waitForCopy = false;
     handleKey(e: KeyboardEvent, view: EditorView) {
-      const key = CodeMirror.vimKey(e);
-      const cm = this.cm;
-      if (!key) return;
+      const rawKey = CodeMirror.vimKey(e);
+      if (!rawKey) return;
 
+      const cm = this.cm;
       let vim = cm.state.vim;
       if (!vim) return;
+
+      const key = vim.expectLiteralNext ? rawKey : Vim.langmapRemapKey(rawKey);
+
       // clear search highlight
       if (
         key == "<Esc>" &&

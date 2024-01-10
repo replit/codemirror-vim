@@ -110,6 +110,7 @@ var options = {
   split: addOption("split", "",  function() {
 
   }),
+  readOnly: addOption("readOnly")
 };
 
 
@@ -117,8 +118,10 @@ var options = {
 Vim.defineOption('wrap', false, 'boolean', null, function(val, cm) {
   if (val == undefined) return options.wrap;
   var checkbox = document.getElementById("wrap");
-  checkbox.checked = val;
-  checkbox.onclick();
+  if (checkbox) {
+    checkbox.checked = val;
+    checkbox.onclick();
+  }
 });
 
 var focusEditorButton = document.createElement("button");
@@ -188,6 +191,7 @@ function updateView() {
   selectTab(options.html ? "html": "js")
 
   var extensions = [
+    EditorState.readOnly.of(options.readOnly),
     enableVim && vim({status: options.status}),
     options.wrap && EditorView.lineWrapping,
     drawSelection({cursorBlinkRate: window.blinkRate})

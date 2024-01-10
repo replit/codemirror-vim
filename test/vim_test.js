@@ -1323,7 +1323,7 @@ testVim('on_mode_change', async function(cm, vim, helpers) {
   test('v', 'visual');
   test(':', ''); // Event for Command-line mode not implemented.
   test('y\n', 'normal');
-  test(":startinsert", "insert");
+  test(":startinsert\n", "insert");
 });
 
 // Swapcase commands edit in place and do not modify registers.
@@ -5753,8 +5753,15 @@ var typeKey = function() {
 
     var text = letter;
     var isTextInput = true;
-    if (ctrl || alt || meta || controlKeys[letter]) {
+    if (ctrl || alt || meta) {
       isTextInput = false;
+    } else if (controlKeys[letter]) {
+        if (keyCode == controlKeys.Return) {
+            text = "\n";
+            isTextInput = true;
+        } else {
+            isTextInput = false;
+        }
     } else if (shift) {
       text = text.toUpperCase();
     }

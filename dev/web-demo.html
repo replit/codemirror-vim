@@ -4,7 +4,7 @@
     <style>
       #editor {
         height: min(540px, 50vh); width: min(960px, 90vw);
-        position: absolute; resize: both; overflow: hidden
+        resize: both; overflow: hidden
       }
       #editor>.cm-editor {width: 100%; height: 100%}
       #editor.split>.cm-editor {height: 50%}
@@ -469,7 +469,7 @@
         if (!/^\w+:/.test(path)) path = host + path;
         var onLoad = function(e, val) {
             if (e) return processLoadQueue({id: id, path: path});
-            if (path.slice(-3) == ".ts") {
+            if (path.slice(-3) == ".ts" || /^import \{/m.test(val)) {
                 val = ts.transpileModule(val, {
                     compilerOptions: {
                         target: "ES2022",
@@ -520,7 +520,12 @@
             }
         } else {
             var url = require.toUrl(module, ".js");
-            if (define.fetchedUrls[url] & 1) return false;
+            if (define.fetchedUrls[url] & 1) {
+                setTimeout(function() {
+                    processLoadQueue(null, module);
+                });
+                return false;
+            }
             define.fetchedUrls[url] |= 1;
             loadScript(url, module, processLoadQueue);
         }
@@ -603,6 +608,10 @@
 <body>
     <div id="toolbar"></div>
     <div id="editor"></div>
+    <br>
+    <br>
+    <a href="#test.html" onclick="runTests()">tests</a><br>
+    <a href="./cm5/index.html">cm5 demo</a>
 <script>
     // console.log(ts)
     require.config({
@@ -630,11 +639,85 @@
             "src/block-cursor": require.config.baseUrl.replace("dev", "src/block-cursor.ts"),
             "src/cm_adapter": require.config.baseUrl.replace("dev", "src/cm_adapter.ts"),
             "src/vim": require.config.baseUrl.replace("dev", "src/vim.js"),
-            
         }
     });
     
     require(Object.keys(require.config.paths), function() {})
+</script>
+<script>
+    var it, describe
+    var old 
+    function runTests() {
+        if (!old) {
+            old = {};
+            Object.keys(define.modules).forEach(k=> old[k] = 1)
+        } else {
+            Object.keys(define.modules)
+            .concat(Object.keys(define.errors))
+            .forEach(k=> {
+                if (!old[k])
+                    require.undef(k)
+            })
+        }
+
+        require.config({
+            paths: {
+                "test/webtest-vim": require.config.baseUrl.replace("dev", "test/webtest-vim.js"),
+                "test/vim_test.js": require.config.baseUrl.replace("dev", "test/vim_test.js"),
+            }
+        });
+        define("test/..", function(require, exports, module) {
+            module.exports = require("src/index")
+        });
+        var suites = Object.create(null)
+        describe = function(name, fn) {
+            var suite = {
+                name,
+                construct: fn,
+                tests: Object.create(null),
+                skipped: Object.create(null),
+                it: function (name, fn) {
+                    this.tests[name] = fn;
+                },
+                skip: function (name, fn) {
+                    this.skipped[name] = fn;
+                },
+            };
+            suites[name] = suite;
+            it = suite.it = suite.it.bind(suite);
+            it.skip = suite.skip.bind(suite);
+            suite.construct();        
+        }
+        
+        require(["test/webtest-vim"], async function() {
+            var total = 0;
+            var skipped = 0;
+            var failed = 0;
+            var passed = 0;
+            for (var suite of Object.values(suites)) {
+                var skippedFromSuite = Object.keys(suite.skipped).length;
+                skipped += skippedFromSuite
+                total += Object.keys(suite.tests).length
+                    + skippedFromSuite;
+                for (var i in suite.tests) {
+                    console.log(i)
+                    try {
+                        await suite.tests[i]()
+                        passed++
+                    } catch(e) {
+                        failed++
+                        console.error(e)
+                    }
+                }
+            }
+            console.log(`
+                failed: ${failed}
+                passed: ${passed},
+                skipped: ${skipped},
+                from: ${total}
+            `)
+        });
+    }
 </script>
 </body>
 </html>

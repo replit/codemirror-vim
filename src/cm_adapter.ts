@@ -96,6 +96,8 @@ interface Operation {
 // workaround for missing api for merging transactions
 function dispatchChange(cm: CodeMirror, transaction: any) {
   var view = cm.cm6;
+  if (view.state.readOnly)
+    return;
   var type = "input.type.compose";
   if (cm.curOp) {
     if (!cm.curOp.lastChange) type = "input.type.compose.start";
@@ -767,7 +769,7 @@ export class CodeMirror {
     switch (name) {
       case "firstLineNumber": return 1;
       case "tabSize": return this.cm6.state.tabSize || 4;
-      case "readonly": return this.cm6.state.readOnly;
+      case "readOnly": return this.cm6.state.readOnly;
       case "indentWithTabs": return this.cm6.state.facet(indentUnit) == "\t"; // TODO
       case "indentUnit": return this.cm6.state.facet(indentUnit).length || 2;
       case "textwidth": return this.state.textwidth;

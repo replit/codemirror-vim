@@ -352,7 +352,6 @@ export class CodeMirror {
       if (offset == null) return null;
     }
     var pos = this.posFromIndex(offset);
-    console.log(pos.line, handle.row);
     return pos.ch == 0 ? pos.line : null;
   }
   releaseLineHandles() {

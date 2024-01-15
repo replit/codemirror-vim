@@ -66,15 +66,6 @@ function signalTo(handlers: any, ...args: any[]) {
   for (var i = 0; i < handlers.length; ++i) { handlers[i](...args); }
 }
 
-var specialKey: any = {
-  Return: 'CR', Backspace: 'BS', 'Delete': 'Del', Escape: 'Esc', Insert: 'Ins',
-  ArrowLeft: 'Left', ArrowRight: 'Right', ArrowUp: 'Up', ArrowDown: 'Down',
-  Enter: 'CR', ' ': 'Space'
-};
-var ignoredKeys: any = { Shift: 1, Alt: 1, Command: 1, Control: 1,
-  CapsLock: 1, AltGraph: 1, Dead: 1, Unidentified: 1 };
-
-
 let wordChar: RegExp
 try {
   wordChar = new RegExp("[\\w\\p{Alphabetic}\\p{Number}_]", "u")
@@ -169,45 +160,6 @@ export class CodeMirror {
   static e_stop = function (e: Event) {
     e?.stopPropagation?.()
     e?.preventDefault?.()
-  };
-  static keyName = function (e: KeyboardEvent) {
-    var key = e.key;
-    if (ignoredKeys[key]) return;
-    if (key == "Escape") key = "Esc";
-    if (key == " ") key = "Space";
-    if (key.length > 1) {
-      key = key.replace(/Numpad|Arrow/, "");
-    }
-    if (key.length == 1) key = key.toUpperCase();
-    var name = '';
-    if (e.ctrlKey) { name += 'Ctrl-'; }
-    if (e.altKey) { name += 'Alt-'; }
-    if ((name || key.length > 1) && e.shiftKey) { name += 'Shift-'; }
-    name += key;
-    return name;
-  };
-  static vimKey = function vimKey(e: KeyboardEvent) {
-    var key = e.key;
-    if (ignoredKeys[key]) return;
-    if (key.length > 1 && key[0] == "n") {
-      key = key.replace("Numpad", "");
-    }
-    key = specialKey[key] || key;
-    var name = '';
-    if (e.ctrlKey) { name += 'C-'; }
-    if (e.altKey) { name += 'A-'; }
-    if (e.metaKey) { name += 'M-'; }
-    // on mac many characters are entered as option- combos
-    // (e.g. on swiss keyboard { is option-8)
-    // so we ignore lonely A- modifier for keypress event on mac
-    if (CodeMirror.isMac && e.altKey && !e.metaKey && !e.ctrlKey) {
-      name = name.slice(2);
-    }
-    if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }
-
-    name += key;
-    if (name.length > 1) { name = '<' + name + '>'; }
-    return name;
   };
 
   static lookupKey = function lookupKey(key: string, map: string, handle: Function) {

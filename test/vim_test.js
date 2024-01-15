@@ -5562,7 +5562,7 @@ testVim('<C-r>_insert_mode', function(cm, vim, helpers) {
 //
 const dvorakLangmap = "'q,\\,w,.e,pr,yt,fy,gu,ci,ro,lp,/[,=],aa,os,ed,uf,ig,dh,hj,tk,nl,s\\;,-',\\;z,qx,jc,kv,xb,bn,mm,w\\,,v.,z/,[-,]=,\"Q,<W,>E,PR,YT,FY,GU,CI,RO,LP,?{,+},AA,OS,ED,UF,IG,DH,HJ,TK,NL,S:,_\",:Z,QX,JC,KV,XB,BN,MM,W<,V>,Z?";
 // this test makes sure that remapping works on an example binding
-testVim('langmap_dd', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_dd', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   cm.setCursor(0, 3);
@@ -5581,7 +5581,7 @@ testVim('langmap_dd', function(cm, vim, helpers) {
 // this test serves two functions:
 // - make sure that "dd" is **not** interpreted as delete line (correct unmapping)
 // - make sure that "dd" **is** interpreted as move left twice (correct mapping)
-testVim('langmap_hh', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_hh', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   const startPos = word1.end;
@@ -5594,7 +5594,7 @@ testVim('langmap_hh', function(cm, vim, helpers) {
 // this test serves two functions:
 // - make sure tha the register is properly remapped so that special registers aren't mixed up
 // - make sure that recording and replaying macros works without "double remapping"
-testVim('langmap_qqddq@q', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_qqddq@q', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   cm.setCursor(0, 3);
@@ -5611,7 +5611,7 @@ testVim('langmap_qqddq@q', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, lines[2].textStart);
 });
 // this test makes sure that <character> directives are interpreted literally
-testVim('langmap_fd', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_fd', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   cm.setCursor(0, 0);
@@ -5619,7 +5619,7 @@ testVim('langmap_fd', function(cm, vim, helpers) {
   helpers.assertCursorAt(0, 4);
 });
 // this test makes sure that markers work properly
-testVim('langmap_mark', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_mark', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   cm.setCursor(2, 2);
@@ -5634,7 +5634,7 @@ testVim('langmap_mark', function(cm, vim, helpers) {
   helpers.assertCursorAt(2, 3);
 });
 // check that ctrl remapping works properly
-testVim('langmap_visual_block', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_visual_block', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap);
 
   cm.setCursor(0, 1);
@@ -5648,7 +5648,7 @@ testVim('langmap_visual_block', function(cm, vim, helpers) {
   eq('1hworld\n5hworld\nahworld', cm.getValue());
 }, {value: '1234\n5678\nabcdefg'});
 // check that ctrl remapping can be disabled
-testVim('langmap_visual_block_no_ctrl_remap', function(cm, vim, helpers) {
+isOldCodeMirror || testVim('langmap_visual_block_no_ctrl_remap', function(cm, vim, helpers) {
   CodeMirror.Vim.langmap(dvorakLangmap, false);
 
   cm.setCursor(0, 1);

@@ -197,14 +197,12 @@ const vimPlugin = ViewPlugin.fromClass(
     decorations = Decoration.none;
     waitForCopy = false;
     handleKey(e: KeyboardEvent, view: EditorView) {
-      const rawKey = CodeMirror.vimKey(e);
-      if (!rawKey) return;
-
       const cm = this.cm;
       let vim = cm.state.vim;
       if (!vim) return;
 
-      const key = vim.expectLiteralNext ? rawKey : Vim.langmapRemapKey(rawKey);
+      const key = Vim.vimKeyFromEvent(e, vim);
+      if (!key) return;
 
       // clear search highlight
       if (
@@ -253,6 +251,7 @@ const vimPlugin = ViewPlugin.fromClass(
     }
     lastKeydown = ''
     useNextTextInput = false
+    compositionText = ''
   },
   {
     eventHandlers: {
@@ -307,6 +306,20 @@ const vimPlugin = ViewPlugin.fromClass(
               return true;
             }
             if (text.length == 1 && vimPlugin.useNextTextInput) {
+              if (vim.expectLiteralNext && view.composing) {
+                vimPlugin.compositionText = text;
+                return false
+              }
+              if (vimPlugin.compositionText) {
+                var toRemove = vimPlugin.compositionText;
+                vimPlugin.compositionText = '';
+                var head = view.state.selection.main.head
+                var textInDoc = view.state.sliceDoc(head - toRemove.length, head);
+                if (toRemove === textInDoc) {
+                  var pos = cm.getCursor();
+                  cm.replaceRange('', cm.posFromIndex(head - toRemove.length), pos);
+                }
+              }
               vimPlugin.handleKey({
                 key: text,
                 preventDefault: ()=>{},

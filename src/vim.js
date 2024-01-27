@@ -5319,8 +5319,8 @@ export function initVim(CodeMirror) {
           return;
         }
         var expr = setArgs[0].split('=');
-        var optionName = expr[0];
-        var value = expr[1];
+        var optionName = expr.shift();
+        var value = expr.join('=');
         var forceGet = false;
         var forceToggle = false;
 

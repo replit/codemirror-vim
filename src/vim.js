@@ -5320,7 +5320,7 @@ export function initVim(CodeMirror) {
         }
         var expr = setArgs[0].split('=');
         var optionName = expr.shift();
-        var value = expr.join('=');
+        var value = expr.length > 0 ? expr.join('=') : undefined;
         var forceGet = false;
         var forceToggle = false;
 

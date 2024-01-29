@@ -4735,6 +4735,13 @@ testVim('ex_set_boolean', function(cm, vim, helpers) {
   helpers.doEx('set testoption!');
   is(!CodeMirror.Vim.getOption('testoption'));
 });
+// Make sure that langmap option is properly defined and "=" does not break option value parsing
+testVim('set_langmap', function(cm, vim, helpers) {
+  helpers.doEx('set langmap==j');
+  cm.setCursor(0, 0);
+  helpers.doKeys('=');
+  helpers.assertCursorAt(1,0);
+});
 testVim('set_string', function(cm, vim, helpers) {
   CodeMirror.Vim.defineOption('testoption', 'a', 'string');
   // Test default value is set.

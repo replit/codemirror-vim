@@ -3,13 +3,11 @@ import { StringStream, matchBrackets, indentUnit, ensureSyntaxTree, foldCode } f
 import { EditorView, runScopeHandlers, ViewUpdate } from "@codemirror/view"
 import { RegExpCursor, setSearchQuery, SearchQuery } from "@codemirror/search"
 import {
-  insertNewlineAndIndent, indentMore, indentLess, indentSelection,
-  deleteCharBackward, deleteCharForward, cursorCharLeft,
+  insertNewlineAndIndent, indentMore, indentLess, indentSelection, cursorCharLeft,
   undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
 } from "@codemirror/commands"
+import {vimState, CM5Range} from "./types"
 
-interface Pos { line: number, ch: number }
-interface CM5Range { anchor: Pos, head: Pos }
 function indexFromPos(doc: Text, pos: Pos): number {
   var ch = pos.ch;
   var lineNumber = pos.line + 1;
@@ -29,6 +27,8 @@ function posFromIndex(doc: Text, offset: number): Pos {
   return { line: line.number - 1, ch: offset - line.from }
 }
 class Pos {
+  line: number
+  ch: number
   constructor(line: number, ch: number) {
     this.line = line; this.ch = ch;
   }
@@ -121,7 +121,7 @@ function runHistoryCommand(cm: CodeMirror, revert: boolean) {
 
 var keys: Record<string, (cm: CodeMirror) => void> = {};
 "Left|Right|Up|Down|Backspace|Delete".split("|").forEach(key => {
-  keys[key] = (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: key}, "editor");
+  keys[key] = (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: key} as KeyboardEvent, "editor");
 });
 
 export class CodeMirror {
@@ -150,10 +150,8 @@ export class CodeMirror {
     return wordChar.test(ch);
   };
   static keys: any = keys;
-  static keyMap = {
-  };
-  static addClass = function () { };
-  static rmClass = function () { };
+  static addClass = function (el, str) { };
+  static rmClass = function (el, str) { };
   static e_preventDefault = function (e: Event) {
     e.preventDefault()
   };
@@ -188,10 +186,11 @@ export class CodeMirror {
     statusbar?: Element | null,
     dialog?: Element | null,
     vimPlugin?: any,
-    vim?: any,
+    vim?: vimState | null,
     currentNotificationClose?: Function | null,
     keyMap?: string,
     overwrite?: boolean,
+    textwidth?: number,
   } = {};
   marks: Record<string, Marker> = Object.create(null);
   $mid = 0; // marker id counter
@@ -316,7 +315,7 @@ export class CodeMirror {
       indexFromPos(doc, e)
     )
   };
-  replaceRange(text: string, s: Pos, e: Pos) {
+  replaceRange(text: string, s: Pos, e?: Pos, source?: string) {
     if (!e) e = s;
     var doc = this.cm6.state.doc;
     var from = indexFromPos(doc, s);
@@ -403,7 +402,7 @@ export class CodeMirror {
     return scanForBracket(this, pos, dir, style, config);
   };
 
-  indentLine(line: number, more: boolean) {
+  indentLine(line: number, more?: boolean) {
     // todo how to indent only one line instead of selection
     if (more) this.indentMore()
     else this.indentLess()
@@ -767,7 +766,7 @@ export class CodeMirror {
   virtualSelectionMode() {
     return !!this.virtualSelection
   }
-  virtualSelection: EditorSelection | null = null;
+  virtualSelection: Mutable<EditorSelection> | null = null;
   forEachSelection(command: Function) {
     var selection = this.cm6.state.selection;
     this.virtualSelection = EditorSelection.create(selection.ranges, selection.mainIndex)
@@ -785,8 +784,13 @@ export class CodeMirror {
   hardWrap(options) {
     return hardWrap(this, options);
   }
+
+  showMatchesOnScrollbar = undefined // not implemented
 };
 
+type Mutable<Type> = {
+  -readonly [Key in keyof Type]: Type[Key];
+};
 
 /************* dialog *************/
 
@@ -924,7 +928,7 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1 | 1, style: any, con
   var maxScanLen = (config && config.maxScanLineLength) || 10000;
   var maxScanLines = (config && config.maxScanLines) || 1000;
 
-  var stack = [];
+  var stack: string[] = [];
   var re = bracketRegex(config)
   var lineEnd = dir > 0 ? Math.min(where.line + maxScanLines, cm.lastLine() + 1)
     : Math.max(cm.firstLine() - 1, where.line - maxScanLines);
@@ -1021,7 +1025,7 @@ function hardWrap(cm, options) {
     if (line.length > max) {
       var space = findSpace(line, max, 5);
       if (space) {
-          var indentation = /^\s*/.exec(line)[0];
+          var indentation = /^\s*/.exec(line)?.[0];
           cm.replaceRange("\n" + indentation, new Pos(row, space.start), new Pos(row, space.end));
       }
       endRow++;

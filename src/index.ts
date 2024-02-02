@@ -71,6 +71,7 @@ const vimPlugin = ViewPlugin.fromClass(
         this.updateStatus();
       });
       this.cm.on("vim-mode-change", (e: any) => {
+        if (!cm.state.vim) return;
         cm.state.vim.mode = e.mode;
         if (e.subMode) {
           cm.state.vim.mode += " block";

@@ -32,11 +32,12 @@
     "@codemirror/view": "^6.0.3"
   },
   "devDependencies": {
-    "codemirror": "6.0.0",
     "@codemirror/buildhelper": "^0.1.16",
     "@codemirror/lang-javascript": "^6.0.0",
     "@codemirror/lang-xml": "^6.0.0",
     "@codemirror/language": "^6.1.0",
+    "codemirror": "6.0.0",
+    "typescript": "^5.0.2",
     "vite": "^2.9.6"
   },
   "repository": {

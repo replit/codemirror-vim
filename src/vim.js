@@ -5553,14 +5553,14 @@ export function initVim(CodeMirror) {
           if (args.eol()) { return; }
           if (!args.eatSpace()) { return 'Invalid arguments'; }
           var opts = args.match(/([dinuox]+)?\s*(\/.+\/)?\s*/);
-          if (!opts && !args.eol()) { return 'Invalid arguments'; }
+          if (!opts || !args.eol()) { return 'Invalid arguments'; }
           if (opts[1]) {
             ignoreCase = opts[1].indexOf('i') != -1;
             unique = opts[1].indexOf('u') != -1;
-            var decimal = opts[1].indexOf('d') != -1 || opts[1].indexOf('n') != -1 && 1;
-            var hex = opts[1].indexOf('x') != -1 && 1;
-            var octal = opts[1].indexOf('o') != -1 && 1;
-            if (decimal + hex + octal > 1) { return 'Invalid arguments'; }
+            var decimal = opts[1].indexOf('d') != -1 || opts[1].indexOf('n') != -1;
+            var hex = opts[1].indexOf('x') != -1;
+            var octal = opts[1].indexOf('o') != -1;
+            if (Number(decimal) + Number(hex) + Number(octal) > 1) { return 'Invalid arguments'; }
             number = decimal && 'decimal' || hex && 'hex' || octal && 'octal';
           }
           if (opts[2]) {
@@ -5579,18 +5579,18 @@ export function initVim(CodeMirror) {
       var curStart = new Pos(lineStart, 0);
       var curEnd = new Pos(lineEnd, lineLength(cm, lineEnd));
       var text = cm.getRange(curStart, curEnd).split('\n');
-      var numberRegex = pattern ? pattern :
+      var numberRegex =
           (number == 'decimal') ? /(-?)([\d]+)/ :
           (number == 'hex') ? /(-?)(?:0x)?([0-9a-f]+)/i :
           (number == 'octal') ? /([0-7]+)/ : null;
-      var radix = (number == 'decimal') ? 10 : (number == 'hex') ? 16 : (number == 'octal') ? 8 : null;
+      var radix = (number == 'decimal') ? 10 : (number == 'hex') ? 16 : (number == 'octal') ? 8 : undefined;
       var numPart = [], textPart = [];
       if (number || pattern) {
         for (var i = 0; i < text.length; i++) {
           var matchPart = pattern ? text[i].match(pattern) : null;
           if (matchPart && matchPart[0] != '') {
             numPart.push(matchPart);
-          } else if (!pattern && numberRegex.exec(text[i])) {
+          } else if (numberRegex && numberRegex.exec(text[i])) {
             numPart.push(text[i]);
           } else {
             textPart.push(text[i]);
@@ -5599,16 +5599,18 @@ export function initVim(CodeMirror) {
       } else {
         textPart = text;
       }
+      /** @arg {string} a  @arg {string} b */
       function compareFn(a, b) {
         if (reverse) { var tmp; tmp = a; a = b; b = tmp; }
         if (ignoreCase) { a = a.toLowerCase(); b = b.toLowerCase(); }
-        var anum = number && numberRegex.exec(a);
-        var bnum = number && numberRegex.exec(b);
-        if (!anum) { return a < b ? -1 : 1; }
-        anum = parseInt((anum[1] + anum[2]).toLowerCase(), radix);
-        bnum = parseInt((bnum[1] + bnum[2]).toLowerCase(), radix);
+        var amatch = numberRegex && numberRegex.exec(a);
+        var bmatch = numberRegex && numberRegex.exec(b);
+        if (!amatch || !bmatch) { return a < b ? -1 : 1; }
+        var anum = parseInt((amatch[1] + amatch[2]).toLowerCase(), radix);
+        var bnum = parseInt((bmatch[1] + bmatch[2]).toLowerCase(), radix);
         return anum - bnum;
       }
+      /** @arg {string[]} a  @arg {string[]} b */
       function comparePatternFn(a, b) {
         if (reverse) { var tmp; tmp = a; a = b; b = tmp; }
         if (ignoreCase) { a[0] = a[0].toLowerCase(); b[0] = b[0].toLowerCase(); }
@@ -5685,8 +5687,8 @@ export function initVim(CodeMirror) {
       var lineEnd = params.lineEnd || params.line || cm.lastLine();
       // get the tokens from argString
       var tokens = splitBySlash(argString);
-      var regexPart = argString, cmd;
-      if (tokens.length) {
+      var regexPart = argString, cmd = "";
+      if (tokens && tokens.length) {
         regexPart = tokens[0];
         cmd = tokens.slice(1, tokens.length).join('/');
       }
@@ -5704,6 +5706,7 @@ export function initVim(CodeMirror) {
       // now that we have the regexPart, search for regex matches in the
       // specified range of lines
       var query = getSearchState(cm).getQuery();
+      /**@type {(string|import("./types").LineHandle)[]}*/
       var matchedLines = [];
       for (var i = lineStart; i <= lineEnd; i++) {
         var line = cm.getLine(i);

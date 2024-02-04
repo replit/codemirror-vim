@@ -33,7 +33,7 @@ export type vimState = {
 }
 export type Marker = ReturnType<CodeMirror["setBookmark"]>
 export type LineHandle = ReturnType<CodeMirror["getLineHandle"]>
-export type Pos = { line: number, ch: number }
+export type Pos = { line: number, ch: number, sticky?: string }
 
 export interface CM5Range {
     anchor: Pos,
@@ -72,14 +72,15 @@ export type OperatorArgs = {
 } 
 // version of CodeMirror with vim state checked
 export type CodeMirrorV = CodeMirror & {state: {vim: vimState}}
-export type OperatorFn = (cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor?: Pos, newHead?: Pos) => Pos|void
+export type OperatorFn = (cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos, newHead?: Pos) => Pos|void
 export type vimOperators = {
     change(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[]): void,
     delete(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[]): void,
     indent(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[]): void,
     indentAuto(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[]): void,
-    changeCase(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos, newHead: Pos): Pos,
-    yank(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos): Pos,
+    hardWrap(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos): Pos|void,
+    changeCase(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos, newHead?: Pos): Pos|void,
+    yank(cm: CodeMirrorV, args: OperatorArgs, ranges: CM5RangeInterface[], oldAnchor: Pos): Pos|void,
 } & {
     [key: string]: OperatorFn
 }
@@ -114,7 +115,7 @@ export type vimActions  = {
     [key: string]: ActionFn
 }
 
-export type MotionArgs = {
+export type MotionArgsPartial = {
     repeat?: number,
     forward?: boolean,
     selectedCharacter?: string,
@@ -130,7 +131,9 @@ export type MotionArgs = {
     bigWord?: boolean,
     repeatIsExplicit?: boolean,
     noRepeat?: boolean
-} 
+};
+
+export type MotionArgs = MotionArgsPartial & {repeat: number};
 
 export type MotionFn = (cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim: vimState, inputState: InputStateInterface) => Pos|[Pos,Pos]|null|undefined
 export type vimMotions = {
@@ -180,29 +183,49 @@ export type vimOption = {
 
 export type ExFn = ()=> void;
 
-
-declare class StringStream {
-    string: string;
-    pos: number;
-    start: number;
-    constructor(string: string);
-    eol(): boolean;
-    sol(): boolean;
-    peek(): string | undefined;
-    next(): string | void;
-    eat(match: string | RegExp | ((ch: string) => boolean)): string | void;
-    eatWhile(match: string | RegExp | ((ch: string) => boolean)): boolean;
-    eatSpace(): boolean;
-    skipToEnd(): void;
-    skipTo(ch: string): boolean | void;
-    backUp(n: number): void;
-    column(): number;
-    indentation(): number;
-    match(pattern: string | RegExp, consume?: boolean, caseInsensitive?: boolean): boolean | RegExpMatchArray | null;
-    current(): string;
+type allCommands = {
+    keys: string,
+    context?: string,
+    interlaceInsertRepeat?: boolean,
+    exitVisualBlock?: boolean,
+    isEdit?: boolean,
+    repeatOverride?: number
 }
-
-export {StringStream}
+export type motionCommand = allCommands & {
+    type: 'motion',
+    motion: string,
+    motionArgs?: MotionArgsPartial,
+    repeatOverride?: number
+}
+export type operatorCommand = allCommands & {
+    type: 'operator',
+    operator: string,
+    operatorArgs?: OperatorArgs
+}
+export type actionCommand = allCommands & {
+    type: 'action',
+    action: string,
+    actionArgs?: ActionArgs,
+    motion?: string,
+    operator?: string,
+    interlaceInsertRepeat?: boolean
+}
+export type searchCommand = allCommands & {
+    type: 'search',
+    searchArgs: SearchArgs
+}
+export type operatorMotionCommand = allCommands & {
+    type: 'operatorMotion',
+    motion: string,
+    operator: string,
+    motionArgs?: MotionArgsPartial,
+    operatorArgs?: OperatorArgs,
+    operatorMotionArgs?: { [arg: string]: boolean | string }
+}
+export type idleCommand = allCommands & { type: 'idle' }
+export type exCommand = allCommands & { type: 'ex' }
+export type keyToExCommand = allCommands & { type: 'keyToEx', exArgs: { [arg: string]: any } }
+export type keyToKeyCommand = allCommands & { toKeys: string, type: 'keyToKey' }
 
 export type vimKey =
     motionCommand
@@ -214,23 +237,6 @@ export type vimKey =
     | exCommand
     | keyToExCommand
     | keyToKeyCommand;
-type allCommands = { keys: string, context?: string, interlaceInsertRepeat?: boolean, exitVisualBlock?: boolean, isEdit?: boolean, }
-export type motionCommand = allCommands & { type: 'motion', motion: string, motionArgs?: MotionArgs, repeatOverride?: number }
-export type operatorCommand = allCommands & { type: 'operator', operator: string, operatorArgs?: OperatorArgs }
-export type actionCommand = allCommands & { type: 'action', action: string, actionArgs?: ActionArgs, motion?: string, operator?: string}
-export type searchCommand = allCommands & { type: 'search', searchArgs: SearchArgs }
-export type operatorMotionCommand = allCommands & {
-    type: 'operatorMotion',
-    motion: string,
-    operator: string,
-    motionArgs?: MotionArgs,
-    operatorArgs?: OperatorArgs,
-    operatorMotionArgs?: { [arg: string]: boolean | string }
-}
-export type idleCommand = allCommands & { type: 'idle' }
-export type exCommand = allCommands & { type: 'ex' }
-export type keyToExCommand = allCommands & { type: 'keyToEx', exArgs: {[arg: string]: any} }
-export type keyToKeyCommand = allCommands & { toKeys: string, type: 'keyToKey' }
 
 export type vimKeyMap = vimKey[];
 
@@ -298,5 +304,30 @@ export type InsertModeChanges = {
     expectCursorActivityForChange: any;
     visualBlock?: number,
     maybeReset?: boolean,
+    ignoreCount?: number,
+    repeatOverride?: number,
+}
 
+export type ExParams = {
+    commandName: string,
+    argString: string,
+    input: string,
+    args?: string[],
+    
+    line: number,
+    lineEnd?: number,
+    selectionLine: number,
+    selectionLineEnd?: number,
+
+    setCfg?: Object,
+    callback?: any,
+
+}
+
+
+declare global {
+    function isNaN(v: any): v is Exclude<typeof v, number>;
+    interface String {
+        trimStart(): string
+    }
 }

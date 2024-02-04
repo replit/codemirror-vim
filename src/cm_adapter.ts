@@ -6,7 +6,7 @@ import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection, cursorCharLeft,
   undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
 } from "@codemirror/commands"
-import {vimState, CM5Range} from "./types"
+import {vimState, CM5RangeInterface} from "./types"
 
 function indexFromPos(doc: Text, pos: Pos): number {
   var ch = pos.ch;
@@ -29,6 +29,7 @@ function posFromIndex(doc: Text, offset: number): Pos {
 class Pos {
   line: number
   ch: number
+  sticky?: string
   constructor(line: number, ch: number) {
     this.line = line; this.ch = ch;
   }
@@ -128,7 +129,7 @@ export class CodeMirror {
   static isMac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);
   // --------------------------
   static Pos = Pos;
-  static StringStream = StringStream;
+  static StringStream = StringStream as unknown as StringStream & { new(_: string): StringStream }
   static commands = {
     cursorCharLeft: function (cm: CodeMirror) { cursorCharLeft(cm.cm6); },
     redo: function (cm: CodeMirror) { runHistoryCommand(cm, false); },
@@ -143,7 +144,8 @@ export class CodeMirror {
     },
     indentAuto: function (cm: CodeMirror) {
       indentSelection(cm.cm6)
-    }
+    },
+    newlineAndIndentContinueComment: undefined
   };
   static defineOption = function (name: string, val: any, setter: Function) { };
   static isWordChar = function (ch: string) {
@@ -230,12 +232,14 @@ export class CodeMirror {
   firstLine() { return 0; };
   lastLine() { return this.cm6.state.doc.lines - 1; };
   lineCount() { return this.cm6.state.doc.lines };
-  setCursor(line: Pos | number, ch: number) {
+  setCursor(line: number, ch: number): void;
+  setCursor(line: Pos): void;
+  setCursor(line: Pos | number, ch?: number) {
     if (typeof line === 'object') {
       ch = line.ch;
       line = line.line;
     }
-    var offset = indexFromPos(this.cm6.state.doc, { line, ch })
+    var offset = indexFromPos(this.cm6.state.doc, { line, ch: ch || 0 })
     this.cm6.dispatch({ selection: { anchor: offset } }, { scrollIntoView: !this.curOp })
     if (this.curOp && !this.curOp.isVimOp)
       this.onBeforeEndOperation();
@@ -265,7 +269,7 @@ export class CodeMirror {
       };
     });
   };
-  setSelections(p: CM5Range[], primIndex?: number) {
+  setSelections(p: CM5RangeInterface[], primIndex?: number) {
     var doc = this.cm6.state.doc
     var ranges = p.map(x => {
       return EditorSelection.range(indexFromPos(doc, x.anchor), indexFromPos(doc, x.head))
@@ -546,7 +550,7 @@ export class CodeMirror {
       }
     }
 
-    let pos = posFromIndex(doc, range.head) as Pos&{hitSide: boolean};
+    let pos = posFromIndex(doc, range.head) as Pos&{hitSide?: boolean};
     // set hitside to true if there was no place to move and cursor was clipped to the edge
     // of document. Needed for gj/gk
     if (
@@ -587,7 +591,7 @@ export class CodeMirror {
       clientHeight: scroller.clientHeight, clientWidth: scroller.clientWidth
     };
   };
-  scrollTo(x?: number, y?: number) {
+  scrollTo(x?: number|null, y?: number|null) {
     if (x != null)
       this.cm6.scrollDOM.scrollLeft = x
     if (y != null)
@@ -663,7 +667,7 @@ export class CodeMirror {
       curOp.cursorActivityHandlers = this._handlers["cursorActivity"] && this._handlers["cursorActivity"].slice();
     this.curOp.cursorActivity = true;
   };
-  operation(fn: Function) {
+  operation(fn: Function, force?: boolean) {
     if (!this.curOp)
       this.curOp = { $d: 0 };
     this.curOp.$d++;
@@ -716,6 +720,8 @@ export class CodeMirror {
 
     }
   };
+  getOption(name:"firstLineNumber"|"tabSize"): number;
+  getOption(name:string): number|boolean|string|undefined;
   getOption(name: string) {
     switch (name) {
       case "firstLineNumber": return 1;
@@ -785,7 +791,9 @@ export class CodeMirror {
     return hardWrap(this, options);
   }
 
-  showMatchesOnScrollbar = undefined // not implemented
+  showMatchesOnScrollbar: undefined // not implemented
+  save?: Function
+  static keyName?: Function = undefined
 };
 
 type Mutable<Type> = {
@@ -952,7 +960,7 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1 | 1, style: any, con
   return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
 }
 
-function findMatchingTag(cm: CodeMirror, pos: Pos) {
+function findMatchingTag(cm: CodeMirror, pos: Pos): undefined {
 }
 
 function findEnclosingTag(cm: CodeMirror, pos: Pos) {

@@ -85,7 +85,7 @@ export type vimOperators = {
     [key: string]: OperatorFn
 }
 
-export type ActionArgs = {
+export type ActionArgsPartial = {
     repeat?: number,
     forward?: boolean,
     head?: Pos,
@@ -106,11 +106,14 @@ export type ActionArgs = {
     replace?: boolean,
     keepCursor?: boolean
 }
+export type ActionArgs = ActionArgsPartial & {repeat: number};
+
 export type ActionFn = (cm: CodeMirrorV, actionArgs: ActionArgs, vim: vimState) => void 
 
 export type vimActions  = {
     jumpListWalk(cm: CodeMirrorV, actionArgs: ActionArgs, vim: vimState): void,
     continuePaste(cm: CodeMirrorV, actionArgs: ActionArgs, vim: vimState, text: string, register: Register): void
+    enterInsertMode(cm: CodeMirrorV, actionArgs: ActionArgsPartial, vum: vimState): void,
 } & {
     [key: string]: ActionFn
 }
@@ -205,7 +208,7 @@ export type operatorCommand = allCommands & {
 export type actionCommand = allCommands & {
     type: 'action',
     action: string,
-    actionArgs?: ActionArgs,
+    actionArgs?: ActionArgsPartial,
     motion?: string,
     operator?: string,
     interlaceInsertRepeat?: boolean
@@ -248,7 +251,7 @@ export interface InputStateInterface {
     motion: string | undefined | null;
     motionArgs: MotionArgs | null;
     keyBuffer: any[];
-    registerName?: string|null;
+    registerName?: string;
     changeQueue: any;
     operatorShortcut?: string;
     selectedCharacter?: string;

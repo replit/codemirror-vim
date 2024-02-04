@@ -145,9 +145,9 @@ export class CodeMirror {
     indentAuto: function (cm: CodeMirror) {
       indentSelection(cm.cm6)
     },
-    newlineAndIndentContinueComment: undefined
+    newlineAndIndentContinueComment: undefined as any,
+    save: undefined as any,
   };
-  static defineOption = function (name: string, val: any, setter: Function) { };
   static isWordChar = function (ch: string) {
     return wordChar.test(ch);
   };
@@ -389,7 +389,7 @@ export class CodeMirror {
     return this.cm6.defaultLineHeight
   };
 
-  findMatchingBracket(pos: Pos) {
+  findMatchingBracket(pos: Pos, _options?: any) {
     var state = this.cm6.state
     var offset = indexFromPos(state.doc, pos);
     var m = matchBrackets(state, offset + 1, -1)
@@ -791,7 +791,7 @@ export class CodeMirror {
     return hardWrap(this, options);
   }
 
-  showMatchesOnScrollbar: undefined // not implemented
+  showMatchesOnScrollbar?: Function // not implemented
   save?: Function
   static keyName?: Function = undefined
 };

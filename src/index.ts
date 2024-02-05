@@ -71,6 +71,7 @@ const vimPlugin = ViewPlugin.fromClass(
         this.updateStatus();
       });
       this.cm.on("vim-mode-change", (e: any) => {
+        if (!cm.state.vim) return;
         cm.state.vim.mode = e.mode;
         if (e.subMode) {
           cm.state.vim.mode += " block";
@@ -226,7 +227,7 @@ const vimPlugin = ViewPlugin.fromClass(
 
       vim.status = (vim.status || "") + key;
       let result = Vim.multiSelectHandleKey(cm, key, "user");
-      vim = cm.state.vim; // the object can change if there is an exception in handleKey
+      vim = Vim.maybeInitVimState_(cm); // the object can change if there is an exception in handleKey
 
       // insert mode
       if (!result && vim.insertMode && cm.state.overwrite) {

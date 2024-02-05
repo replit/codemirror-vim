@@ -91,7 +91,7 @@ export class BlockCursorPlugin {
 
   readPos(): Measure {
     let {state} = this.view
-    let cursors = []
+    let cursors: Piece[] = []
     for (let r of state.selection.ranges) {
       let prim = r == state.selection.main
       let piece = measureCursor(this.cm, this.view, r, prim)

@@ -1,13 +1,13 @@
 {
     "compilerOptions": {
         // "module": "commonjs",
-        // "noImplicitAny": true,
+        "noImplicitAny": false,
         // "noEmit": true,
         // "declaration": false,
         // "lib": ["es2019", "DOM"]
-
-        "allowJs": false,
-        "checkJs": false, 
+        "outDir": "./dist",
+        "allowJs": true,
+        "checkJs": true,
         "lib": ["es6", "dom", "scripthost"],
         "types": ["mocha"],
         "stripInternal": true,
@@ -20,6 +20,7 @@
         "moduleResolution": "node",
     },
     "include": [
-        "src/*.ts"
+        "src/*.ts",
+        "src/*.js"
     ]
 }

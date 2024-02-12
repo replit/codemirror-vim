@@ -3414,9 +3414,11 @@ export function initVim(CodeMirror) {
     if (selectedCharacter.length > 1){
       switch(selectedCharacter){
         case '<CR>':
+        case '<S-CR>':
           selectedCharacter='\n';
           break;
         case '<Space>':
+        case '<S-Space>':
           selectedCharacter=' ';
           break;
         default:

@@ -97,6 +97,7 @@ const testWidgetPlugin = ViewPlugin.fromClass(class {
   }
 })
 
+if (!localStorage.status) localStorage.status = "true";
 var options = {
   wrap: addOption("wrap"),
   html: addOption("html"),
@@ -187,6 +188,7 @@ function updateView() {
   if (!options.split && view2) deleteSplit();
 
   if (!view) view = createView();
+  addLogListeners();
 
   selectTab(options.html ? "html": "js")
 
@@ -205,6 +207,7 @@ function updateView() {
 function selectTab(tab: string) {
   if (view) view.setState(tabs[tab])
   if (view2) view2.setState(tabs[tab])
+  addLogListeners();
 }
 
 Vim.defineEx("tabnext", "tabn", () => {
@@ -273,6 +276,27 @@ function createView() {
   });
   return view;
 }
+
+function addLogListeners() {
+  var cm = (view as any)?.cm;
+  if (cm) {
+    cm.off("inputEvent", logHandler);
+    cm.on("inputEvent", logHandler);
+  }
+}
+var i = 0;
+function logHandler(e: any) {
+  var message = [i++, e.type.padEnd(10), e.key, e.code].join(" ");
+  var entry = logContainer.childNodes.length < 1000
+    ? document.createElement("div")
+    : logContainer.lastChild! as HTMLElement;
+  entry.textContent = message
+  logContainer.insertBefore(entry, logContainer.firstChild);
+}
+var logContainer = document.createElement("pre");
+document.body.appendChild(logContainer);
+logContainer.className = ".logContainer"
+
 
 
 updateView()

@@ -384,6 +384,7 @@ testMotion('$', ['v', '$'], makeCursor(0, lines[0].length), makeCursor(0, 1));
 testMotion('f', ['f', 'p'], pChars[0], makeCursor(charLine.line, 0));
 testMotion('f_repeat', ['2', 'f', 'p'], pChars[2], pChars[0]);
 testMotion('f_num', ['f', '2'], numChars[2], makeCursor(charLine.line, 0));
+testMotion('f<S-Space>', ['f', '<S-Space>'], offsetCursor(word1.end, 0, 1), word1.start);
 testMotion('t', ['t','p'], offsetCursor(pChars[0], 0, -1),
     makeCursor(charLine.line, 0));
 testMotion('t_repeat', ['2', 't', 'p'], offsetCursor(pChars[2], 0, -1),

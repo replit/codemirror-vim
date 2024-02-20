@@ -1,6 +1,6 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "6.1.0",
+  "version": "6.2.0",
   "description": "Vim keybindings for CodeMirror 6",
   "scripts": {
     "dev": "vite ./dev",

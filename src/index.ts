@@ -203,6 +203,7 @@ const vimPlugin = ViewPlugin.fromClass(
       if (!vim) return;
 
       const key = Vim.vimKeyFromEvent(e, vim);
+      CodeMirror.signal(this.cm, 'inputEvent', {type: "handleKey", key});
       if (!key) return;
 
       // clear search highlight
@@ -275,12 +276,21 @@ const vimPlugin = ViewPlugin.fromClass(
       },
       compositionstart: function(e: Event, view: EditorView) {
         this.useNextTextInput = true;
+        CodeMirror.signal(this.cm, 'inputEvent', e);
+      },
+      compositionupdate: function(e: Event, view: EditorView) {
+        CodeMirror.signal(this.cm, 'inputEvent', e);
+      },
+      compositionend: function(e: Event, view: EditorView) {
+        CodeMirror.signal(this.cm, 'inputEvent', e);
       },
       keypress: function(e: KeyboardEvent, view: EditorView) {
+        CodeMirror.signal(this.cm, 'inputEvent', e);
         if (this.lastKeydown == "Dead")
           this.handleKey(e, view);
       },
       keydown: function(e: KeyboardEvent, view: EditorView) {
+        CodeMirror.signal(this.cm, 'inputEvent', e);
         this.lastKeydown = e.key;
         if (
           this.lastKeydown == "Unidentified"
@@ -306,6 +316,12 @@ const vimPlugin = ViewPlugin.fromClass(
             if (text === "\0\0") {
               return true;
             }
+            CodeMirror.signal(cm, 'inputEvent', {
+              type: "text",
+              text,
+              from, 
+              to,              
+            });
             if (text.length == 1 && vimPlugin.useNextTextInput) {
               if (vim.expectLiteralNext && view.composing) {
                 vimPlugin.compositionText = text;

@@ -294,6 +294,7 @@ export function initVim(CodeMirror) {
     { name: 'nohlsearch', shortName: 'noh' },
     { name: 'yank', shortName: 'y' },
     { name: 'delmarks', shortName: 'delm' },
+    { name: 'marks',  excludeFromCommandHistory: true },
     { name: 'registers', shortName: 'reg', excludeFromCommandHistory: true },
     { name: 'vglobal', shortName: 'v' },
     { name: 'delete', shortName: 'd' },
@@ -5051,11 +5052,19 @@ export function initVim(CodeMirror) {
     return n;
   }
 
-  /** @arg {CodeMirror} cm  @arg {any} template */
-  function showConfirm(cm, template) {
+  /** @arg {CodeMirror} cm  @arg {any} template  @arg {boolean} [long]*/
+  function showConfirm(cm, template, long) {
     var pre = dom('div', {$color: 'red', $whiteSpace: 'pre', class: 'cm-vim-message'}, template);
     if (cm.openNotification) {
-      cm.openNotification(pre, {bottom: true, duration: 5000});
+      if (long) {
+        pre = dom('div', {}, pre, dom('div', {}, 'Press ENTER or type command to continue'));
+        if (cm.state.closeVimNotification) {
+          cm.state.closeVimNotification();
+        }
+        cm.state.closeVimNotification = cm.openNotification(pre, {bottom: true, duration: 0});
+      } else {
+        cm.openNotification(pre, {bottom: true, duration: 5000});
+      }
     } else {
       alert(pre.innerText);
     }
@@ -5063,10 +5072,10 @@ export function initVim(CodeMirror) {
   /** @arg {string} prefix  @arg {string} desc */
   function makePrompt(prefix, desc) {
     return dom('div', {$display: 'flex'},
-              dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre', $flex: 1},
+              dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre', $flex: 1, $display: 'flex'},
                 prefix,
                 dom('input', {type: 'text', autocorrect: 'off',
-                              autocapitalize: 'off', spellcheck: 'false', $width: '100%'})),
+                              autocapitalize: 'off', spellcheck: 'false', $flex: 1})),
               desc && dom('span', {$color: '#888'}, desc));
   }
   /**
@@ -5759,7 +5768,31 @@ export function initVim(CodeMirror) {
           regInfo += '"' + registerName + '    ' + register.toString() + '\n'
         }
       }
-      showConfirm(cm, regInfo);
+      showConfirm(cm, regInfo, true);
+    },
+    /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
+    marks: function(cm, params) {
+      var filterArgs = params.args;
+      var marks = cm.state.vim.marks;
+      var regInfo = '-----------Marks-----------\nmark\tline\tcol\n\n';
+      if (!filterArgs) {
+        for (var name in marks) {
+          var marker = marks[name] && marks[name].find();
+          if (marker) {
+            regInfo += name + '\t' + marker.line + '\t' + marker.ch +  '\n';
+          }
+        }
+      } else {
+        var registerNames = filterArgs.join('');
+        for (var i = 0; i < registerNames.length; i++) {
+          var name = registerNames.charAt(i);
+          var marker = marks[name] && marks[name].find();
+          if (marker) {
+            regInfo += name + '\t' + marker.line + '\t' + marker.ch +  '\n';
+          }
+        }
+      }
+      showConfirm(cm, regInfo, true);
     },
     /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
     sort: function(cm, params) {
@@ -6685,6 +6718,16 @@ export function initVim(CodeMirror) {
     var isHandled = false;
     var vim = vimApi.maybeInitVimState_(cm);
     var visualBlock = vim.visualBlock || vim.wasInVisualBlock;
+
+    if (cm.state.closeVimNotification) {
+      var close = cm.state.closeVimNotification;
+      cm.state.closeVimNotification = null;
+      close();
+      if (key == '<CR>') {
+        clearInputState(cm);
+        return true;
+      }
+    }
 
     var wasMultiselect = cm.isInMultiSelectMode();
     if (vim.wasInVisualBlock && !wasMultiselect) {

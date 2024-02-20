@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",
-    "testAll": "npm run test && cd dev/cm5 && npm run buildAndTest",
+    "static": "tsc --noEmit",
+    "testAll": "yarn run static && yarn run test && cd dev/cm5 && yarn run buildAndTest",
     "build": "cm-buildhelper src/index.ts",
-    "publish": "npm run build && npm publish",
-    "prepare": "npm run build"
+    "publish": "yarn run build && npm publish",
+    "prepare": "yarn run build"
   },
   "keywords": [
     "editor",
@@ -32,11 +33,11 @@
     "@codemirror/view": "^6.0.3"
   },
   "devDependencies": {
-    "@codemirror/buildhelper": "^0.1.16",
+    "@codemirror/buildhelper": "^1.0.1",
     "@codemirror/lang-javascript": "^6.0.0",
     "@codemirror/lang-xml": "^6.0.0",
     "@codemirror/language": "^6.1.0",
-    "codemirror": "6.0.0",
+    "codemirror": "6.0.1",
     "typescript": "^5.0.2",
     "vite": "^2.9.6"
   },

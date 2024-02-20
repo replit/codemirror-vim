@@ -2,8 +2,8 @@ import { SelectionRange, Prec } from "@codemirror/state"
 import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
 import { CodeMirror } from "."
 
-// backwards compatibility for old versions not supporting getDrawSelectionConfig
 import * as View  from "@codemirror/view"
+// backwards compatibility for old versions not supporting getDrawSelectionConfig
 let getDrawSelectionConfig = View.getDrawSelectionConfig || function() {
   let defaultConfig = {cursorBlinkRate: 1200};
   return function() {

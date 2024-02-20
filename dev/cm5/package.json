@@ -9,8 +9,8 @@
   "scripts": {
     "test": "cm-runtests .",
     "build": "node bin/build.js",
-    "buildAndTest": "npm run build && npm test",
-    "publish": "npm run build && npm publish"
+    "buildAndTest": "yarn run build && yarn test",
+    "publish": "yarn run build && npm publish"
   },
   "keywords": [
     "editor",

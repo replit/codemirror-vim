@@ -2620,7 +2620,7 @@ export function initVim(CodeMirror) {
     },
     indent: function(cm, args, ranges) {
       var vim = cm.state.vim;
-      var repeat = (vim.visualMode) ? args.repeat : 1;
+      var repeat = (vim.visualMode) ? (args.repeat || 0) : 1;
       if (cm.indentMore) {
         for (var j = 0; j < repeat; j++) {
           if (args.indentRight) cm.indentMore();

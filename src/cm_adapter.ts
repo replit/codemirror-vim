@@ -272,18 +272,19 @@ export class CodeMirror {
   setSelections(p: CM5RangeInterface[], primIndex?: number) {
     var doc = this.cm6.state.doc
     var ranges = p.map(x => {
-      return EditorSelection.range(indexFromPos(doc, x.anchor), indexFromPos(doc, x.head))
+      var head = indexFromPos(doc, x.head)
+      var anchor = indexFromPos(doc, x.anchor)
+      // workaround for codemirror bug, see https://github.com/replit/codemirror-vim/issues/169
+      if (head == anchor)
+        return EditorSelection.cursor(head, 1)
+      return EditorSelection.range(anchor, head)
     })
     this.cm6.dispatch({
       selection: EditorSelection.create(ranges, primIndex)
     })
   };
   setSelection(anchor: Pos, head: Pos, options?: any) {
-    var doc = this.cm6.state.doc
-    var ranges = [EditorSelection.range(indexFromPos(doc, anchor), indexFromPos(doc, head))]
-    this.cm6.dispatch({
-      selection: EditorSelection.create(ranges, 0)
-    })
+    this.setSelections([{anchor, head}], 0);
     if (options && options.origin == '*mouse') {
       this.onBeforeEndOperation();
     }
@@ -539,7 +540,7 @@ export class CodeMirror {
     let pixels = unit == 'page' ? cm6.dom.clientHeight : 0;
 
     const startOffset = indexFromPos(doc, start);
-    let range = EditorSelection.range(startOffset, startOffset, goalColumn);
+    let range = EditorSelection.cursor(startOffset, 1, undefined, goalColumn);
     let count = Math.round(Math.abs(amount))
     for (let i = 0; i < count; i++) {
       if (unit == 'page') {

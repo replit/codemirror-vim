@@ -190,6 +190,7 @@ export class CodeMirror {
     vimPlugin?: any,
     vim?: vimState | null,
     currentNotificationClose?: Function | null,
+    closeVimNotification?: Function | null,
     keyMap?: string,
     overwrite?: boolean,
     textwidth?: number,

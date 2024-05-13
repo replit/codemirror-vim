@@ -1776,6 +1776,7 @@ export function initVim(CodeMirror) {
         vimGlobalState.exCommandHistoryController.reset();
         exCommandDispatcher.processCommand(cm, input);
         if (cm.state.vim) clearInputState(cm);
+        clearSearchHighlight(cm);
       }
       /**
        * @arg {KeyboardEvent&{target:HTMLInputElement}} e
@@ -1790,6 +1791,7 @@ export function initVim(CodeMirror) {
           vimGlobalState.exCommandHistoryController.reset();
           CodeMirror.e_stop(e);
           clearInputState(cm);
+          clearSearchHighlight(cm);
           close();
           cm.focus();
         }
@@ -1808,17 +1810,42 @@ export function initVim(CodeMirror) {
             vimGlobalState.exCommandHistoryController.reset();
         }
       }
+      /**
+       * @arg {KeyboardEvent&{target:HTMLInputElement}} e
+       * @arg {any} query
+       */
+      function onPromptKeyUp(e, query) {
+        var inputStream = new CodeMirror.StringStream(query);
+        var params = {};
+        try {
+          exCommandDispatcher.parseInput_(cm, inputStream, params);
+          if (params.commandName != "s") {
+            clearSearchHighlight(cm);
+            return;
+          }
+          command = exCommandDispatcher.matchCommand_(params.commandName);
+          exCommandDispatcher.parseCommandArgs_(inputStream, params, command);
+          if (!params.argString) return;
+          var regex = parseQuery(params.argString.slice(1), true, true);
+          if (regex) highlightSearchMatches(cm, regex);
+        } catch(e) {
+        }
+      }
       if (command.type == 'keyToEx') {
         // Handle user defined Ex to Ex mappings
         exCommandDispatcher.processCommand(cm, command.exArgs.input);
       } else {
+        var promptOptions = {
+          onClose: onPromptClose,
+          onKeyDown: onPromptKeyDown,
+          onKeyUp: onPromptKeyUp,
+          prefix: ':',
+        };
         if (vim.visualMode) {
-          showPrompt(cm, { onClose: onPromptClose, prefix: ':', value: '\'<,\'>',
-              onKeyDown: onPromptKeyDown, selectValueOnOpen: false});
-        } else {
-          showPrompt(cm, { onClose: onPromptClose, prefix: ':',
-              onKeyDown: onPromptKeyDown});
+          promptOptions.value = '\'<,\'>';
+          promptOptions.selectValueOnOpen = false;
         }
+        showPrompt(cm, promptOptions);
       }
     },
     /**@arg {CodeMirrorV} cm   @arg {vimState} vim */

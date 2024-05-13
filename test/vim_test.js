@@ -134,8 +134,8 @@ var foldingRangeUp = {
   end: new Pos(foldingStart.line, 0)
 };
 
-function copyCursor(cur) {
-  return new Pos(cur.line, cur.ch);
+function searchHighlighted(vim) {
+  return vim.searchState_ && (vim.searchState_.getOverlay() || vim.searchState_.highlightTimeout);
 }
 
 function forEach(arr, func) {
@@ -4459,6 +4459,13 @@ testVim('ex_substitute_empty_arguments', function(cm,vim,helpers) {
   helpers.doEx('s');
   eq('b b\nb a', cm.getValue());
 }, {value: 'a a\na a'});
+testVim('ex_substitute_highlight', function(cm,vim,helpers) {
+  is(!searchHighlighted(vim));
+  helpers.doKeys(':s/a');
+  is(searchHighlighted(vim));
+  helpers.doKeys('\n');
+  is(!searchHighlighted(vim));
+}, {value: 'a a\na a'});
 
 // More complex substitute tests that test both pcre and nopcre options.
 function testSubstitute(name, options) {
@@ -4690,9 +4697,11 @@ testSubstituteConfirm('ex_substitute_confirm_range_last',
     '1,3s/a/b/cg', 'aa\na \na\na', 'bb\nb \na\na', 'yyl', makeCursor(1, 0));
 //:noh should clear highlighting of search-results but allow to resume search through n
 testVim('ex_noh_clearSearchHighlight', function(cm, vim, helpers) {
+  is(!searchHighlighted(vim))
   helpers.doKeys('?', 'match', '\n');
+  is(searchHighlighted(vim))
   helpers.doEx('noh');
-  eq(vim.searchState_.getOverlay(),null,'match-highlighting wasn\'t cleared');
+  is(!searchHighlighted(vim));
   helpers.doKeys('n');
   helpers.assertCursorAt(0, 11,'can\'t resume search after clearing highlighting');
 }, { value: 'match nope match \n nope Match' });
@@ -4864,17 +4873,14 @@ testVim('ex_set_filetype_null', function(cm, vim, helpers) {
 });
 
 testVim('map_prompt', function(cm, vim, helpers) {
-  function highlighted() {
-    return vim.searchState_ && (vim.searchState_.getOverlay() || vim.searchState_.highlightTimeout);
-  }
-  is(!highlighted());
+  is(!searchHighlighted(vim));
 
   helpers.doKeys('/a\n');
   helpers.doKeys('i');
-  is(highlighted());
+  is(searchHighlighted(vim));
   helpers.doKeys('<Esc>');
   helpers.doEx('nohl');
-  is(!highlighted());
+  is(!searchHighlighted(vim));
   helpers.assertCursorAt(1, 2);
 
   helpers.doEx('nnoremap i :nohl<CR>i<space>xx<lt>');
@@ -4887,9 +4893,9 @@ testVim('map_prompt', function(cm, vim, helpers) {
   helpers.doKeys('j');
   eq(cm.getWrapperElement().querySelector("input").value, "ab");
   helpers.doKeys('<CR>');
-  is(highlighted());
+  is(searchHighlighted(vim));
   helpers.doKeys('i');
-  is(!highlighted());
+  is(!searchHighlighted(vim));
 
   eq(cm.getValue(), ' 0 xyz\n hi1  xx<abc \n 2 abc');
 

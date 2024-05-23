@@ -168,6 +168,7 @@ function testVim(name, run, opts, expectedFail) {
     var cm = CodeMirror(place, vimOpts);
     var vim = CodeMirror.Vim.maybeInitVimState_(cm);
     CodeMirror.Vim.mapclear();
+    CodeMirror.Vim.langmap('');
 
     cm.focus();
     // workaround for cm5 slow polling in blurred window
@@ -5675,6 +5676,30 @@ isOldCodeMirror || testVim('langmap_visual_block_no_ctrl_remap', function(cm, vi
   helpers.doKeys('world');
   eq('1hworld\n5hworld\nahworld', cm.getValue());
 }, {value: '1234\n5678\nabcdefg'});
+
+testVim('rendered_cursor_position_cm6', function(cm, vim, helpers) {
+  if (!cm.cm6) return;
+  cm.setCursor(0, 1);
+  helpers.doKeys('V');
+  function testCursorPosition(line, ch) {
+    cm.refresh();
+    var coords = cm.charCoords({line, ch});
+    var cursorRect = cm.getWrapperElement().querySelector(".cm-fat-cursor").getBoundingClientRect();
+    var contentRect = cm.getInputField().getBoundingClientRect();
+
+    is(Math.abs(coords.top - (cursorRect.top - contentRect.top)) < 2);
+    is(Math.abs(coords.left - (cursorRect.left - contentRect.left)) < 2);
+  }
+  testCursorPosition(0, 4);
+  helpers.doKeys('j');
+  testCursorPosition(1, 0);
+  helpers.doKeys('j');
+  testCursorPosition(2, 0);
+  helpers.doKeys('j');
+  testCursorPosition(3, 4);
+
+}, {value: '1234\n\n\n5678\nabcdefg'});
+
 
 
 async function delay(t) {

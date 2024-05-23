@@ -158,7 +158,11 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     fatCursor = true;
     if (vim.visualBlock && !primary)
       return null;
-    if (cursor.anchor < cursor.head) head--;
+    if (cursor.anchor < cursor.head) {
+      let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
+      if (letter != "\n")
+        head--;
+    }
     if (cm.state.overwrite) hCoeff = 0.2;
     else if (vim.status) hCoeff = 0.5;
   }

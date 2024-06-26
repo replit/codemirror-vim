@@ -1414,7 +1414,7 @@ testVim('g?', function(cm, vim, helpers) {
   helpers.doKeys('g', '?', 'g', '?');
   eq(cm.getValue(), 'nop rst();\nxyz');
   helpers.doKeys('g', '?', '?');
-  eq(cm.getValue(), 'nop rst();\nxyz');
+  eq(cm.getValue(), 'abc efg();\nxyz');
   eqCursorPos(makeCursor(0, 0), cm.getCursor());
   helpers.doKeys('g', '?', '2', '?');
   eq(cm.getValue(), 'nop rst();\nklm');

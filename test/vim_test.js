@@ -1408,7 +1408,7 @@ testVim('g?', function(cm, vim, helpers) {
   var register = helpers.getRegisterController().getRegister();
   eq('', register.toString());
   is(!register.linewise);
-
+  
   cm.setCursor(curStart);
   cm.setValue('abc efg();\nxyz');
   helpers.doKeys('g', '?', 'g', '?');
@@ -1420,9 +1420,9 @@ testVim('g?', function(cm, vim, helpers) {
   eq(cm.getValue(), 'nop rst();\nklm');
 
   cm.setCursor(curStart);
-  cm.setValue('hello\\world');
+  cm.setValue('hello\nworld');
   helpers.doKeys('l','<C-v>','l','j','g','?');
-  eq(cm.getValue(), 'hrylo\\wbedl');
+  eq(cm.getValue(), 'hrylo\nwbeld');
 }, { value: 'wa wb xx wc wd' });
 testVim('visual_block_~', function(cm, vim, helpers) {
   cm.setCursor(1, 1);

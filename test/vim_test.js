@@ -1386,6 +1386,44 @@ testVim('gu_and_gU', function(cm, vim, helpers) {
   helpers.doKeys('g', 'U', '2', 'U');
   eq(cm.getValue(), 'ABC EFG\nXYZ');
 }, { value: 'wa wb xx wc wd' });
+testVim('g?', function(cm, vim, helpers) {
+  var curStart = makeCursor(0, 7);
+  var value = cm.getValue();
+  cm.setCursor(curStart);
+  helpers.doKeys('2', 'g', '?', 'w');
+  eq(cm.getValue(), 'wa wb xk jp wd');
+  eqCursorPos(curStart, cm.getCursor());
+  helpers.doKeys('2', 'g', '?', 'w');
+  eq(cm.getValue(), value);
+
+  helpers.doKeys('2', 'g', '?', 'B');
+  eq(cm.getValue(), 'wa jo kx wc wd');
+  eqCursorPos(makeCursor(0, 3), cm.getCursor());
+
+  cm.setCursor(makeCursor(0, 4));
+  helpers.doKeys('g', '?', 'i', 'w');
+  eq(cm.getValue(), 'wa wb kx wc wd');
+  eqCursorPos(makeCursor(0, 3), cm.getCursor());
+
+  var register = helpers.getRegisterController().getRegister();
+  eq('', register.toString());
+  is(!register.linewise);
+
+  cm.setCursor(curStart);
+  cm.setValue('abc efg();\nxyz');
+  helpers.doKeys('g', '?', 'g', '?');
+  eq(cm.getValue(), 'nop rst();\nxyz');
+  helpers.doKeys('g', '?', '?');
+  eq(cm.getValue(), 'nop rst();\nxyz');
+  eqCursorPos(makeCursor(0, 0), cm.getCursor());
+  helpers.doKeys('g', '?', '2', '?');
+  eq(cm.getValue(), 'nop rst();\nklm');
+
+  cm.setCursor(curStart);
+  cm.setValue('hello\\world');
+  helpers.doKeys('l','<C-v>','l','j','g','?');
+  eq(cm.getValue(), 'hrylo\\wbedl');
+}, { value: 'wa wb xx wc wd' });
 testVim('visual_block_~', function(cm, vim, helpers) {
   cm.setCursor(1, 1);
   helpers.doKeys('<C-v>', 'l', 'l', 'j', '~');

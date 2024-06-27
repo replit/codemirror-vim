@@ -184,7 +184,7 @@ export type vimOption = {
 }
 
 
-export type ExFn = ()=> void;
+export type ExFn = (cm: CodeMirrorV, params: ExParams)=> void;
 
 type allCommands = {
     keys: string,

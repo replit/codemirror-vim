@@ -6,6 +6,7 @@ import {
   StateField,
   StateEffect,
   RangeSetBuilder,
+  Compartment,
 } from "@codemirror/state";
 import {
   ViewPlugin,
@@ -15,6 +16,7 @@ import {
   EditorView,
   showPanel,
   Panel,
+  lineNumbers,
 } from "@codemirror/view";
 import { setSearchQuery } from "@codemirror/search";
 
@@ -430,14 +432,70 @@ function statusPanel(view: EditorView): Panel {
   return { dom };
 }
 
-export function vim(options: { status?: boolean } = {}): Extension {
+let numberCompartement = new Compartment();
+
+export function vim(options: { status?: boolean, noNumber?: boolean } = {}): Extension {
   return [
     vimStyle,
     vimPlugin,
     hideNativeSelection,
     options.status ? showPanel.of(statusPanel) : vimPanelState,
+    numberCompartement.of([]),  
   ];
 }
+
+function relativeLineNumberExtension(number, relativeNumber, cm) {
+  if (number && !relativeNumber) return [];
+  if (!number && !relativeNumber) return [lineNumbers({
+    formatNumber: () => ""
+  })];
+
+  return lineNumbers({
+    formatNumber: (lineNo, state) => {
+      if (lineNo > state.doc.lines) {
+        return lineNo + "";
+      }
+      const cursorLine = state.doc.lineAt(state.selection.asSingle().ranges[0].to).number;
+      if (lineNo === cursorLine) {
+        return lineNo < 10 ? lineNo + "\xB7" : lineNo + "";
+      } else {
+        return Math.abs(cursorLine - lineNo).toString() + "";
+      }
+    },
+  });
+}
+
+Vim.defineOption("number", true, "boolean", ["nu"], function(value, cm) {
+  if (!cm) return;
+  if (value === undefined)  
+    return cm.options.number;
+  
+  cm.options.number = value;
+
+  cm.cm6.dispatch({
+    effects: numberCompartement.reconfigure(relativeLineNumberExtension(
+      cm.options.number, 
+      cm.options.relativeNumber,
+      cm
+    ))
+  })
+})
+
+Vim.defineOption("relativenumber", false, "boolean", ["rnu"], function(value, cm) {
+  if (!cm) return;
+  if (value === undefined)  
+    return cm.options.relativeNumber;
+  
+  cm.options.relativeNumber = value;
+
+  cm.cm6.dispatch({
+    effects: numberCompartement.reconfigure(relativeLineNumberExtension(
+      cm.options.number, 
+      cm.options.relativeNumber,
+      cm
+    ))
+  })
+})
 
 export { CodeMirror, Vim };
 

@@ -1,6 +1,7 @@
 import { basicSetup, EditorView } from 'codemirror'
 import { highlightActiveLine, keymap, Decoration, DecorationSet,
-   ViewPlugin, ViewUpdate, WidgetType, drawSelection } from '@codemirror/view';
+   ViewPlugin, ViewUpdate, WidgetType, drawSelection, 
+   lineNumbers} from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
 import { Vim, vim } from "../src/index"
@@ -45,6 +46,7 @@ function addOption(name, description?, onclick?) {
   return value
 }
 
+/***** widgets *****/
 class TestWidget extends WidgetType {
     constructor(private side: number) {
         super(); 
@@ -97,6 +99,82 @@ const testWidgetPlugin = ViewPlugin.fromClass(class {
   }
 })
 
+/***** gutter *****/
+import {gutter, GutterMarker} from "@codemirror/view"
+
+const emptyMarker = new class extends GutterMarker {
+  toDOM() { return document.createTextNode("ø") }
+}
+
+const emptyLineGutter = gutter({
+  lineMarker(view, line) {
+    return line.from == line.to ? emptyMarker : null
+  },
+  initialSpacer: () => emptyMarker
+})
+
+import {StateField, StateEffect, RangeSet} from "@codemirror/state"
+
+const breakpointEffect = StateEffect.define<{pos: number, on: boolean}>({
+  map: (val, mapping) => ({pos: mapping.mapPos(val.pos), on: val.on})
+})
+
+const breakpointState = StateField.define<RangeSet<GutterMarker>>({
+  create() { return RangeSet.empty },
+  update(set, transaction) {
+    set = set.map(transaction.changes)
+    for (let e of transaction.effects) {
+      if (e.is(breakpointEffect)) {
+        if (e.value.on)
+          set = set.update({add: [breakpointMarker.range(e.value.pos)]})
+        else
+          set = set.update({filter: from => from != e.value.pos})
+      }
+    }
+    return set
+  }
+})
+
+function toggleBreakpoint(view: EditorView, pos: number) {
+  let breakpoints = view.state.field(breakpointState)
+  let hasBreakpoint = false
+  breakpoints.between(pos, pos, () => {hasBreakpoint = true})
+  view.dispatch({
+    effects: breakpointEffect.of({pos, on: !hasBreakpoint})
+  })
+}
+
+const breakpointMarker = new class extends GutterMarker {
+  toDOM() { return document.createTextNode("💔") }
+}
+
+const breakpointGutter = [
+  breakpointState,
+  gutter({
+    class: "cm-breakpoint-gutter",
+    markers: v => v.state.field(breakpointState),
+    initialSpacer: () => breakpointMarker,
+    domEventHandlers: {
+      mousedown(view, line) {
+        toggleBreakpoint(view, line.from)
+        return true
+      }
+    }
+  }),
+  EditorView.baseTheme({
+    ".cm-breakpoint-gutter .cm-gutterElement": {
+      color: "red",
+      paddingLeft: "5px",
+      cursor: "default"
+    }
+  })
+]
+
+const hexLineNumbers = lineNumbers({
+  formatNumber: n => n.toString(16)
+})
+
+
 if (!localStorage.status) localStorage.status = "true";
 var options = {
   wrap: addOption("wrap"),
@@ -111,7 +189,9 @@ var options = {
   split: addOption("split", "",  function() {
 
   }),
-  readOnly: addOption("readOnly")
+  readOnly: addOption("readOnly"),
+  gutters: addOption("gutters"),
+  hexNumbers: addOption("hexNumbers"),
 };
 
 
@@ -196,7 +276,10 @@ function updateView() {
     EditorState.readOnly.of(options.readOnly),
     enableVim && vim({status: options.status}),
     options.wrap && EditorView.lineWrapping,
-    drawSelection({cursorBlinkRate: window.blinkRate})
+    drawSelection({cursorBlinkRate: window.blinkRate}),
+
+    options.gutters && [breakpointGutter, emptyLineGutter],
+    options.hexNumbers && hexLineNumbers,
   ].filter((x)=>!!x) as Extension[];
   
   view.dispatch({

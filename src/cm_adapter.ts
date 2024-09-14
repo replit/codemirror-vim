@@ -534,6 +534,9 @@ export class CodeMirror {
             lastCM5Result.to = posFromIndex(cm.cm6.state.doc, last.to);
           }
         }
+      },
+      get match() {
+        return lastCM5Result && lastCM5Result.match
       }
     };
   };

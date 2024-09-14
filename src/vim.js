@@ -6246,8 +6246,23 @@ export function initVim(CodeMirror) {
       });
     }
     function replace() {
-      var text = cm.getRange(searchCursor.from(), searchCursor.to());
-      var newText = text.replace(query, replaceWith);
+      var newText = '';
+      var match = searchCursor.match || searchCursor.pos && searchCursor.pos.match;
+      if (match) {
+        newText = replaceWith.replace(/\$(\d{1,3}|[$&])/g, function(_, x) {
+          if (x == "$") return "$";
+          if (x == '&') return match[0];
+          var x1 = x;
+          while (parseInt(x1) >= match.length && x1.length > 0) {
+            x1 = x1.slice(0, x1.length - 1);
+          }
+          if (x1) return match[x1] + x.slice(x1.length, x.length);
+          return _;
+        });
+      } else {
+        var text = cm.getRange(searchCursor.from(), searchCursor.to());
+        newText = text.replace(query, replaceWith);
+      }
       var unmodifiedLineNumber = searchCursor.to().line;
       searchCursor.replace(newText);
       modifiedLineNumber = searchCursor.to().line;

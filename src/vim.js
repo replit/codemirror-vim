@@ -5098,7 +5098,7 @@ export function initVim(CodeMirror) {
   }
   /** @arg {string} prefix  @arg {string} desc */
   function makePrompt(prefix, desc) {
-    return dom('div', {$display: 'flex'},
+    return dom('div', {$display: 'flex', $flex: 1},
               dom('span', {$fontFamily: 'monospace', $whiteSpace: 'pre', $flex: 1, $display: 'flex'},
                 prefix,
                 dom('input', {type: 'text', autocorrect: 'off',

@@ -186,7 +186,7 @@ export class CodeMirror {
   cm6: EditorView
   state: {
     statusbar?: Element | null,
-    dialog?: Element | null,
+    dialog?: HTMLElement | null,
     vimPlugin?: any,
     vim?: vimState | null,
     currentNotificationClose?: Function | null,
@@ -848,9 +848,10 @@ function openNotification(cm: CodeMirror, template: Node, options: NotificationO
 }
 
 
-function showDialog(cm: CodeMirror, dialog: Element) {
+function showDialog(cm: CodeMirror, dialog: HTMLElement) {
   var oldDialog = cm.state.dialog
   cm.state.dialog = dialog;
+  dialog.style.flex = "1";
 
   if (dialog && oldDialog !== dialog) {
     if (oldDialog && oldDialog.contains(document.activeElement))

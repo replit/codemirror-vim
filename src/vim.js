@@ -4899,40 +4899,50 @@ export function initVim(CodeMirror) {
   /** @arg {string} str */
   function translateRegex(str) {
     // When these match, add a '\' if unescaped or remove one if escaped.
+    var modes = {
+      V: '|(){+?*.[$^', // verynomagic
+      M: '|(){+?*.[', // nomagic
+      m: '|(){+?', // magic
+      v: '<>', // verymagic
+    };
+    var escapes = {
+      '>': '(?<=[\\w])(?=[^\\w]|$)',
+      '<': '(?<=[^\\w]|^)(?=[\\w])',
+    };
+    // TODO the default is supposed to be modes.m but the old implementation missed +?
     var specials = '|(){';
-    // Remove, but never add, a '\' for these.
-    var unescape = '}';
-    var escapeNextChar = false;
-    var out = [];
-    for (var i = -1; i < str.length; i++) {
-      var c = str.charAt(i) || '';
-      var n = str.charAt(i+1) || '';
-      var specialComesNext = (n && specials.indexOf(n) != -1);
-      if (escapeNextChar) {
-        if (c !== '\\' || !specialComesNext) {
-          out.push(c);
+    var regex = str.replace(/\\.|[\[|(){+*?.$^<>]/g, function(match) {
+      if (match[0] === '\\') {
+        var nextChar = match[1];
+        if (nextChar === '}' || specials.indexOf(nextChar) != -1) {
+          return nextChar;
         }
-        escapeNextChar = false;
+        if (nextChar in modes) {
+           specials = modes[nextChar];
+           return '';
+        }
+        if (nextChar in escapes) {
+          return escapes[nextChar];
+        }
+        return match;
       } else {
-        if (c === '\\') {
-          escapeNextChar = true;
-          // Treat the unescape list as special for removing, but not adding '\'.
-          if (n && unescape.indexOf(n) != -1) {
-            specialComesNext = true;
-          }
-          // Not passing this test means removing a '\'.
-          if (!specialComesNext || n === '\\') {
-            out.push(c);
-          }
-        } else {
-          out.push(c);
-          if (specialComesNext && n !== '\\') {
-            out.push('\\');
-          }
+        if (specials.indexOf(match) != -1) {
+          return escapes[match] || '\\' + match; 
         }
+        return match;
       }
+    });
+
+    var i = regex.indexOf('\\zs')
+    if (i != -1) {
+      regex = '(?<=' + regex.slice(0, i) + ')' + regex.slice(i + 3);
     }
-    return out.join('');
+    i = regex.indexOf('\\ze')
+    if (i != -1) {
+      regex = regex.slice(0, i) +  '(?=' + regex.slice(i + 3) + ')';
+    }
+
+    return regex;
   }
 
   // Translates the replace part of a search and replace from ex (vim) syntax into

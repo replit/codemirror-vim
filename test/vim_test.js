@@ -4471,6 +4471,28 @@ testVim('ex_substitute_highlight', function(cm,vim,helpers) {
   helpers.doKeys('\n');
   is(!searchHighlighted(vim));
 }, {value: 'a a\na a'});
+testVim('ex_substitute_nopcre_special', function(cm, vim, helpers) {
+  CodeMirror.Vim.setOption('pcre', false);
+
+  cm.setValue('aabb1cxyz$^o aabb2cxyz$^o aabb3cxyz$^o aabb4cxyz$^o ');
+  helpers.doEx(
+    's/'
+    + '\\v<a*(b|\\d){3}c?[x-z]+\\$\\^.> '
+    + '\\V\\<a\\*\\(b\\|\\d\\)\\{3\\}c\\?\\[x-z]\\+$^\\.\\> '
+    + '\\m\\<a*\\(b\\|\\d\\)\\{3}c\\?[x-z]\\+\\$\\^.\\> '
+    + '\\M\\<a\\*\\(b\\|\\d\\)\\{3}c\\?\\[x-z]\\+\\$\\^\\.\\>'
+    + '/M\\4 m\\3 V\\2 v\\1/'
+  );
+  eq('M4 m3 V2 v1 ', cm.getValue());
+  
+  cm.setValue('10 12 13 42');
+  helpers.doEx('s/\\m\\(1\\)\\v\\ze(\\d+)/\\2\\1 a\\1/g')
+  eq('01 a10 21 a12 31 a13 42', cm.getValue());
+  helpers.doEx('s/2\\zs\\>/b/g');
+  eq('01 a10 21 a12b 31 a13 42b', cm.getValue());
+  helpers.doEx('s/\\m\\<\\d\\+ //g');
+  eq('a10 a12b a13 42b', cm.getValue());
+}, { value: '' });
 
 // More complex substitute tests that test both pcre and nopcre options.
 function testSubstitute(name, options) {

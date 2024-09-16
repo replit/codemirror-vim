@@ -1638,6 +1638,7 @@ export function initVim(CodeMirror) {
       var promptPrefix = (forward) ? '/' : '?';
       var originalQuery = getSearchState(cm).getQuery();
       var originalScrollPos = cm.getScrollInfo();
+      var lastQuery = ""
       /** @arg {string} query  @arg {boolean} ignoreCase  @arg {boolean} smartCase */
       function handleQuery(query, ignoreCase, smartCase) {
         vimGlobalState.searchHistoryController.pushInput(query);
@@ -1665,6 +1666,9 @@ export function initVim(CodeMirror) {
           logSearchQuery(macroModeState, query);
         }
       }
+      function pcreLabel() {
+        return getOption('pcre') ? '(JavaScript regexp: set pcre)' : '(Vim regexp: set nopcre)'
+      }
       /** 
        * @arg {KeyboardEvent&{target:HTMLInputElement}} e 
        * @arg {any} query 
@@ -1681,9 +1685,13 @@ export function initVim(CodeMirror) {
         } else if (keyName && keyName != '<Left>' && keyName != '<Right>') {
           vimGlobalState.searchHistoryController.reset();
         }
+        lastQuery = query;
+        onChange();
+      }
+      function onChange() {
         var parsedQuery;
         try {
-          parsedQuery = updateSearchQuery(cm, query,
+          parsedQuery = updateSearchQuery(cm, lastQuery,
               true /** ignoreCase */, true /** smartCase */);
         } catch (e) {
           // Swallow bad regexes for incremental search.
@@ -1727,7 +1735,19 @@ export function initVim(CodeMirror) {
             showPrompt(cm, {
                 onClose: onPromptClose,
                 prefix: promptPrefix,
-                desc: '(JavaScript regexp)',
+                desc: dom(
+                  'span',
+                  {
+                    $cursor: 'pointer', 
+                    onmousedown: function(e) {
+                      e.preventDefault()
+                      setOption('pcre', !getOption('pcre'));
+                      this.textContent = pcreLabel();
+                      onChange();
+                    }
+                  },
+                  pcreLabel()
+                ),  
                 onKeyUp: onPromptKeyUp,
                 onKeyDown: onPromptKeyDown
             });
@@ -2095,7 +2115,11 @@ export function initVim(CodeMirror) {
       // If search is initiated with ? instead of /, negate direction.
       prev = (state.isReversed()) ? !prev : prev;
       highlightSearchMatches(cm, query);
-      return findNext(cm, prev/** prev */, query, motionArgs.repeat);
+      var result = findNext(cm, prev/** prev */, query, motionArgs.repeat);
+      if (!result) {
+        showConfirm(cm, 'Pattern not found ' + query);
+      }
+      return result; 
     },
     /**
      * Find and select the next occurrence of the search query. If the cursor is currently
@@ -5083,6 +5107,7 @@ export function initVim(CodeMirror) {
       else for (var key in a) {
         if (!Object.prototype.hasOwnProperty.call(a, key)) continue;
         if (key[0] === '$') n.style[key.slice(1)] = a[key];
+        else if (typeof a[key] == "function") n[key] = a[key];
         else n.setAttribute(key, a[key]);
       }
     }
@@ -5100,7 +5125,7 @@ export function initVim(CodeMirror) {
         }
         cm.state.closeVimNotification = cm.openNotification(pre, {bottom: true, duration: 0});
       } else {
-        cm.openNotification(pre, {bottom: true, duration: 5000});
+        cm.openNotification(pre, {bottom: true, duration: 15000});
       }
     } else {
       alert(pre.innerText);
@@ -6242,6 +6267,7 @@ export function initVim(CodeMirror) {
     // Set up all the functions.
     cm.state.vim.exMode = true;
     var done = false;
+    var matches = 0;
     
     /** @type {Pos}*/ var lastPos;
     /** @type {number}*/ var modifiedLineNumber
@@ -6285,6 +6311,7 @@ export function initVim(CodeMirror) {
       if (match && !match[0] && lastMatchTo && cursorEqual(searchCursor.from(), lastMatchTo)) {
         match = searchCursor.findNext();
       }
+      if (match) matches++;
       return match;
     }
     function next() {
@@ -6314,6 +6341,13 @@ export function initVim(CodeMirror) {
         vim.lastHPos = vim.lastHSPos = lastPos.ch;
       }
       if (callback) { callback(); }
+      else if (done) {
+        showConfirm(cm, 
+          (matches ? 'Found ' + matches + ' matches' : 'No matches found') +
+          ' for pattern: ' + query +
+          (getOption('pcre') ? ' (set nopcre to use Vim regexps)' : '')
+        );
+      }
     }
     /** @arg {KeyboardEvent} e   @arg {any} _value   @arg {any} close */
     function onPromptKeyDown(e, _value, close) {
@@ -6350,7 +6384,7 @@ export function initVim(CodeMirror) {
     // Actually do replace.
     next();
     if (done) {
-      showConfirm(cm, 'No matches for ' + query.source);
+      showConfirm(cm, 'No matches for ' + query +  (getOption('pcre') ? ' (set nopcre to use vim regexps)' : ''));
       return;
     }
     if (!confirm) {

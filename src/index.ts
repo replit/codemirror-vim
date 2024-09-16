@@ -34,6 +34,7 @@ const vimStyle = EditorView.baseTheme({
     padding: "0px 10px",
     fontFamily: "monospace",
     minHeight: "1.3em",
+    display: 'flex',
   },
   ".cm-vim-panel input": {
     border: "none",
@@ -50,6 +51,7 @@ const vimPlugin = ViewPlugin.fromClass(
   class implements PluginValue {
     private dom: HTMLElement;
     private statusButton: HTMLElement;
+    private spacer: HTMLElement;
     public view: EditorViewExtended;
     public cm: CodeMirror;
     public status = "";
@@ -93,7 +95,8 @@ const vimPlugin = ViewPlugin.fromClass(
       });
 
       this.dom = document.createElement("span");
-      this.dom.style.cssText = "position: absolute; right: 10px; top: 1px";
+      this.spacer = document.createElement("span");
+      this.spacer.style.flex = "1";
       this.statusButton = document.createElement("span");
       this.statusButton.onclick = (e) => {
         Vim.handleKey(this.cm, "<Esc>", "user");
@@ -157,6 +160,7 @@ const vimPlugin = ViewPlugin.fromClass(
         if (vim.insertModeReturn) status += "(C-O)"
         this.statusButton.textContent = `--${status}--`;
         dom.appendChild(this.statusButton);
+        dom.appendChild(this.spacer);
       }
 
       this.dom.textContent = vim.status;

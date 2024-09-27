@@ -1,4 +1,4 @@
-
+// test
 export function vimTests(CodeMirror, test) {
 
 function eqCursorPos(a, b) {

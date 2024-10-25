@@ -179,6 +179,7 @@ export function initVim(CodeMirror) {
     { keys: 'gN', type: 'motion', motion: 'findAndSelectNextInclusive', motionArgs: { forward: false }},
     { keys: 'gq', type: 'operator', operator: 'hardWrap' },
     { keys: 'gw', type: 'operator', operator: 'hardWrap', operatorArgs: {keepCursor: true}},
+    { keys: 'g?', type: 'operator', operator: 'rot13'},
     // Operator-Motion dual commands
     { keys: 'x', type: 'operatorMotion', operator: 'delete', motion: 'moveByCharacters', motionArgs: { forward: true }, operatorMotionArgs: { visualLine: false }},
     { keys: 'X', type: 'operatorMotion', operator: 'delete', motion: 'moveByCharacters', motionArgs: { forward: false }, operatorMotionArgs: { visualLine: true }},
@@ -2729,7 +2730,37 @@ export function initVim(CodeMirror) {
           args.registerName, 'yank',
           text, args.linewise, vim.visualBlock);
       return endPos;
-    }
+    },
+    rot13: function(cm, args, ranges, oldAnchor, newHead) {
+      var selections = cm.getSelections();
+      var swapped = [];
+      for (var j = 0; j < selections.length; j++) {
+        const replacement = selections[j]
+          .split('')
+          .map(x => {
+            const code = x.charCodeAt(0);
+            if (code >= 65 && code <= 90) { // Uppercase
+              return String.fromCharCode(65 + ((code - 65 + 13) % 26))
+            } else if (code >= 97 && code <= 122) { // Lowercase
+              return String.fromCharCode(97 + ((code - 97 + 13) % 26))
+            } else { // Not a letter
+              return x;
+            }
+          })
+          .join('')
+        swapped.push(replacement);
+      }
+      cm.replaceSelections(swapped);
+      if (args.shouldMoveCursor){
+        return newHead;
+      } else if (!cm.state.vim.visualMode && args.linewise && ranges[0].anchor.line + 1 == ranges[0].head.line) {
+        return motions.moveToFirstNonWhiteSpaceCharacter(cm, oldAnchor);
+      } else if (args.linewise){
+        return oldAnchor;
+      } else {
+        return cursorMin(ranges[0].anchor, ranges[0].head);
+      }
+    },
   };
 
   /** @arg {string} name  @arg {import("./types").OperatorFn} fn */

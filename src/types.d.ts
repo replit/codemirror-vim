@@ -192,7 +192,8 @@ type allCommands = {
     interlaceInsertRepeat?: boolean,
     exitVisualBlock?: boolean,
     isEdit?: boolean,
-    repeatOverride?: number
+    repeatOverride?: number,
+    noremap?: boolean,
 }
 export type motionCommand = allCommands & {
     type: 'motion',
@@ -223,7 +224,7 @@ export type operatorMotionCommand = allCommands & {
     operator: string,
     motionArgs?: MotionArgsPartial,
     operatorArgs?: OperatorArgs,
-    operatorMotionArgs?: { [arg: string]: boolean | string }
+    operatorMotionArgs?: { [arg: string]: boolean | string },
 }
 export type idleCommand = allCommands & { type: 'idle' }
 export type exCommand = allCommands & { type: 'ex' }

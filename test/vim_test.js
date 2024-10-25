@@ -5579,6 +5579,41 @@ testVim('option_key_on_mac', function(cm, vim, helpers) {
   helpers.assertCursorAt(3, 0);
   typeKey.optionTextInput('8', '{');
   helpers.assertCursorAt(0, 0);
+
+  typeKey.utfTextInput('d', 'д');
+  typeKey.utfTextInput('l', 'л');
+  typeKey.utfTextInput('d', 'д');
+  typeKey.utfTextInput('G', 'Г');
+  eq('', cm.getValue());
+  helpers.doKeys('"-p');
+  eq('0', cm.getValue());
+  //TODO bug in paste
+  helpers.doKeys('l');
+  helpers.assertCursorAt(0, 0);
+
+  // map A-v
+  helpers.doEx(':map <A-v> i<lt>A-v><Esc>');
+
+  // verify that replace still works
+  typeKey.utfTextInput('r', 'Ռ');
+  typeKey.optionTextInput('v', '√');
+  eq('√', cm.getValue());
+
+  typeKey.optionTextInput('v', '√');
+  eq('<A-v>√', cm.getValue());
+  
+  helpers.doEx(':map √ i√G<Esc>');
+  typeKey.optionTextInput('v', '√');
+  eq('<A-v√G>√', cm.getValue());
+
+  helpers.doEx(':unmap √');
+  typeKey.optionTextInput('v', '√');
+  eq('<A-v√<A-v>G>√', cm.getValue());
+
+  helpers.doEx(':unmap <A-v>');
+  typeKey.optionTextInput('v', '√');
+  eq('<A-v√<A-v>G>√', cm.getValue());
+
   CodeMirror.isMac = false;
 }, { value: '0\n1\n2\n\n\n3\n4\n' });
 
@@ -5848,9 +5883,9 @@ var typeKey = function() {
     }
     var key = keyCodeToKey[(shift ? "s-" : "") + keyCode];
     
-    if (options && options.macAltText) {
-      alt = true;
-      text = key = options.macAltText;
+    if (options && options.text) {
+      alt = options.altKey;
+      text = key = options.text;
       isTextInput = true;
     }
 
@@ -5964,7 +5999,11 @@ var typeKey = function() {
   // emulates option-9 inputting } on mac swiss keyboard
   type.optionTextInput = function(letter, altText) {
     reset();
-    sendKey(letter, {macAltText: altText});
+    sendKey(letter, {text: altText, altKey: true});
+  };
+
+  type.utfTextInput = function(letter, altText) {
+    sendKey(letter, {text: altText});
   };
 
   type.clipboard = {};

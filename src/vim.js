@@ -6247,6 +6247,10 @@ export function initVim(CodeMirror) {
 
   var exCommandDispatcher = new ExCommandDispatcher();
 
+  vimApi.defineEx("version", "ve", (cm) => {
+    showConfirm(cm, "Codemirror-vim version: <DEV>");
+  });
+
 /**
  * @arg {CodeMirrorV} cm CodeMirror instance we are in.
  * @arg {boolean} confirm Whether to confirm each replace.

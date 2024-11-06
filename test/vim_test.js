@@ -4450,7 +4450,7 @@ testVim('ex_substitute_javascript', function(cm, vim, helpers) {
   cm.setCursor(1, 0);
   // Throw all the things that javascript likes to treat as special values
   // into the replace part. All should be literal (this is VIM).
-  helpers.doEx('s/\\(\\d+\\)/$$ $\' $` $& \\1/g')
+  helpers.doEx('s/\\(\\d\\+\\)/$$ $\' $` $& \\1/g')
   eq('a $$ $\' $` $& 0 b', cm.getValue());
 
   cm.setValue('W12345678OR12345D');
@@ -4517,22 +4517,22 @@ testSubstitute('ex_substitute_capture', {
   // $n is a backreference
   expr: 's/(\\d+)/$1$1/g',
   // \n is a backreference.
-  noPcreExpr: 's/\\(\\d+\\)/\\1\\1/g'});
+  noPcreExpr: 's/\\(\\d\\+\\)/\\1\\1/g'});
 testSubstitute('ex_substitute_capture2', {
   value: 'a 0 b',
   expectedValue: 'a $00 b',
   expr: 's/(\\d+)/$$$1$1/g',
-  noPcreExpr: 's/\\(\\d+\\)/$\\1\\1/g'});
+  noPcreExpr: 's/\\(\\d\\+\\)/$\\1\\1/g'});
 testSubstitute('ex_substitute_nocapture', {
   value: 'a11 a12 a13',
   expectedValue: 'a$1$1 a$1$1 a$1$1',
   expr: 's/(\\d+)/$$1$$1/g',
-  noPcreExpr: 's/\\(\\d+\\)/$1$1/g'});
+  noPcreExpr: 's/\\(\\d\\+\\)/$1$1/g'});
 testSubstitute('ex_substitute_nocapture2', {
   value: 'a 0 b',
   expectedValue: 'a $10 b',
   expr: 's/(\\d+)/$$1$1/g',
-  noPcreExpr: 's/\\(\\d+\\)/\\$1\\1/g'});
+  noPcreExpr: 's/\\(\\d\\+\\)/\\$1\\1/g'});
 testSubstitute('ex_substitute_nocapture', {
   value: 'a b c',
   expectedValue: 'a $ c',
@@ -4678,7 +4678,7 @@ testSubstitute('ex_substitute_empty_match', {
   value: 'aaa  aa\n aa\nbb\n',
   expectedValue: '<aaa>  <aa>\n <aa>\nbb<>\n<>',
   expr: '%s/(a+|$)/<$1>/g',
-  noPcreExpr: '%s/\\(a+\\|$\\)/<\\1>/g'});
+  noPcreExpr: '%s/\\(a\\+\\|$\\)/<\\1>/g'});
 testSubstitute('ex_substitute_empty_or_match', {
   value: '1234\n567\n89\n0\n',
   expectedValue: '<12><34>\n<56>7<>\n<89>\n0<>\n<>',

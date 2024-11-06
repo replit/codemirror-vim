@@ -2117,7 +2117,7 @@ export function initVim(CodeMirror) {
       highlightSearchMatches(cm, query);
       var result = findNext(cm, prev/** prev */, query, motionArgs.repeat);
       if (!result) {
-        showConfirm(cm, 'Pattern not found ' + query);
+        showConfirm(cm, 'No match found ' + query);
       }
       return result; 
     },

@@ -133,9 +133,9 @@ export function initVim(CodeMirror) {
     { keys: '<C-u>', type: 'motion', motion: 'moveByScroll', motionArgs: { forward: false, explicitRepeat: true }},
     { keys: 'gg', type: 'motion', motion: 'moveToLineOrEdgeOfDocument', motionArgs: { forward: false, explicitRepeat: true, linewise: true, toJumplist: true }},
     { keys: 'G', type: 'motion', motion: 'moveToLineOrEdgeOfDocument', motionArgs: { forward: true, explicitRepeat: true, linewise: true, toJumplist: true }},
-    {keys: "g$", type: "motion", motion: "moveToEndOfDisplayLine"},
-    {keys: "g^", type: "motion", motion: "moveToStartOfDisplayLine"},
-    {keys: "g0", type: "motion", motion: "moveToStartOfDisplayLine"},
+    { keys: "g$", type: "motion", motion: "moveToEndOfDisplayLine" },
+    { keys: "g^", type: "motion", motion: "moveToStartOfDisplayLine" },
+    { keys: "g0", type: "motion", motion: "moveToStartOfDisplayLine" },
     { keys: '0', type: 'motion', motion: 'moveToStartOfLine' },
     { keys: '^', type: 'motion', motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: '+', type: 'motion', motion: 'moveByLines', motionArgs: { forward: true, toFirstChar:true }},
@@ -257,6 +257,7 @@ export function initVim(CodeMirror) {
     // Ex command
     { keys: ':', type: 'ex' }
   ];
+  var usedKeys = Object.create(null);
   var defaultKeymapLength = defaultKeymap.length;
 
   /**
@@ -972,7 +973,7 @@ export function initVim(CodeMirror) {
       if (vim.insertMode) { command = handleKeyInsertMode(); }
       else { command = handleKeyNonInsertMode(); }
       if (command === false) {
-        return !vim.insertMode && key.length === 1 ? function() { return true; } : undefined;
+        return !vim.insertMode && (key.length === 1 || (CodeMirror.isMac && /<A-.>/.test(key)))? function() { return true; } : undefined;
       } else if (command === true) {
         // TODO: Look into using CodeMirror's multi-key handling.
         // Return no-op since we are caching the key. Counts as handled, but
@@ -1150,7 +1151,7 @@ export function initVim(CodeMirror) {
     // on mac many characters are entered as option- combos
     // (e.g. on swiss keyboard { is option-8)
     // so we ignore lonely A- modifier for keypress event on mac
-    if (CodeMirror.isMac && e.altKey && !e.metaKey && !e.ctrlKey) {
+    if (CodeMirror.isMac && name == "A-" && key.length == 1) {
       name = name.slice(2);
     }
     if ((name || key.length > 1) && e.shiftKey) { name += 'S-'; }
@@ -1159,10 +1160,16 @@ export function initVim(CodeMirror) {
       if (langmap.keymap && key in langmap.keymap) {
         if (langmap.remapCtrl != false || !name)
           key = langmap.keymap[key];
-      } else if (key.charCodeAt(0) > 255) {
-        var code = e.code?.slice(-1) || "";
-        if (!e.shiftKey) code = code.toLowerCase();
-        if (code) key = code;
+      } else if (key.charCodeAt(0) > 128) {
+        if (!usedKeys[key]) {
+          var code = e.code?.slice(-1) || "";
+          if (!e.shiftKey) code = code.toLowerCase();
+          if (code) {
+            key = code;
+            // also restore A- for mac
+            if (!name && e.altKey) name = 'A-'
+          }
+        }
       }
     }
 
@@ -5663,6 +5670,7 @@ export function initVim(CodeMirror) {
         }
       } else {
         // Key to key or ex mapping
+        /**@type {vimKey} */
         var mapping = {
           keys: lhs,
           type: 'keyToKey',
@@ -5670,8 +5678,7 @@ export function initVim(CodeMirror) {
           noremap: !!noremap
         };
         if (ctx) { mapping.context = ctx; }
-        // @ts-ignore
-        defaultKeymap.unshift(mapping);
+        _mapCommand(mapping);
       }
     }
     /**@type {(lhs: string, ctx: string) => boolean|void} */
@@ -5691,6 +5698,7 @@ export function initVim(CodeMirror) {
           if (keys == defaultKeymap[i].keys
               && defaultKeymap[i].context === ctx) {
             defaultKeymap.splice(i, 1);
+            removeUsedKeys(keys);
             return true;
           }
         }
@@ -6472,6 +6480,25 @@ export function initVim(CodeMirror) {
   /** @arg {vimKey} command*/
   function _mapCommand(command) {
     defaultKeymap.unshift(command);
+    if (command.keys) addUsedKeys(command.keys);
+  }
+
+  /** @arg {string} keys */
+  function addUsedKeys(keys) {
+    keys.split(/(<(?:[CSMA]-)*\w+>|.)/i).forEach(function(part) {
+      if (part) {
+        if (!usedKeys[part]) usedKeys[part] = 0;
+        usedKeys[part]++;
+      }
+    });
+  }
+
+  /** @arg {string} keys */
+  function removeUsedKeys(keys) {
+    keys.split(/(<(?:[CSMA]-)*\w+>|.)/i).forEach(function(part) {
+      if (usedKeys[part])
+        usedKeys[part]--;
+    });
   }
 
   /** 

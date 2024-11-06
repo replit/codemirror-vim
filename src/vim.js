@@ -4933,8 +4933,7 @@ export function initVim(CodeMirror) {
       '>': '(?<=[\\w])(?=[^\\w]|$)',
       '<': '(?<=[^\\w]|^)(?=[\\w])',
     };
-    // TODO the default is supposed to be modes.m but the old implementation missed +?
-    var specials = '|(){';
+    var specials = modes.m;
     var regex = str.replace(/\\.|[\[|(){+*?.$^<>]/g, function(match) {
       if (match[0] === '\\') {
         var nextChar = match[1];

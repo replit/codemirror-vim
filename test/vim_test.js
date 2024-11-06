@@ -4490,6 +4490,10 @@ testVim('ex_substitute_javascript', function(cm, vim, helpers) {
   // into the replace part. All should be literal (this is VIM).
   helpers.doEx('s/\\(\\d+\\)/$$ $\' $` $& \\1/g')
   eq('a $$ $\' $` $& 0 b', cm.getValue());
+
+  cm.setValue('W12345678OR12345D');
+  helpers.doEx('s/\\d//g');
+  eq('WORD', cm.getValue());
 }, { value: 'a 0 b' });
 testVim('ex_substitute_empty_arguments', function(cm,vim,helpers) {
   cm.setCursor(0, 0);

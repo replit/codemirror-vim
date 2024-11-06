@@ -470,6 +470,7 @@ export class CodeMirror {
     type CM5Result = { from: Pos, to: Pos, match: string[] } | null;
     var last: CM6Result = null;
     var lastCM5Result: CM5Result = null;
+    var afterEmptyMatch = false;
 
     if (pos.ch == undefined) pos.ch = Number.MAX_VALUE;
     var firstOffset = indexFromPos(cm.cm6.state.doc, pos);
@@ -507,10 +508,10 @@ export class CodeMirror {
       find: function (back?: boolean): string[] | null | undefined {
         var doc = cm.cm6.state.doc
         if (back) {
-          let endAt = last ? (last.from == last.to ? last.to - 1 : last.from) : firstOffset
+          let endAt = last ? (afterEmptyMatch ? last.to - 1 : last.from) : firstOffset
           last = prevMatchInRange(0, endAt);
         } else {
-          let startFrom = last ? (last.from == last.to ? last.to + 1 : last.to) : firstOffset
+          let startFrom = last ? (afterEmptyMatch ? last.to + 1 : last.to) : firstOffset
           last = nextMatch(startFrom)
         }
         lastCM5Result = last && {
@@ -518,6 +519,7 @@ export class CodeMirror {
           to: posFromIndex(doc, last.to),
           match: last.match,
         }
+        afterEmptyMatch = last ? last.from == last.to : false;
         return last && last.match
       },
       from: function () { return lastCM5Result?.from },

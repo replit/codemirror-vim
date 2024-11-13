@@ -1,5 +1,5 @@
 import { SelectionRange, Prec } from "@codemirror/state"
-import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
+import { ViewUpdate, EditorView, Direction, Rect } from "@codemirror/view"
 import { CodeMirror } from "."
 
 import * as View  from "@codemirror/view"
@@ -149,6 +149,34 @@ function getBase(view: EditorView) {
   return {left: left - view.scrollDOM.scrollLeft, top: rect.top - view.scrollDOM.scrollTop}
 }
 
+// Like coordsAtPos, provides screen coordinates for a document position, but
+// unlike coordsAtPos, the top and bottom represent the full height of the
+// visual line rather than the top and bottom of the text. To do this, it relies
+// on the assumption that all text in the document has the same height and that
+// the line contains no widget or decoration that changes the height of the
+// line.
+function fullHeightCoordsAtPos(
+    view: EditorView,
+    pos: number,
+    side?: -2 | -1 | 1 | 2 | undefined
+): Rect | null {
+  // @ts-ignore CodeMirror has incorrect type on coordsAtPos
+  const coords = view.coordsAtPos(pos, side);
+  if (!coords) {
+    return null;
+  }
+
+  const halfLeading =
+      (view.defaultLineHeight - (coords.bottom - coords.top)) / 2;
+
+  return {
+    left: coords.left,
+    right: coords.right,
+    top: coords.top - halfLeading,
+    bottom: coords.bottom + halfLeading,
+  };
+}
+
 function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange, primary: boolean): Piece | null {
   let head = cursor.head;
   let fatCursor = false;
@@ -174,7 +202,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       head--;
       letter = view.state.sliceDoc(head, head + 1);
     }
-    let pos = view.coordsAtPos(head, 1);
+    let pos = fullHeightCoordsAtPos(view, head, 1);
     if (!pos) return null;
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);

@@ -44,5 +44,8 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/replit/codemirror-vim.git"
+  },
+  "dependencies": {
+    "vite-node": "^2.1.5"
   }
 }

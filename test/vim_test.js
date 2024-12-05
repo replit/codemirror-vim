@@ -5136,6 +5136,12 @@ testVim('ex_imap', function(cm, vim, helpers) {
     eq('xox4\nfox8\nfoodxfg', cm.getValue());
     eq(3, cm.listSelections().length);
   }
+
+  cm.setValue('1\n2')
+  helpers.doKeys('gg', 'dd');
+  helpers.doEx('imap a <C-c>');
+  helpers.doKeys('i', 'x', 'a', 'p');
+  eq('x2\n1', cm.getValue());
 }, { value: '1234\n5678\nabcdefg' });
 testVim('ex_unmap_api', function(cm, vim, helpers) {
   CodeMirror.Vim.map('<Alt-X>', 'gg', 'normal');

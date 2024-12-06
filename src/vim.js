@@ -2791,8 +2791,40 @@ export function initVim(CM) {
     },
     indent: function(cm, args, ranges) {
       var vim = cm.state.vim;
-      var repeat = (vim.visualMode) ? (args.repeat || 0) : 1;
-      if (cm.indentMore) {
+      // In visual mode, n> shifts the selection right n times, instead of
+      // shifting n lines right once.
+      var repeat = vim.visualMode ? args.repeat || 1 : 1;
+      if (vim.visualBlock) {
+        var tabSize = cm.getOption('tabSize');
+        var indent = cm.getOption('indentWithTabs') ? '\t' : ' '.repeat(tabSize);
+        var cursor;
+        for (var i = ranges.length - 1; i >= 0; i--) {
+          cursor = cursorMin(ranges[i].anchor, ranges[i].head);
+          if (args.indentRight) {
+            cm.replaceRange(indent.repeat(repeat), cursor, cursor);
+          } else {
+            var text = cm.getLine(cursor.line);
+            var end = 0;
+            for (var j = 0; j < repeat; j++) {
+              var ch = text[cursor.ch + end];
+              if (ch == '\t') {
+                end++;
+              } else if (ch == ' ') {
+                end++;
+                for (var k = 1; k < indent.length; k++) {
+                  ch = text[cursor.ch + end];
+                  if (ch !== ' ') break;
+                  end++;
+                }
+              } else {
+                break
+              }
+            }
+            cm.replaceRange('', cursor, offsetCursor(cursor, 0, end));
+          }
+        }
+        return cursor;
+      } else if (cm.indentMore) {
         for (var j = 0; j < repeat; j++) {
           if (args.indentRight) cm.indentMore();
           else cm.indentLess();
@@ -2802,8 +2834,6 @@ export function initVim(CM) {
         var endLine = vim.visualBlock ?
           ranges[ranges.length - 1].anchor.line :
           ranges[0].head.line;
-        // In visual mode, n> shifts the selection right n times, instead of
-        // shifting n lines right once.
         if (args.linewise) {
           // The only way to delete a newline is to delete until the start of
           // the next line, so in linewise mode evalInput will include the next

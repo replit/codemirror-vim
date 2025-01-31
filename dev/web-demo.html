@@ -614,7 +614,9 @@
     <a href="./cm5/index.html">cm5 demo</a>
 <script>
     // console.log(ts)
+    var currentUrl = require.config.baseUrl;
     require.config({
+        baseUrl: "https://unpkg.com/",
         paths: {
             "codemirror": "https://unpkg.com/codemirror/dist/index.cjs",
             "@codemirror/view": "https://unpkg.com/@codemirror/view/dist/index.cjs",
@@ -634,11 +636,11 @@
             "crelt": "https://unpkg.com/crelt/dist/index.cjs",
             "@codemirror/lang-xml": "https://unpkg.com/@codemirror/lang-xml", 
             "@codemirror/lang-javascript": "https://unpkg.com/@codemirror/lang-javascript",
-            "dev/index": require.config.baseUrl.replace("dev", "dev/index.ts"),
-            "src/index": require.config.baseUrl.replace("dev", "src/index.ts"),
-            "src/block-cursor": require.config.baseUrl.replace("dev", "src/block-cursor.ts"),
-            "src/cm_adapter": require.config.baseUrl.replace("dev", "src/cm_adapter.ts"),
-            "src/vim": require.config.baseUrl.replace("dev", "src/vim.js"),
+            "dev/index": currentUrl.replace("dev", "dev/index.ts"),
+            "src/index": currentUrl.replace("dev", "src/index.ts"),
+            "src/block-cursor": currentUrl.replace("dev", "src/block-cursor.ts"),
+            "src/cm_adapter": currentUrl.replace("dev", "src/cm_adapter.ts"),
+            "src/vim": currentUrl.replace("dev", "src/vim.js"),
         }
     });
     
@@ -662,8 +664,8 @@
 
         require.config({
             paths: {
-                "test/webtest-vim": require.config.baseUrl.replace("dev", "test/webtest-vim.js"),
-                "test/vim_test.js": require.config.baseUrl.replace("dev", "test/vim_test.js"),
+                "test/webtest-vim": currentUrl.replace("dev", "test/webtest-vim.js"),
+                "test/vim_test.js": currentUrl.replace("dev", "test/vim_test.js"),
             }
         });
         define("test/..", function(require, exports, module) {

@@ -3,7 +3,7 @@ import { highlightActiveLine, keymap, Decoration, DecorationSet,
    ViewPlugin, ViewUpdate, WidgetType, drawSelection } from '@codemirror/view';
 import { javascript } from '@codemirror/lang-javascript';
 import { xml } from '@codemirror/lang-xml';
-import { Vim, vim } from "../src/index"
+import { Vim, vim } from "../src/index" // "@replit/codemirror-vim" 
 
 import * as commands from "@codemirror/commands";
 import { Annotation, Compartment, EditorState, Extension, Transaction, Range } from '@codemirror/state';
@@ -25,7 +25,8 @@ new EditorView({
 
 `;
 
-function addOption(name, description?, onclick?) {
+function addOption(name: "wrap"|"html"|"status"|"jj"|"split"|"readOnly",
+   description?: string, onclick?: (value: boolean) => void) {
   let checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.id = name;
@@ -49,8 +50,8 @@ class TestWidget extends WidgetType {
     constructor(private side: number) {
         super(); 
     }
-    eq(other) {
-        return (true);
+    override eq(other: TestWidget) {
+        return other == this;
     }
     toDOM() {
         const wrapper = document.createElement('span');
@@ -58,7 +59,7 @@ class TestWidget extends WidgetType {
         wrapper.style.opacity = '0.4';
         return wrapper;
     }
-    ignoreEvent() {
+    override ignoreEvent() {
         return false;
     }
 }
@@ -73,7 +74,7 @@ function widgets(view: EditorView) {
     })
     widgets.push(deco.range(200 + 10 * i))
   }
-  console.log(widgets)
+  console.log(widgets, view)
   return Decoration.set(widgets)
 }
 
@@ -93,6 +94,7 @@ const testWidgetPlugin = ViewPlugin.fromClass(class {
 
   eventHandlers: {
     mousedown: (e, view) => {
+      console.log("mousedown", e, view)
     }
   }
 })
@@ -117,10 +119,12 @@ var options = {
 
 
 Vim.defineOption('wrap', false, 'boolean', null, function(val, cm) {
+  if (!cm) console.log("should set global option");
   if (val == undefined) return options.wrap;
-  var checkbox = document.getElementById("wrap");
+  var checkbox = document.getElementById("wrap") as HTMLInputElement;
   if (checkbox) {
     checkbox.checked = val;
+    //@ts-ignore
     checkbox.onclick();
   }
 });
@@ -166,13 +170,14 @@ var defaultExtensions = [
   ]),
 ]
 
-function saveTab(name) {
+function saveTab(name: string) {
   return EditorView.updateListener.of((v) => {
     tabs[name] = v.state;
   })
 }
 
-var tabs = {
+
+var tabs: Record<string, EditorState> = {
   js: EditorState.create({
     doc: doc,
     extensions: [...defaultExtensions, javascript(), saveTab("js")]
@@ -180,7 +185,7 @@ var tabs = {
   html: EditorState.create({
     doc: document.documentElement.outerHTML,
     extensions: [...defaultExtensions, testWidgetPlugin, xml(), saveTab("html")]
-  })
+  }),
 }
 
 function updateView() {
@@ -204,17 +209,25 @@ function updateView() {
   })
 }
 
+declare global {
+  interface Window {
+    blinkRate?: number;
+  }
+}
+
 function selectTab(tab: string) {
-  if (view) view.setState(tabs[tab])
-  if (view2) view2.setState(tabs[tab])
+  let state = tabs[tab];
+  if (!state) return;
+  if (view) view.setState(state)
+  if (view2) view2.setState(state)
   addLogListeners();
 }
 
 Vim.defineEx("tabnext", "tabn", () => {
-  tabs["scratch"] = EditorState.create({
+  tabs.scratch = EditorState.create({
     doc: "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n",
     extensions: [defaultExtensions, saveTab("scratch")],
-  })
+  });
   selectTab("scratch")
 });
 
@@ -304,7 +317,7 @@ updateView()
 // save and  restor search history
 
 
-function saveHistory(name) {
+function saveHistory(name: "exCommandHistoryController"|"searchHistoryController") {
   var controller = Vim.getVimGlobalState_()[name];
   var json = JSON.stringify(controller);
   if (json.length > 10000) {
@@ -315,11 +328,11 @@ function saveHistory(name) {
   }
   localStorage[name] = json;
 }
-function restoreHistory(name) {
+function restoreHistory(name: "exCommandHistoryController"|"searchHistoryController") {
   try {
     var json = JSON.parse(localStorage[name]);
     var controller = Vim.getVimGlobalState_()[name];
-    controller.historyBuffer = json.historyBuffer.filter(x => typeof x == "string" && x)
+    controller.historyBuffer = json.historyBuffer.filter((x: unknown) => typeof x == "string" && x)
     controller.iterator = Math.min(parseInt(json.iterator) || Infinity, controller.historyBuffer.length)
   } catch(e) {
 

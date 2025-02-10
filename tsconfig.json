@@ -3,9 +3,10 @@
         // "module": "commonjs",
         "noImplicitAny": false,
         // "noEmit": true,
-        // "declaration": false,
+        "declaration": true,
+        "emitDeclarationOnly": true,
         // "lib": ["es2019", "DOM"]
-        "outDir": "./dist",
+        "outDir": "./out",
         "allowJs": true,
         "checkJs": true,
         "lib": ["es6", "dom", "scripthost"],

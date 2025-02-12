@@ -5,10 +5,11 @@
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",
-    "static": "tsc --noEmit",
-    "testAll": "yarn run static && yarn run test && cd dev/cm5 && yarn run buildAndTest",
-    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs",
+    "build-types": "rm -rf out && tsc && dts-bundle-generator out/index.ts -o dist/index.d.ts && cp dist/index.d.ts dist/index.d.cts",
+    "testAll": "yarn run build-test-package && yarn run test && cd dev/cm5 && yarn run buildAndTest",
+    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && npm run build-types",
     "publish": "yarn run build && npm publish",
+    "build-test-package": "bash ./scripts/build-test-package.sh",
     "prepare": "yarn run build"
   },
   "keywords": [
@@ -38,9 +39,14 @@
     "@codemirror/lang-xml": "^6.0.0",
     "@codemirror/language": "^6.1.0",
     "codemirror": "6.0.1",
-    "typescript": "^5.0.2",
-    "vite": "^2.9.6"
+    "dts-bundle-generator": "^9.5.1",
+    "typescript": "^5.7.3",
+    "vite": "^6.1.0"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/replit/codemirror-vim.git"

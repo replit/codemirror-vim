@@ -2,18 +2,26 @@ import { CodeMirror } from "./cm_adapter"
 import {initVim} from "./vim"
 export type Vim = ReturnType<typeof initVim>
 export type vimState = {
-    onPasteFn?: any,
+    onPasteFn?: () => void,
     sel: {head: Pos, anchor: Pos},
     insertModeReturn: boolean, 
     visualBlock: boolean, 
     marks: {[mark: string]: Marker}, 
     visualMode: boolean, 
     insertMode: boolean, 
-    pasteFn: any, 
-    lastSelection: any, 
-    searchState_: any, 
+    pasteFn?: any, 
+    lastSelection: {
+        anchorMark: Marker,
+        headMark: Marker,
+        visualLine: boolean,
+        visualBlock: boolean,
+        visualMode: boolean,
+        anchor: Pos,
+        head: Pos,
+    }, 
+    searchState_?: SearchStateInterface, 
     lastEditActionCommand: actionCommand|void, 
-    lastPastedText: any, 
+    lastPastedText?: string, 
     lastMotion: any, 
     options: {[optionName: string]: vimOption}, 
     lastEditInputState: InputStateInterface|void, 
@@ -29,7 +37,6 @@ export type vimState = {
     exMode?: boolean,
     mode?: any,
     expectLiteralNext?: boolean,
-    constructor(): void;
 }
 export type Marker = ReturnType<CodeMirror["setBookmark"]>
 export type LineHandle = ReturnType<CodeMirror["getLineHandle"]>
@@ -67,7 +74,12 @@ export type OperatorArgs = {
     toLower?: boolean,
     shouldMoveCursor?: boolean,
     selectedCharacter?: string,
-    lastSel?: any;
+    lastSel?: {
+        head: Pos,
+        anchor: Pos,
+        visualLine: boolean,
+        visualBlock: boolean,
+    },
     keepCursor?: boolean;
 } 
 // version of CodeMirror with vim state checked
@@ -173,15 +185,49 @@ export type vimMotions = {
     [key: string]: MotionFn
 }
 
-
+export type exCommandDefinition = {
+    name: string,
+    shortName?: string,
+    possiblyAsync?: boolean,
+    excludeFromCommandHistory?: boolean,
+    argDelimiter?: string,
+    type? : string,
+    toKeys? : string,
+    toInput?: string,
+    user?: boolean,
+    noremap?: boolean,
+};
 
 export type optionCallback = (value?: string|undefined, cm?: CodeMirror) => any
+export type booleanOptionCallback = (value?: boolean, cm?: CodeMirror) => any
+export type numberOptionCallback = (value?: number, cm?: CodeMirror) => any
+export type stringOptionCallback = (value?: string, cm?: CodeMirror) => any
+
 export type vimOption = {
     type?: string,
     defaultValue?: unknown,
     callback?: optionCallback,
     value?: unknown
-}
+} | {
+    type: 'boolean',
+    defaultValue?: boolean|null|undefined,
+    callback?: booleanOptionCallback,
+    value?: boolean
+}; 
+export type defineOption1 = ((
+    name: string,
+    defaultValue: unknown,
+    type: string,
+    aliases?: string[]|undefined|null,
+    callback?: optionCallback
+) => void) 
+export type defineOption2 = ((
+    name: string,
+    defaultValue: boolean|undefined|null,
+    type: 'boolean',
+    aliases?: string[]|undefined|null,
+    callback?: booleanOptionCallback
+) => void);
 
 
 export type ExFn = (cm: CodeMirrorV, params: ExParams)=> void;
@@ -224,7 +270,9 @@ export type operatorMotionCommand = allCommands & {
     operator: string,
     motionArgs?: MotionArgsPartial,
     operatorArgs?: OperatorArgs,
-    operatorMotionArgs?: { [arg: string]: boolean | string },
+    operatorMotionArgs?: { 
+        visualLine?: boolean,
+    },
 }
 export type idleCommand = allCommands & { type: 'idle' }
 export type exCommand = allCommands & { type: 'ex' }
@@ -253,7 +301,7 @@ export interface InputStateInterface {
     motionArgs: MotionArgs | null;
     keyBuffer: any[];
     registerName?: string;
-    changeQueue: any;
+    changeQueue: null | { inserted: string, removed: string[]};
     operatorShortcut?: string;
     selectedCharacter?: string;
     repeatOverride?: number;
@@ -261,6 +309,28 @@ export interface InputStateInterface {
     pushRepeatDigit(n: string): void;
     getRepeat(): number;
 }
+export interface SearchStateInterface {
+    setReversed(reversed: boolean): void;
+    isReversed(): boolean|undefined;
+    getQuery(): RegExp; 
+    setQuery(query: string|RegExp): void;
+    highlightTimeout: number|undefined;
+    getOverlay(): {
+        query: RegExp,
+    };
+    getScrollbarAnnotate(): any;
+    setScrollbarAnnotate(query: RegExp| null): void;
+    setOverlay(overlay: {query: RegExp}|null): void;
+}
+
+export type exCommandArgs = {
+    callback?: (() => void) | undefined; 
+    input?: string | undefined; 
+    line?: string | undefined;
+    commandName?: string | undefined;
+    argString?: string;
+    args?: string[]; 
+};
 
 export type vimExCommands = {
     colorscheme(cm: CodeMirrorV, params: vimExCommandsParams): void,
@@ -302,10 +372,9 @@ type vimExCommandsParams = {
     selectionLineEnd?: number
 }
 
-
 export type InsertModeChanges = {
-    changes: any;
-    expectCursorActivityForChange: any;
+    changes: any[];
+    expectCursorActivityForChange: boolean;
     visualBlock?: number,
     maybeReset?: boolean,
     ignoreCount?: number,
@@ -324,8 +393,17 @@ export type ExParams = {
     selectionLineEnd?: number,
 
     setCfg?: Object,
-    callback?: any,
+    callback?: () => void,
+}
 
+export type PromptOptions = {
+    onClose?: Function; 
+    prefix: string|HTMLElement;
+    desc?: string|HTMLElement; 
+    onKeyUp?: Function; 
+    onKeyDown: Function; 
+    value?: string; 
+    selectValueOnOpen?: boolean;
 }
 
 

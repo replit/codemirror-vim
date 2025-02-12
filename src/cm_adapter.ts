@@ -152,8 +152,8 @@ export class CodeMirror {
     return wordChar.test(ch);
   };
   static keys: any = keys;
-  static addClass = function (el, str) { };
-  static rmClass = function (el, str) { };
+  static addClass = function (el: any, str: string) { };
+  static rmClass = function (el: any, str: string) { };
   static e_preventDefault = function (e: Event) {
     e.preventDefault()
   };
@@ -172,7 +172,7 @@ export class CodeMirror {
   static signal = signal;
 
   // --------------------------
-  openDialog(template: Element, callback: Function, options: any) {
+  openDialog(template: Element, callback: Function|undefined, options: any) {
     return openDialog(this, template, callback, options);
   };
   openNotification(template: Node, options: NotificationOptions) {
@@ -674,7 +674,7 @@ export class CodeMirror {
       curOp.cursorActivityHandlers = this._handlers["cursorActivity"] && this._handlers["cursorActivity"].slice();
     this.curOp.cursorActivity = true;
   };
-  operation(fn: Function, force?: boolean) {
+  operation<T>(fn: ()=>T, force?: boolean) {
     if (!this.curOp)
       this.curOp = { $d: 0 };
     this.curOp.$d++;
@@ -727,7 +727,7 @@ export class CodeMirror {
 
     }
   };
-  getOption(name:"firstLineNumber"|"tabSize"): number;
+  getOption(name:"firstLineNumber"|"tabSize"|"textwidth"): number;
   getOption(name:string): number|boolean|string|undefined;
   getOption(name: string) {
     switch (name) {
@@ -875,7 +875,7 @@ function hideDialog(cm: CodeMirror, dialog: Element) {
   }
 }
 
-function openDialog(me: CodeMirror, template: Element, callback: Function, options: any) {
+function openDialog(me: CodeMirror, template: Element, callback: Function|undefined, options: any) {
   if (!options) options = {};
 
   closeNotification(me, undefined);
@@ -913,7 +913,7 @@ function openDialog(me: CodeMirror, template: Element, callback: Function, optio
 
     CodeMirror.on(inp, "keydown", function (e: KeyboardEvent) {
       if (options && options.onKeyDown && options.onKeyDown(e, inp.value, close)) { return; }
-      if (e.keyCode == 13) callback(inp.value);
+      if (e.keyCode == 13) callback && callback(inp.value);
       if (e.keyCode == 27 || (options.closeOnEnter !== false && e.keyCode == 13)) {
         inp.blur();
         CodeMirror.e_stop(e);
@@ -968,7 +968,8 @@ function scanForBracket(cm: CodeMirror, where: Pos, dir: -1 | 1, style: any, con
   return lineNo - dir == (dir > 0 ? cm.lastLine() : cm.firstLine()) ? false : null;
 }
 
-function findMatchingTag(cm: CodeMirror, pos: Pos): undefined {
+function findMatchingTag(cm: CodeMirror, pos: Pos) {
+  return null;
 }
 
 function findEnclosingTag(cm: CodeMirror, pos: Pos) {
@@ -1029,7 +1030,7 @@ class Marker {
 
 
 
-function hardWrap(cm, options) {
+function hardWrap(cm: CodeMirror, options: {from: number, to: number, column?: number, allowMerge?: boolean}) {
   var max = options.column || cm.getOption('textwidth') || 80;
   var allowMerge = options.allowMerge != false;
      
@@ -1066,7 +1067,7 @@ function hardWrap(cm, options) {
   }
   return row;
 
-  function findSpace(line, max, min) {
+  function findSpace(line: string, max: number, min: number) {
     if (line.length < max)
       return;
     var before = line.slice(0, max);

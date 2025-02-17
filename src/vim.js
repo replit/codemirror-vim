@@ -6587,7 +6587,7 @@ export function initVim(CM) {
       vim.insertEnd = undefined;
       CM.off(cm.getInputField(), 'keydown', onKeyEventTargetKeyDown);
     }
-    if (!isPlaying && vim.insertModeRepeat > 1) {
+    if (!isPlaying && vim.insertModeRepeat && vim.insertModeRepeat > 1) {
       // Perform insert mode repeat for commands like 3,a and 3,o.
       repeatLastEdit(cm, vim, vim.insertModeRepeat - 1,
           true /** repeatForInsert */);
@@ -7050,7 +7050,7 @@ export function initVim(CM) {
       }, true);
     }
     // some commands may bring visualMode and selection out of sync
-    if (isHandled && !vim.visualMode && !vim.insert && vim.visualMode != cm.somethingSelected()) {
+    if (isHandled && !vim.visualMode && !vim.insertMode && vim.visualMode != cm.somethingSelected()) {
       handleExternalSelection(cm, vim);
     }
     return isHandled;

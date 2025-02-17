@@ -346,3 +346,7 @@ window.onunload = function() {
   saveHistory('exCommandHistoryController');
   saveHistory('searchHistoryController');
 }
+
+Vim.defineEx("write", "w", (cm) => {
+  console.log("called", cm);
+})

@@ -53,6 +53,7 @@ export function initVim(CM) {
  * @typedef { import("./types").Marker } Marker
  * @typedef { import("./types").InputStateInterface } InputStateInterface
  * @typedef { import("./types").SearchStateInterface } SearchStateInterface
+ * @typedef { import("./types").InsertModeChanges } InsertModeChanges
  */
   var Pos = CM.Pos;
 
@@ -1358,19 +1359,24 @@ export function initVim(CM) {
    * inserted at the cursor position.)
    */
   class Register {
+    /** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
     constructor(text, linewise, blockwise) {
       this.clear();
       this.keyBuffer = [text || ''];
+      /** @type {InsertModeChanges[]} */
       this.insertModeChanges = [];
+      /** @type {string[]}*/
       this.searchQueries = [];
       this.linewise = !!linewise;
       this.blockwise = !!blockwise;
     }
+    /** @arg {string} [text] @arg {boolean} [linewise] @arg {boolean } [blockwise] */
     setText(text, linewise, blockwise) {
       this.keyBuffer = [text || ''];
       this.linewise = !!linewise;
       this.blockwise = !!blockwise;
     }
+    /** @arg {string} text @arg {boolean} [linewise] */
     pushText(text, linewise) {
       // if this register has ever been set to linewise, use linewise.
       if (linewise) {
@@ -1381,9 +1387,11 @@ export function initVim(CM) {
       }
       this.keyBuffer.push(text);
     }
+    /** @arg {InsertModeChanges} changes */
     pushInsertModeChanges(changes) {
       this.insertModeChanges.push(createInsertModeChanges(changes));
     }
+    /** @arg {string} query */
     pushSearchQuery(query) {
       this.searchQueries.push(query);
     }
@@ -1803,7 +1811,7 @@ export function initVim(CM) {
             (keyName == '<BS>' && query == '')) {
           vimGlobalState.searchHistoryController.pushInput(query);
           vimGlobalState.searchHistoryController.reset();
-          updateSearchQuery(cm, originalQuery);
+          updateSearchQuery(cm, originalQuery?.source || "");
           clearSearchHighlight(cm);
           cm.scrollTo(originalScrollPos.left, originalScrollPos.top);
           CM.e_stop(e);
@@ -3777,7 +3785,7 @@ export function initVim(CM) {
                           'visualLine': vim.visualLine,
                           'visualBlock': vim.visualBlock};
   }
-  /** @arg {CodeMirrorV} cm @arg {Pos} start @arg {Pos} end @returns {[Pos, Pos]} */
+  /** @arg {CodeMirrorV} cm @arg {Pos} start @arg {Pos} end @arg {Boolean} [move] @returns {[Pos, Pos]} */
   function expandSelection(cm, start, end, move) {
     var sel = cm.state.vim.sel;
     var head = move ? start: sel.head;
@@ -5170,7 +5178,7 @@ export function initVim(CM) {
    * If the query contains the /i in the flag part of the regular expression,
    *   then both ignoreCase and smartCase are ignored, and 'i' will be passed
    *   through to the Regex object.
-   * @arg {string|RegExp} query
+   * @arg {string} query
    * @arg {boolean} ignoreCase
    * @arg {boolean} smartCase
    */
@@ -5178,8 +5186,6 @@ export function initVim(CM) {
     // First update the last search register
     var lastSearchRegister = vimGlobalState.registerController.getRegister('/');
     lastSearchRegister.setText(query);
-    // Check if the query is already a regex.
-    if (query instanceof RegExp) { return query; }
     // First try to extract regex + flags from the input. If no flags found,
     // extract just the regex. IE does not accept flags directly defined in
     // the regex string in the form /regex/flags
@@ -5305,7 +5311,7 @@ export function initVim(CM) {
   // Returns true if the query is valid.
   /**
    * @arg {CodeMirrorV} cm 
-   * @arg {string | RegExp} rawQuery 
+   * @arg {string } rawQuery 
    * @arg {boolean | undefined} [ignoreCase] 
    * @arg {boolean | undefined} [smartCase]
   */
@@ -6115,6 +6121,7 @@ export function initVim(CM) {
     },
     /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
     normal: function(cm, params) {
+      var noremap = false;
       var argString = params.argString;
       if (argString && argString[0] == '!') {
           argString = argString.slice(1);
@@ -6130,13 +6137,13 @@ export function initVim(CM) {
         var lineEnd = isNaN(params.lineEnd) ? line : params.lineEnd;
         for (var i = line; i <= lineEnd; i++) {
           cm.setCursor(i, 0);
-          doKeyToKey(cm, params.argString.trimStart());
+          doKeyToKey(cm, params.argString.trimStart(), {noremap});
           if (cm.state.vim.insertMode) {
             exitInsertMode(cm, true);
           }
         }
       } else {
-        doKeyToKey(cm, params.argString.trimStart());
+        doKeyToKey(cm, params.argString.trimStart(), {noremap});
         if (cm.state.vim.insertMode) {
           exitInsertMode(cm, true);
         }

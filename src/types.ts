@@ -22,20 +22,19 @@ export type vimState = {
     searchState_?: SearchStateInterface, 
     lastEditActionCommand: actionCommand|void, 
     lastPastedText?: string, 
-    lastMotion: any, 
+    lastMotion?: MotionFn|null, 
     options: {[optionName: string]: vimOption}, 
     lastEditInputState: InputStateInterface|void, 
     inputState: InputStateInterface,
     visualLine: boolean, 
-    insertModeRepeat: any,
+    insertModeRepeat?: number,
     lastHSPos: number,
     lastHPos: number,
     wasInVisualBlock?: boolean,
-    insert?: any,
     insertEnd?: Marker,
     status: string,
     exMode?: boolean,
-    mode?: any,
+    mode?: string,
     expectLiteralNext?: boolean,
 }
 export type Marker = ReturnType<CodeMirror["setBookmark"]>
@@ -276,7 +275,7 @@ export type operatorMotionCommand = allCommands & {
 }
 export type idleCommand = allCommands & { type: 'idle' }
 export type exCommand = allCommands & { type: 'ex' }
-export type keyToExCommand = allCommands & { type: 'keyToEx', exArgs: { [arg: string]: any } }
+export type keyToExCommand = allCommands & { type: 'keyToEx', exArgs: ExParams }
 export type keyToKeyCommand = allCommands & { toKeys: string, type: 'keyToKey' }
 
 export type vimKey =
@@ -294,18 +293,18 @@ export type vimKeyMap = vimKey[];
 
 export interface InputStateInterface {
     prefixRepeat: string[];
-    motionRepeat: any[];
-    operator: any| undefined | null;
+    motionRepeat: string[];
+    operator: string| undefined | null;
     operatorArgs: OperatorArgs | undefined | null;
     motion: string | undefined | null;
     motionArgs: MotionArgs | null;
-    keyBuffer: any[];
+    keyBuffer: string[];
     registerName?: string;
     changeQueue: null | { inserted: string, removed: string[]};
     operatorShortcut?: string;
     selectedCharacter?: string;
     repeatOverride?: number;
-    changeQueueList?: any[];
+    changeQueueList?: (InputStateInterface["changeQueue"])[];
     pushRepeatDigit(n: string): void;
     getRepeat(): number;
 }
@@ -360,13 +359,13 @@ export type vimExCommands = {
 }
 
 type vimExCommandsParams = {
-    args?: any[],
+    args?: string[],
     input?: string,
     line?: number,
-    setCfg?: any,
+    setCfg?: {scope?: string},
     argString?: string,
     lineEnd?: number,
-    commandName?: any[],
+    commandName?: string,
     callback?: () => any,
     selectionLine?: number,
     selectionLineEnd?: number

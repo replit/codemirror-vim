@@ -659,6 +659,7 @@ export function initVim(CM) {
       this.latestRegister = undefined;
       this.isPlaying = false;
       this.isRecording = false;
+      /** @type {string[]}*/
       this.replaySearchQueries = [];
       this.onRecordingDone = undefined;
       this.lastInsertModeChanges = createInsertModeChanges();
@@ -1121,6 +1122,7 @@ export function initVim(CM) {
       virtualPrompt.value = (virtualPrompt.value || '') + key;
     }
 
+    /** @param {string | undefined} value */
     function close(value) {
       if (!virtualPrompt) return;
       if (typeof value == 'string') { virtualPrompt.value = value; }
@@ -1305,19 +1307,29 @@ export function initVim(CM) {
   });
 
   // Represents the current input state.
+  /**@implements {InputStateInterface} */
   class InputState {
     constructor() {
+      /**@type{InputStateInterface["prefixRepeat"]} */
       this.prefixRepeat = [];
+      /**@type{InputStateInterface["motionRepeat"]} */
       this.motionRepeat = [];
-
+      /**@type{InputStateInterface["operator"]} */
       this.operator = null;
+      /**@type{InputStateInterface["operatorArgs"]} */
       this.operatorArgs = null;
+      /**@type{InputStateInterface["motion"]} */
       this.motion = null;
+      /**@type{InputStateInterface["motionArgs"]} */
       this.motionArgs = null;
+      /**@type{InputStateInterface["keyBuffer"]} */
       this.keyBuffer = []; // For matching multi-key commands.
-      this.registerName = null; // Defaults to the unnamed register.
+      /**@type{InputStateInterface["registerName"]} */
+      this.registerName = undefined; // Defaults to the unnamed register.
+      /**@type{InputStateInterface["changeQueue"]} */
       this.changeQueue = null; // For restoring text used by insert mode keybindings
     }
+    /** @param {string} n */
     pushRepeatDigit(n) {
       if (!this.operator) {
         this.prefixRepeat = this.prefixRepeat.concat(n);
@@ -1831,7 +1843,7 @@ export function initVim(CM) {
           var macroModeState = vimGlobalState.macroModeState;
           if (macroModeState.isPlaying) {
             let query = macroModeState.replaySearchQueries.shift();
-            handleQuery(query, true /** ignoreCase */, false /** smartCase */);
+            handleQuery(query || '', true /** ignoreCase */, false /** smartCase */);
           } else {
             showPrompt(cm, {
                 onClose: onPromptClose,
@@ -5297,14 +5309,7 @@ export function initVim(CM) {
   /** @arg {RegExp|unknown} r1  @arg {RegExp|unknown} r2 */
   function regexEqual(r1, r2) {
     if (r1 instanceof RegExp && r2 instanceof RegExp) {
-        var props = ['global', 'multiline', 'ignoreCase', 'source'];
-        for (var i = 0; i < props.length; i++) {
-            var prop = props[i];
-            if (r1[prop] !== r2[prop]) {
-                return false;
-            }
-        }
-        return true;
+      return r1.flags == r2.flags && r1.source == r2.source;
     }
     return false;
   }
@@ -5770,7 +5775,7 @@ export function initVim(CM) {
         this.commandMap_[key] = command;
       }
     }
-    /**@type {(lhs: string, rhs: string, ctx: string, noremap?: boolean) => void} */
+    /**@type {(lhs: string, rhs: string, ctx: string|void, noremap?: boolean) => void} */
     map(lhs, rhs, ctx, noremap) {
       if (lhs != ':' && lhs.charAt(0) == ':') {
         if (ctx) { throw Error('Mode not supported for ex mappings'); }
@@ -5840,6 +5845,7 @@ export function initVim(CM) {
       }
       cm.setOption('theme', params.args[0]);
     },
+    /** @arg {CodeMirrorV} cm @arg {ExParams} params @arg {'insert'|'normal'|string} [ctx] @arg {boolean} [defaultOnly]*/
     map: function(cm, params, ctx, defaultOnly) {
       var mapArgs = params.args;
       if (!mapArgs || mapArgs.length < 2) {
@@ -6419,17 +6425,19 @@ export function initVim(CM) {
     showConfirm(cm, "Codemirror-vim version: <DEV>");
   });
 
-/**
- * @arg {CodeMirrorV} cm CodeMirror instance we are in.
- * @arg {boolean} confirm Whether to confirm each replace.
- * @arg {boolean} global 
- * @arg {number} lineStart Line to start replacing from.
- * @arg {number} lineEnd Line to stop replacing at.
- * @arg {RegExp} query Query for performing matches with.
- * @arg {string} replaceWith Text to replace matches with. May contain $1,
- *     $2, etc for replacing captured groups using JavaScript replace.
- * @arg {function} [callback] A callback for when the replace is done.
- */
+  /**
+   * @arg {CodeMirrorV} cm CodeMirror instance we are in.
+   * @arg {boolean} confirm Whether to confirm each replace.
+   * @arg {boolean} global 
+   * @arg {number} lineStart Line to start replacing from.
+   * @arg {number} lineEnd Line to stop replacing at.
+   * TODO: find a way for typescript to understand that when match is found searchCursor.from() is not null
+   * @arg {ReturnType<CodeMirror["getSearchCursor"]>|any} searchCursor Search cursor to use for finding matches.
+   * @arg {RegExp} query Query for performing matches with.
+   * @arg {string} replaceWith Text to replace matches with. May contain $1,
+   *     $2, etc for replacing captured groups using JavaScript replace.
+   * @arg {function} [callback] A callback for when the replace is done.
+   */
   function doReplace(cm, confirm, global, lineStart, lineEnd, searchCursor, query,
       replaceWith, callback) {
     // Set up all the functions.
@@ -6917,6 +6925,11 @@ export function initVim(CM) {
       return true;
     });
   }
+  /**
+   * @param {CodeMirrorV} cm
+   * @param {InsertModeChanges["changes"]} changes
+   * @param {number} repeat
+   */
   function repeatInsertModeChanges(cm, changes, repeat) {
     var head = cm.getCursor('head');
     var visualBlock = vimGlobalState.macroModeState.lastInsertModeChanges.visualBlock;

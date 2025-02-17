@@ -164,6 +164,7 @@ export class CodeMirror {
 
   static lookupKey = function lookupKey(key: string, map: string, handle: Function) {
     var result = CodeMirror.keys[key];
+    if (!result && /^Arrow/.test(key)) result = CodeMirror.keys[key.slice(5)];
     if (result) handle(result);
   };
 

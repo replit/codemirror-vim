@@ -372,8 +372,9 @@ type vimExCommandsParams = {
     selectionLineEnd?: number
 }
 
+type InsertModeKey = InstanceType<Vim["InsertModeKey"]>
 export type InsertModeChanges = {
-    changes: any[];
+    changes: (InsertModeKey|string|[string,number?])[];
     expectCursorActivityForChange: boolean;
     visualBlock?: number,
     maybeReset?: boolean,

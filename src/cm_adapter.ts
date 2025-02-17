@@ -795,7 +795,7 @@ export class CodeMirror {
     this.virtualSelection = null;
   }
 
-  hardWrap(options) {
+  hardWrap(options: hardWrapOptions) {
     return hardWrap(this, options);
   }
 
@@ -1030,8 +1030,8 @@ class Marker {
 }
 
 
-
-function hardWrap(cm: CodeMirror, options: {from: number, to: number, column?: number, allowMerge?: boolean}) {
+type hardWrapOptions = {from: number, to: number, column?: number, allowMerge?: boolean};
+function hardWrap(cm: CodeMirror, options: hardWrapOptions) {
   var max = options.column || cm.getOption('textwidth') || 80;
   var allowMerge = options.allowMerge != false;
      

@@ -2,6 +2,10 @@
   "name": "@replit/codemirror-vim",
   "version": "6.2.1",
   "description": "Vim keybindings for CodeMirror 6",
+  "author": {
+    "name": "Yunchi Luo",
+    "email": "mightyguava@gmail.com"
+  },
   "scripts": {
     "dev": "vite ./dev",
     "test": "cm-runtests",

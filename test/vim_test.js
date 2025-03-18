@@ -4356,20 +4356,26 @@ testVim('ex_global', function(cm, vim, helpers) {
   eq(' one one\n two one', helpers.getNotificationText());
 }, {value: 'one one\n one one\n one one'});
 testVim('ex_normal', function(cm, vim, helpers) {
+  helpers.doEx('norm /<Esc>"/p');
+  helpers.doEx('norm /x<Cr>"/p');
+  helpers.doEx('norm /h<Esc>"/p');
+  helpers.doEx('norm /one<Cr>3li<Right> <Esc>"/p');
+  eq('one one\nxxx\none one\none one', cm.getValue());
+  
   cm.setCursor(0, 0);
   helpers.doEx('g/one/normal    cw 1<lt>Esc><Esc>$i$');
   helpers.doKeys("rt");
-  eq(' 1<Esc> on$e\nxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
+  eq(' 1<Esc> on$e\nxxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
   helpers.doKeys('/', '<', '\n');
   helpers.doKeys('x', 'x', 'p');
-  eq(' 1sEc> on$e\nxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
+  eq(' 1sEc> on$e\nxxx\n 1<Esc> on$e\n 1<Esc> on$t', cm.getValue());
   cm.setCursor(0, 0);
   helpers.doEx('map k j');
   helpers.doEx('normal kkk');
   helpers.assertCursorAt(3, 0);
   helpers.doEx('normal! kkk');
   helpers.assertCursorAt(0, 0);
-}, {value: 'one one\nxx\none one\none one'});
+}, {value: 'one one\nx\none\none one'});
 testVim('ex_global_substitute_join', function(cm, vim, helpers) {
   helpers.doEx('g/o/s/\\n/;');
   eq('one;two\nthree\nfour;five\n', cm.getValue());

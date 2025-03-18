@@ -920,6 +920,9 @@ export function initVim(CodeMirror) {
           }
           return !keysAreChars;
         }
+        else if (match.type == 'full') {
+          vim.inputState.keyBuffer.length = 0;
+        }
         vim.expectLiteralNext = false;
 
         if (lastInsertModeKeyTimer) { window.clearTimeout(lastInsertModeKeyTimer); }

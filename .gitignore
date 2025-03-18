@@ -1,7 +1,9 @@
 node_modules
 package-lock.json
-/dist
+dist
+out
 /test/*.js
 /test/*.d.ts
 /test/*.d.ts.map
-.tern-*
+.*
+.DS_Store

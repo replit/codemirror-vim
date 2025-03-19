@@ -120,10 +120,14 @@ function runHistoryCommand(cm: CodeMirror, revert: boolean) {
   }
 }
 
-var keys: Record<string, (cm: CodeMirror) => void> = {};
-"Left|Right|Up|Down|Backspace|Delete".split("|").forEach(key => {
-  keys[key] = (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: key} as KeyboardEvent, "editor");
-});
+var keys: Record<string, (cm: CodeMirror) => void> = {
+  Left: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Left"} as KeyboardEvent, "editor"),
+  Right: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Right"} as KeyboardEvent, "editor"),
+  Up: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Up"} as KeyboardEvent, "editor"),
+  Down: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Down"} as KeyboardEvent, "editor"),
+  Backspace: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Backspace"} as KeyboardEvent, "editor"),
+  Delete: (cm:CodeMirror) => runScopeHandlers(cm.cm6, {key: "Delete"} as KeyboardEvent, "editor"),
+};
 
 export class CodeMirror {
   static isMac = typeof navigator != "undefined" && /Mac/.test(navigator.platform);

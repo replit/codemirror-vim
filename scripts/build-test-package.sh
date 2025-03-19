@@ -19,6 +19,7 @@ mkdir -p ../.test_package
 cd ../.test_package
 
 cp "$ROOT"/dev/index.ts index.ts
+cp "$ROOT"/dev/index.html index.html
 node -e "
 const fs = require('fs');
 const filePath = 'index.ts';
@@ -34,6 +35,12 @@ echo '{
         "test": "echo \"No tests yet\""
     }
 }' > package.json
+
+echo '
+import { defineConfig } from "vite";
+export default defineConfig({
+  base: "",
+});' > vite.config.js
 
 echo '{
   "compilerOptions": {

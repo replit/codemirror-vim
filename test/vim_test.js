@@ -1508,6 +1508,14 @@ testVim('=', function(cm, vim, helpers) {
   helpers.doKeys('=');
   eq(expectedValue, cm.getValue());
 }, { value: '   word1\n  word2\n  word3', indentUnit: 2 });
+testVim('><visualblock', function(cm, vim, helpers) {
+  cm.setCursor(0, 6);
+  helpers.doKeys('<C-v>', 'j', 'j');
+  helpers.doKeys('4', '>');
+  eq('  word        1\n  word        2\n  word        3', cm.getValue());
+  helpers.doKeys('g', 'v', '14', '<');
+  eq('  word1\n  word2\n  word3', cm.getValue());
+}, { value: '  word1\n  word2\n  word3', indentUnit: 2 });
 
 
 // Edit tests

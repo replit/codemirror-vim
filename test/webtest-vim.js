@@ -49,7 +49,7 @@ describe("Vim extension", () => {
         vim({}),
         basicSetup,
         options.mode == "xml" ? xml() : javascript(),
-        EditorState.tabSize.of(options.tabSize || 4),
+        EditorState.tabSize.of(options.tabSize || options.indentUnit || 4),
         indentUnit.of(
           options.indentWithTabs ? "\t" : " ".repeat(options.indentUnit || 2)
         ),

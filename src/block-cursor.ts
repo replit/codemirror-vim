@@ -214,7 +214,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     }
     let h = (pos.bottom - pos.top);
     return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
-                     style.fontFamily, parseFloat(style.fontSize) + "px", style.fontWeight, style.color,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)
   } else {

@@ -68,7 +68,7 @@ export class BlockCursorPlugin {
     this.cursorLayer.className = "cm-cursorLayer cm-vimCursorLayer"
     this.cursorLayer.setAttribute("aria-hidden", "true")
     view.requestMeasure(this.measureReq)
-    this.setBlinkRate() 
+    this.setBlinkRate()
   }
 
   setBlinkRate() {
@@ -78,11 +78,11 @@ export class BlockCursorPlugin {
   }
 
   update(update: ViewUpdate) {
-     if (update.selectionSet || update.geometryChanged || update.viewportChanged) {
+    if (update.selectionSet || update.geometryChanged || update.viewportChanged) {
       this.view.requestMeasure(this.measureReq)
       this.cursorLayer.style.animationName = this.cursorLayer.style.animationName == "cm-blink" ? "cm-blink2" : "cm-blink"
-     }
-     if (configChanged(update)) this.setBlinkRate();
+    }
+    if (configChanged(update)) this.setBlinkRate();
   }
 
   scheduleRedraw() {
@@ -146,7 +146,7 @@ export const hideNativeSelection = Prec.highest(EditorView.theme(themeSpec))
 function getBase(view: EditorView) {
   let rect = view.scrollDOM.getBoundingClientRect()
   let left = view.textDirection == Direction.LTR ? rect.left : rect.right - view.scrollDOM.clientWidth
-  return {left: left - view.scrollDOM.scrollLeft, top: rect.top - view.scrollDOM.scrollTop}
+  return {left: left - view.scrollDOM.scrollLeft * view.scaleX, top: rect.top - view.scrollDOM.scrollTop * view.scaleY}
 }
 
 function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange, primary: boolean): Piece | null {
@@ -179,6 +179,12 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);
     let node = domAtPos ? domAtPos.node : view.contentDOM;
+    if (node instanceof Text && domAtPos.offset >= node.data.length) {
+      if (node.parentElement?.nextSibling) {
+        node = node.parentElement?.nextSibling;
+        domAtPos = {node: node, offset: 0};
+      };
+    }
     while (domAtPos && domAtPos.node instanceof HTMLElement) {
       node = domAtPos.node;
       domAtPos = {node: domAtPos.node.childNodes[domAtPos.offset], offset: 0};
@@ -207,7 +213,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       letter += view.state.sliceDoc(head + 1, head + 2);
     }
     let h = (pos.bottom - pos.top);
-    return new Piece(left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff,
+    return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
                      style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
                      letter, hCoeff != 1)

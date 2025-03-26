@@ -60,8 +60,6 @@ export class BlockCursorPlugin {
   measureReq: {read: () => Measure, write: (value: Measure) => void}
   cursorLayer: HTMLElement
   cm: CodeMirror
-  scaleX = 1
-  scaleY = 1
 
   constructor(readonly view: EditorView, cm: CodeMirror) {
     this.cm = cm;
@@ -69,8 +67,6 @@ export class BlockCursorPlugin {
     this.cursorLayer = view.scrollDOM.appendChild(document.createElement("div"))
     this.cursorLayer.className = "cm-cursorLayer cm-vimCursorLayer"
     this.cursorLayer.setAttribute("aria-hidden", "true")
-    this.cursorLayer.style.position = "absolute"
-    this.scale()
     view.requestMeasure(this.measureReq)
     this.setBlinkRate()
   }
@@ -83,19 +79,10 @@ export class BlockCursorPlugin {
 
   update(update: ViewUpdate) {
     if (update.selectionSet || update.geometryChanged || update.viewportChanged) {
-      this.scale()
       this.view.requestMeasure(this.measureReq)
       this.cursorLayer.style.animationName = this.cursorLayer.style.animationName == "cm-blink" ? "cm-blink2" : "cm-blink"
-    } 
-    if (configChanged(update)) this.setBlinkRate();
-  }
-
-  scale() {
-    let { scaleX, scaleY } = this.view
-    if (scaleX != this.scaleX || scaleY != this.scaleY) {
-      this.scaleX = scaleX; this.scaleY = scaleY
-      this.cursorLayer.style.transform = `scale(${1 / scaleX}, ${1 / scaleY})`
     }
+    if (configChanged(update)) this.setBlinkRate();
   }
 
   scheduleRedraw() {
@@ -220,7 +207,10 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       letter += view.state.sliceDoc(head + 1, head + 2);
     }
     let h = (pos.bottom - pos.top);
-    return new Piece(left - base.left, pos.top - base.top + h * (1 - hCoeff), h * hCoeff, style.fontFamily, parseFloat(style.fontSize) * view.scaleX + "px", style.fontWeight, style.color, primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary", letter, hCoeff != 1)
+    return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
+                     style.fontFamily, parseFloat(style.fontSize) + "px", style.fontWeight, style.color,
+                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
+                     letter, hCoeff != 1)
   } else {
     return null;
   }

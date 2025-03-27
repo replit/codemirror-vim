@@ -1,6 +1,6 @@
 {
   "name": "@replit/codemirror-vim",
-  "version": "6.2.1",
+  "version": "6.3.0",
   "description": "Vim keybindings for CodeMirror 6",
   "author": {
     "name": "Yunchi Luo",

@@ -76,7 +76,7 @@ const vimPlugin = ViewPlugin.fromClass(
         if (!cm.state.vim) return;
         cm.state.vim.mode = e.mode;
         if (e.subMode) {
-          cm.state.vim.mode += " block";
+          cm.state.vim.mode += e.subMode === "linewise" ? " line" : " block";
         }
         cm.state.vim.status = "";
         this.blockCursor.scheduleRedraw();

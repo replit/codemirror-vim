@@ -314,6 +314,23 @@ export function initVim(CM) {
    */
   var langmap = parseLangmap('');
 
+  function isRtlLine(line) {
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      const code = char.charCodeAt(0);
+
+      // Only care about letter characters, skip spaces, numbers, punctuation
+      if (/\p{L}/u.test(char)) {
+        // If it's a letter, check if it's NOT in RTL range
+        if (code < 0x0590 || code > 0x07FF) {
+          return false; // Found a non-RTL letter
+        }
+      }
+    }
+
+    return true; // No non-RTL letters found
+  }
+
   /** @arg {CodeMirror} cm */
   function enterVimMode(cm) {
     cm.setOption('disableInput', true);
@@ -2385,6 +2402,13 @@ export function initVim(CM) {
     moveByCharacters: function(_cm, head, motionArgs) {
       var cur = head;
       var repeat = motionArgs.repeat;
+
+      // if the all text is right-to-left text, flip the direction
+      var rtlText = isRtlLine(_cm.getLine(cur.line));
+      if (rtlText) {
+        repeat = -repeat;
+      }
+
       var ch = motionArgs.forward ? cur.ch + repeat : cur.ch - repeat;
       return new Pos(cur.line, ch);
     },

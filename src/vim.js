@@ -220,7 +220,7 @@ export function initVim(CM) {
     { keys: 'J', type: 'action', action: 'joinLines', isEdit: true },
     { keys: 'gJ', type: 'action', action: 'joinLines', actionArgs: { keepSpaces: true }, isEdit: true },
     { keys: 'p', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: true, isEdit: true }},
-    { keys: 'P', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: false, isEdit: true }},
+    { keys: 'P', type: 'action', action: 'paste', isEdit: true, actionArgs: { after: false, isEdit: true, updateUnnamedRegister: false }},
     { keys: 'r<character>', type: 'action', action: 'replace', isEdit: true },
     { keys: '@<register>', type: 'action', action: 'replayMacro' },
     { keys: 'q<register>', type: 'action', action: 'enterMacroRecordMode' },
@@ -3333,7 +3333,9 @@ export function initVim(CM) {
           lastSelectionCurEnd = vim.lastSelection.headMark.find();
         }
         // push the previously selected text to unnamed register
-        vimGlobalState.registerController.unnamedRegister.setText(selectedText);
+        if (actionArgs.updateUnnamedRegister !== false) {
+          vimGlobalState.registerController.unnamedRegister.setText(selectedText);
+        }
         if (blockwise) {
           // first delete the selected text
           cm.replaceSelections(emptyStrings);

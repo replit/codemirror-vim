@@ -16,6 +16,7 @@ type Measure = {cursors: Piece[]}
 class Piece {
   constructor(readonly left: number, readonly top: number,
               readonly height: number,
+              readonly width: number,
               readonly fontFamily: string,
               readonly fontSize: string,
               readonly fontWeight: string,
@@ -35,6 +36,7 @@ class Piece {
     elt.style.left = this.left + "px"
     elt.style.top = this.top + "px"
     elt.style.height = this.height + "px"
+    elt.style.width = this.width + "px"
     elt.style.lineHeight = this.height + "px"
     elt.style.fontFamily = this.fontFamily;
     elt.style.fontSize = this.fontSize;
@@ -47,6 +49,7 @@ class Piece {
 
   eq(p: Piece) {
     return this.left == p.left && this.top == p.top && this.height == p.height &&
+        this.width == p.width &&
         this.fontFamily == p.fontFamily && this.fontSize == p.fontSize &&
         this.fontWeight == p.fontWeight && this.color == p.color &&
         this.className == p.className &&
@@ -130,13 +133,15 @@ function configChanged(update: ViewUpdate) {
   },
   ".cm-fat-cursor": {
     position: "absolute",
-    background: "#ff9696",
+    background: "transparent",
     border: "none",
     whiteSpace: "pre",
+    boxShadow: "0 0 0 1px #ff9696",
   },
   "&:not(.cm-focused) .cm-fat-cursor": {
-    background: "none",
-    outline: "solid 1px #ff9696",
+    background: "transparent",
+    border: "none",
+    boxShadow: "0 0 0 1px #ff9696",
     color: "transparent !important",
   },
 }
@@ -158,6 +163,20 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     fatCursor = true;
     if (vim.visualBlock && !primary)
       return null;
+
+    // In normal mode, cursor should not be on newline at end of line
+    // (but allow it on empty lines)
+    if (!vim.insertMode && head < view.state.doc.length) {
+      let letter = view.state.sliceDoc(head, head + 1);
+      if (letter == "\n" && head > 0) {
+        let prevLetter = view.state.sliceDoc(head - 1, head);
+        // Move back one if previous char is not also newline (i.e., not an empty line)
+        if (prevLetter != "\n") {
+          head--;
+        }
+      }
+    }
+
     if (cursor.anchor < cursor.head) {
       let letter = head < view.state.doc.length && view.state.sliceDoc(head, head + 1);
       if (letter != "\n")
@@ -178,6 +197,7 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     if (!pos) return null;
     let base = getBase(view);
     let domAtPos = view.domAtPos(head);
+    let originalDomAtPos = domAtPos; // Save original for width measurement
     let node = domAtPos ? domAtPos.node : view.contentDOM;
     if (node instanceof Text && domAtPos.offset >= node.data.length) {
       if (node.parentElement?.nextSibling) {
@@ -212,11 +232,50 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
       // include the second half of a surrogate pair in cursor
       letter += view.state.sliceDoc(head + 1, head + 2);
     }
+
+    // Calculate actual character width by measuring the rendered text
+    let charWidth = 8; // default fallback
+
+    // Special handling for newlines and end-of-line
+    let actualLetter = view.state.sliceDoc(head, head + 1);
+    if (!actualLetter || actualLetter == "\n" || actualLetter == "\r" || head >= view.state.doc.length) {
+      // Newline or end of document: use narrow cursor
+      const fontSize = parseInt(style.fontSize) || 16;
+      charWidth = fontSize * 0.15; // Very narrow for newlines
+    } else {
+      // Try to measure from the original DOM node before traversal
+      if (originalDomAtPos && originalDomAtPos.node instanceof Text) {
+        const range = document.createRange();
+        const textNode = originalDomAtPos.node;
+        const offset = originalDomAtPos.offset;
+
+        if (offset < textNode.length) {
+          try {
+            range.setStart(textNode, offset);
+            range.setEnd(textNode, Math.min(offset + 1, textNode.length));
+            const rect = range.getBoundingClientRect();
+            if (rect.width > 0 && rect.width < 100) {
+              charWidth = rect.width;
+            }
+          } catch (e) {
+            // Range measurement failed, will use fallback
+          }
+        }
+      }
+
+      // Fallback: use font-based estimation
+      if (charWidth <= 0 || charWidth >= 100) {
+        const fontSize = parseInt(style.fontSize) || 16;
+        charWidth = fontSize * 0.6; // reasonable default for most characters
+      }
+    }
+
     let h = (pos.bottom - pos.top);
     return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
+                     charWidth/view.scaleX,
                      style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
-                     letter, hCoeff != 1)
+                     letter, true) // Always use transparent letter to preserve RTL character connections
   } else {
     return null;
   }

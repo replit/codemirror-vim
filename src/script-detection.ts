@@ -169,7 +169,8 @@ export function detectScriptTypeWithContext(
   }
 
   // If character is neutral (punctuation, number),
-  // check surrounding context
+  // check surrounding context for script type but NOT for special cursor
+  // Neutral characters are NOT connected script even if surrounded by Arabic
   if (!detection.requiresSpecialCursor && isNeutralChar(char)) {
     // Check 3 chars before and after for context
     const contextRange = 3;
@@ -182,15 +183,16 @@ export function detectScriptTypeWithContext(
       Math.min(view.state.doc.length, pos + 1 + contextRange)
     );
 
-    // If surrounded by Arabic, treat as Arabic context
+    // If surrounded by Arabic, inherit script type for text direction
+    // but do NOT enable special cursor (neutral chars are not connected)
     const hasArabicBefore = [...before].some(c => detectScriptType(c).isConnectedScript);
     const hasArabicAfter = [...after].some(c => detectScriptType(c).isConnectedScript);
 
     if (hasArabicBefore || hasArabicAfter) {
       return {
         type: ScriptType.ARABIC_RTL,
-        requiresSpecialCursor: true,
-        isConnectedScript: true
+        requiresSpecialCursor: false,  // Changed: neutral chars don't need special cursor
+        isConnectedScript: false       // Changed: neutral chars are not connected
       };
     }
   }

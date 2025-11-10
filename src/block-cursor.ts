@@ -1,6 +1,7 @@
 import { SelectionRange, Prec } from "@codemirror/state"
 import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
 import { CodeMirror } from "."
+import { detectScriptTypeWithContext } from "./script-detection"
 
 import * as View  from "@codemirror/view"
 // backwards compatibility for old versions not supporting getDrawSelectionConfig
@@ -271,11 +272,23 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     }
 
     let h = (pos.bottom - pos.top);
+
+    // Context-aware cursor rendering based on script type and focus state
+    const scriptDetection = detectScriptTypeWithContext(view, head);
+    const isFocused = view.hasFocus;
+
+    // Use transparent text for:
+    // - Arabic/connected scripts (preserves visual character connections)
+    // - Unfocused state (renders as outline only)
+    // Use opaque text for:
+    // - Latin/non-connected scripts when focused (standard Vim block cursor)
+    const useTransparentText = !isFocused || scriptDetection.requiresSpecialCursor;
+
     return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
                      charWidth/view.scaleX,
                      style.fontFamily, style.fontSize, style.fontWeight, style.color,
                      primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
-                     letter, true) // Always use transparent letter to preserve RTL character connections
+                     letter, useTransparentText)
   } else {
     return null;
   }

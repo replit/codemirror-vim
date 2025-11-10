@@ -2,6 +2,7 @@ import { SelectionRange, Prec } from "@codemirror/state"
 import { ViewUpdate, EditorView, Direction } from "@codemirror/view"
 import { CodeMirror } from "."
 import { detectScriptTypeWithContext } from "./script-detection"
+import { findArabicWordBoundaries } from "./word-boundary"
 
 import * as View  from "@codemirror/view"
 // backwards compatibility for old versions not supporting getDrawSelectionConfig
@@ -11,6 +12,15 @@ let getDrawSelectionConfig = View.getDrawSelectionConfig || function() {
     return defaultConfig;
   }
 }();
+
+/**
+ * Cursor layer types for different rendering strategies
+ */
+enum CursorLayerType {
+  STANDARD = 'standard',           // Standard opaque/transparent cursor
+  ARABIC_WORD = 'arabic_word',     // Arabic word-level block
+  ARABIC_CHAR = 'arabic_char'      // Arabic character-level outline
+}
 
 type Measure = {cursors: Piece[]}
 
@@ -24,7 +34,8 @@ class Piece {
               readonly color: string,
               readonly className: string,
               readonly letter: string,
-              readonly partial: boolean) {}
+              readonly partial: boolean,
+              readonly layerType: CursorLayerType = CursorLayerType.STANDARD) {}
 
   draw() {
     let elt = document.createElement("div")
@@ -54,7 +65,8 @@ class Piece {
         this.fontFamily == p.fontFamily && this.fontSize == p.fontSize &&
         this.fontWeight == p.fontWeight && this.color == p.color &&
         this.className == p.className &&
-        this.letter == p.letter;
+        this.letter == p.letter &&
+        this.layerType == p.layerType;
   }
 }
 
@@ -98,8 +110,8 @@ export class BlockCursorPlugin {
     let cursors: Piece[] = []
     for (let r of state.selection.ranges) {
       let prim = r == state.selection.main
-      let piece = measureCursor(this.cm, this.view, r, prim)
-      if (piece) cursors.push(piece)
+      let pieces = measureCursor(this.cm, this.view, r, prim)
+      if (pieces) cursors.push(...pieces)
     }
     return {cursors}
   }
@@ -134,16 +146,39 @@ function configChanged(update: ViewUpdate) {
   },
   ".cm-fat-cursor": {
     position: "absolute",
+    background: "#ff9696",
+    border: "none",
+    whiteSpace: "pre",
+  },
+  "&:not(.cm-focused) .cm-fat-cursor": {
+    background: "none",
+    outline: "solid 1px #ff9696",
+    color: "transparent !important",
+  },
+  // Arabic word-level block cursor
+  ".cm-cursor-arabic-word": {
+    position: "absolute",
+    background: "rgba(255, 150, 150, 0.3)",  // Semi-transparent pink
+    border: "none",
+    whiteSpace: "pre",
+    zIndex: "1",  // Below character outline
+  },
+  "&:not(.cm-focused) .cm-cursor-arabic-word": {
+    background: "none",
+    outline: "solid 1px #ff9696",
+  },
+  // Arabic character-level outline cursor
+  ".cm-cursor-arabic-char": {
+    position: "absolute",
     background: "transparent",
     border: "none",
     whiteSpace: "pre",
-    boxShadow: "0 0 0 1px #ff9696",
-  },
-  "&:not(.cm-focused) .cm-fat-cursor": {
-    background: "transparent",
-    border: "none",
-    boxShadow: "0 0 0 1px #ff9696",
+    boxShadow: "0 0 0 1px #ffffff",  // White outline
     color: "transparent !important",
+    zIndex: "2",  // Above word block
+  },
+  "&:not(.cm-focused) .cm-cursor-arabic-char": {
+    display: "none",  // Hide character outline when unfocused
   },
 }
 
@@ -155,7 +190,89 @@ function getBase(view: EditorView) {
   return {left: left - view.scrollDOM.scrollLeft * view.scaleX, top: rect.top - view.scrollDOM.scrollTop * view.scaleY}
 }
 
-function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange, primary: boolean): Piece | null {
+/**
+ * Measures dual-cursor for Arabic/connected scripts
+ * Returns two pieces: word block + character outline
+ */
+function measureArabicDualCursor(
+  view: EditorView,
+  head: number,
+  letter: string | false,
+  pos: {top: number, bottom: number, left: number, right: number},
+  base: {left: number, top: number},
+  h: number,
+  hCoeff: number,
+  charWidth: number,
+  style: CSSStyleDeclaration,
+  primary: boolean
+): Piece[] {
+  // Find word boundaries for the word-level block
+  const wordBoundary = findArabicWordBoundaries(view, head);
+
+  if (!wordBoundary) {
+    // Fallback to standard cursor if word detection fails
+    return [new Piece((pos.left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
+                     charWidth/view.scaleX,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
+                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
+                     letter || "\xa0", true, CursorLayerType.STANDARD)];
+  }
+
+  // Measure word block dimensions
+  const startCoords = view.coordsAtPos(wordBoundary.start, 1);
+  const endCoords = view.coordsAtPos(wordBoundary.end, -1);
+
+  if (!startCoords || !endCoords) {
+    // Fallback if coordinates fail
+    return [new Piece((pos.left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
+                     charWidth/view.scaleX,
+                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
+                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
+                     letter || "\xa0", true, CursorLayerType.STANDARD)];
+  }
+
+  // Calculate word block dimensions (for RTL, coordinates may be reversed)
+  const wordLeft = Math.min(startCoords.left, endCoords.left);
+  const wordRight = Math.max(startCoords.right, endCoords.right);
+  const wordWidth = wordRight - wordLeft;
+
+  // Create word-level block piece
+  const wordPiece = new Piece(
+    (wordLeft - base.left) / view.scaleX,
+    (startCoords.top - base.top + h * (1 - hCoeff)) / view.scaleY,
+    h * hCoeff / view.scaleY,
+    wordWidth / view.scaleX,
+    style.fontFamily,
+    style.fontSize,
+    style.fontWeight,
+    style.color,
+    primary ? "cm-fat-cursor cm-cursor-arabic-word cm-cursor-primary" : "cm-fat-cursor cm-cursor-arabic-word cm-cursor-secondary",
+    wordBoundary.text,
+    false, // Show word text (not transparent)
+    CursorLayerType.ARABIC_WORD
+  );
+
+  // Create character-level outline piece
+  const charPiece = new Piece(
+    (pos.left - base.left) / view.scaleX,
+    (pos.top - base.top + h * (1 - hCoeff)) / view.scaleY,
+    h * hCoeff / view.scaleY,
+    charWidth / view.scaleX,
+    style.fontFamily,
+    style.fontSize,
+    style.fontWeight,
+    style.color,
+    primary ? "cm-fat-cursor cm-cursor-arabic-char cm-cursor-primary" : "cm-fat-cursor cm-cursor-arabic-char cm-cursor-secondary",
+    letter || "\xa0",
+    true, // Transparent text
+    CursorLayerType.ARABIC_CHAR
+  );
+
+  // Return both layers: word block first (lower z-index), then char outline
+  return [wordPiece, charPiece];
+}
+
+function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange, primary: boolean): Piece[] | null {
   let head = cursor.head;
   let fatCursor = false;
   let hCoeff = 1;
@@ -277,18 +394,19 @@ function measureCursor(cm: CodeMirror, view: EditorView, cursor: SelectionRange,
     const scriptDetection = detectScriptTypeWithContext(view, head);
     const isFocused = view.hasFocus;
 
-    // Use transparent text for:
-    // - Arabic/connected scripts (preserves visual character connections)
-    // - Unfocused state (renders as outline only)
-    // Use opaque text for:
-    // - Latin/non-connected scripts when focused (standard Vim block cursor)
-    const useTransparentText = !isFocused || scriptDetection.requiresSpecialCursor;
-
-    return new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
-                     charWidth/view.scaleX,
-                     style.fontFamily, style.fontSize, style.fontWeight, style.color,
-                     primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
-                     letter, useTransparentText)
+    // Decision: Dual-cursor for Arabic when focused, standard cursor otherwise
+    if (scriptDetection.requiresSpecialCursor && isFocused) {
+      // Arabic dual-cursor: word block + character outline
+      return measureArabicDualCursor(view, head, letter, pos, base, h, hCoeff, charWidth, style, primary);
+    } else {
+      // Standard cursor (Latin focused, or any unfocused)
+      const useTransparentText = !isFocused || scriptDetection.requiresSpecialCursor;
+      return [new Piece((left - base.left)/view.scaleX, (pos.top - base.top + h * (1 - hCoeff))/view.scaleY, h * hCoeff/view.scaleY,
+                       charWidth/view.scaleX,
+                       style.fontFamily, style.fontSize, style.fontWeight, style.color,
+                       primary ? "cm-fat-cursor cm-cursor-primary" : "cm-fat-cursor cm-cursor-secondary",
+                       letter, useTransparentText, CursorLayerType.STANDARD)];
+    }
   } else {
     return null;
   }

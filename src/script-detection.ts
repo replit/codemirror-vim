@@ -52,17 +52,28 @@ export function detectScriptType(char: string): ScriptDetectionResult {
     };
   }
 
-  // Arabic script ranges (connected characters)
-  // Main Arabic: U+0600–U+06FF
-  // Arabic Supplement: U+0750–U+077F
-  // Arabic Extended-A: U+08A0–U+08FF
-  // Arabic Presentation Forms-A: U+FB50–U+FDFF
-  // Arabic Presentation Forms-B: U+FE70–U+FEFF
-  if ((codePoint >= 0x0600 && codePoint <= 0x06FF) ||
-      (codePoint >= 0x0750 && codePoint <= 0x077F) ||
-      (codePoint >= 0x08A0 && codePoint <= 0x08FF) ||
-      (codePoint >= 0xFB50 && codePoint <= 0xFDFF) ||
-      (codePoint >= 0xFE70 && codePoint <= 0xFEFF)) {
+  // Arabic script ranges (letters and diacritics that don't break connections)
+  // Exclude only punctuation marks that break word boundaries
+  //
+  // Arabic punctuation (word breakers):
+  // U+060C (comma), U+061B (semicolon), U+061F (question mark)
+  // U+06D4 (full stop), and other punctuation marks
+  const isArabicPunctuation = codePoint === 0x060C || // Arabic comma
+                               codePoint === 0x061B || // Arabic semicolon
+                               codePoint === 0x061F || // Arabic question mark
+                               codePoint === 0x06D4 || // Arabic full stop
+                               codePoint === 0x06DD || // Arabic end of ayah
+                               codePoint === 0x06DE || // Start of rub el hizb
+                               codePoint === 0x06E9;   // Place of sajdah
+
+  // Arabic script ranges (includes letters and diacritics)
+  const isInArabicRange = (codePoint >= 0x0600 && codePoint <= 0x06FF) ||
+                          (codePoint >= 0x0750 && codePoint <= 0x077F) ||
+                          (codePoint >= 0x08A0 && codePoint <= 0x08FF) ||
+                          (codePoint >= 0xFB50 && codePoint <= 0xFDFF) ||
+                          (codePoint >= 0xFE70 && codePoint <= 0xFEFF);
+
+  if (isInArabicRange && !isArabicPunctuation) {
     return {
       type: ScriptType.ARABIC_RTL,
       requiresSpecialCursor: true,
@@ -147,7 +158,17 @@ export function detectScriptTypeWithContext(
   const char = view.state.sliceDoc(pos, pos + 1);
   const detection = detectScriptType(char);
 
-  // If character is neutral (space, punctuation, number),
+  // Spaces and whitespace should NEVER be treated as connected script
+  // They are always word boundaries
+  if (char === ' ' || char === '\t' || char === '\n' || char === '\r') {
+    return {
+      type: ScriptType.LATIN,
+      requiresSpecialCursor: false,
+      isConnectedScript: false
+    };
+  }
+
+  // If character is neutral (punctuation, number),
   // check surrounding context
   if (!detection.requiresSpecialCursor && isNeutralChar(char)) {
     // Check 3 chars before and after for context

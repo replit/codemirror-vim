@@ -4326,33 +4326,45 @@ testVim('ex_sort_decimal_mixed_reverse', function(cm, vim, helpers) {
   eq('a3\nb2\nc1\nz\ny', cm.getValue());
 }, { value: 'a3\nz\nc1\ny\nb2'});
 testVim('ex_sort_pattern_alpha', function(cm, vim, helpers) {
-  helpers.doEx('sort /[a-z]/');
+  helpers.doEx('sort r/[a-z]/');
   eq('a3\nb2\nc1\ny\nz', cm.getValue());
 }, { value: 'z\ny\nc1\nb2\na3'});
 testVim('ex_sort_pattern_alpha_reverse', function(cm, vim, helpers) {
-  helpers.doEx('sort! /[a-z]/');
+  helpers.doEx('sort! r /[a-z]/');
   eq('z\ny\nc1\nb2\na3', cm.getValue());
 }, { value: 'z\ny\nc1\nb2\na3'});
 testVim('ex_sort_pattern_alpha_ignoreCase', function(cm, vim, helpers) {
-  helpers.doEx('sort i/[a-z]/');
+  helpers.doEx('sort ri/[a-z]/');
   eq('a3\nb2\nC1\nY\nz', cm.getValue());
 }, { value: 'z\nY\nC1\nb2\na3'});
 testVim('ex_sort_pattern_alpha_longer', function(cm, vim, helpers) {
-  helpers.doEx('sort /[a-z]+/');
+  helpers.doEx('sort r/[a-z]+/');
   eq('a\naa\nab\nade\nadele\nadelle\nadriana\nalex\nalexandra\nb\nc\ny\nz', cm.getValue());
 }, { value: 'z\nab\naa\nade\nadelle\nalexandra\nalex\nadriana\nadele\ny\nc\nb\na'});
 testVim('ex_sort_pattern_alpha_only', function(cm, vim, helpers) {
-  helpers.doEx('sort /^[a-z]$/');
+  helpers.doEx('sort r/^[a-z]$/');
   eq('z1\ny2\na3\nb\nc', cm.getValue());
 }, { value: 'z1\ny2\na3\nc\nb'});
 testVim('ex_sort_pattern_alpha_only_reverse', function(cm, vim, helpers) {
-  helpers.doEx('sort! /^[a-z]$/');
+  helpers.doEx('sort! r/^[a-z]$/');
   eq('c\nb\nz1\ny2\na3', cm.getValue());
 }, { value: 'z1\ny2\na3\nc\nb'});
 testVim('ex_sort_pattern_alpha_num', function(cm, vim, helpers) {
-  helpers.doEx('sort /[a-z][0-9]/');
+  helpers.doEx('sort r/[a-z][0-9]/');
   eq('c\nb\na3\ny2\nz1', cm.getValue());
 }, { value: 'z1\ny2\na3\nc\nb'});
+testVim('ex_sort_pattern_no_r', function(cm, vim, helpers) {
+  helpers.doEx('sort /in/');
+  eq(' z \n in\n\n3 in a \n1 in c \n2 in d ', cm.getValue());
+  helpers.doEx('sort r/in/');
+  eq(' z \n\n in\n3 in a \n1 in c \n2 in d ', cm.getValue());
+  helpers.doEx('sort r/. in/');  
+  eq(' z \n\n in\n1 in c \n2 in d \n3 in a ', cm.getValue());
+  helpers.doEx('sort /./');
+  eq('\n3 in a \n1 in c \n2 in d \n in\n z ', cm.getValue());  
+  helpers.doEx('sort /in d/');
+  eq('\n3 in a \n1 in c \n in\n z \n2 in d ', cm.getValue());
+}, { value: '1 in c \n z \n2 in d \n in\n3 in a \n'});
 // test for :global command
 testVim('ex_global', function(cm, vim, helpers) {
   cm.setCursor(0, 0);

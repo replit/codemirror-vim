@@ -6060,16 +6060,17 @@ export function initVim(CM) {
     },
     /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
     sort: function(cm, params) {
-      var reverse, ignoreCase, unique, number, pattern;
+      var reverse, ignoreCase, unique, number, pattern, includeMatch;
       function parseArgs() {
         if (params.argString) {
           var args = new CM.StringStream(params.argString);
           if (args.eat('!')) { reverse = true; }
           if (args.eol()) { return; }
           if (!args.eatSpace()) { return 'Invalid arguments'; }
-          var opts = args.match(/([dinuox]+)?\s*(\/.+\/)?\s*/);
+          var opts = args.match(/([dinuoxr]+)?\s*(\/.+\/)?\s*/);
           if (!opts || !args.eol()) { return 'Invalid arguments'; }
           if (opts[1]) {
+            includeMatch = opts[1].indexOf('r') != -1;
             ignoreCase = opts[1].indexOf('i') != -1;
             unique = opts[1].indexOf('u') != -1;
             var decimal = opts[1].indexOf('d') != -1 || opts[1].indexOf('n') != -1;
@@ -6103,6 +6104,9 @@ export function initVim(CM) {
       if (number || pattern) {
         for (var i = 0; i < text.length; i++) {
           var matchPart = pattern ? text[i].match(pattern) : null;
+          if (matchPart && matchPart.index != null && !includeMatch) {
+            matchPart[0] = text[i].slice(matchPart.index + matchPart[0].length);
+          }
           if (matchPart && matchPart[0] != '') {
             numPart.push(matchPart);
           } else if (numberRegex && numberRegex.exec(text[i])) {

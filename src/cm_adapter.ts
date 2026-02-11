@@ -5,6 +5,7 @@ import { RegExpCursor, setSearchQuery, SearchQuery } from "@codemirror/search"
 import {
   insertNewlineAndIndent, indentMore, indentLess, indentSelection, cursorCharLeft,
   undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
+  toggleLineComment
 } from "@codemirror/commands"
 import {vimState, CM5RangeInterface} from "./types"
 
@@ -135,6 +136,7 @@ export class CodeMirror {
   static Pos = Pos;
   static StringStream = StringStream as unknown as StringStream & { new(_: string): StringStream }
   static commands = {
+    toggleLineComment: function (cm: CodeMirror) { toggleLineComment(cm.cm6) },
     cursorCharLeft: function (cm: CodeMirror) { cursorCharLeft(cm.cm6); },
     redo: function (cm: CodeMirror) { runHistoryCommand(cm, false); },
     undo: function (cm: CodeMirror) { runHistoryCommand(cm, true); },
@@ -427,7 +429,7 @@ export class CodeMirror {
   };
 
   execCommand(name: string) {
-    if (name == "indentAuto") CodeMirror.commands.indentAuto(this);
+    if (CodeMirror.commands.hasOwnProperty(name)) CodeMirror.commands[name](this);
     else if (name == "goLineLeft") cursorLineBoundaryBackward(this.cm6);
     else if (name == "goLineRight") {
       cursorLineBoundaryForward(this.cm6);

@@ -175,6 +175,7 @@ export function initVim(CM) {
     { keys: 'g~', type: 'operator', operator: 'changeCase' },
     { keys: 'gu', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: true}, isEdit: true },
     { keys: 'gU', type: 'operator', operator: 'changeCase', operatorArgs: {toLower: false}, isEdit: true },
+    { keys: 'gc', type: 'operator', operator: 'toggleComment', isEdit: true },
     { keys: 'n', type: 'motion', motion: 'findNext', motionArgs: { forward: true, toJumplist: true }},
     { keys: 'N', type: 'motion', motion: 'findNext', motionArgs: { forward: false, toJumplist: true }},
     { keys: 'gn', type: 'motion', motion: 'findAndSelectNextInclusive', motionArgs: { forward: true }},
@@ -2860,6 +2861,10 @@ export function initVim(CM) {
       var endRow = cm.hardWrap({from: from, to: to});
       if (endRow > from && operatorArgs.linewise) endRow--;
       return operatorArgs.keepCursor ? oldAnchor : new Pos(endRow, 0);
+    },
+    toggleComment: function(cm, _args, ranges, oldAnchor, newHead) {
+      cm.execCommand("toggleLineComment");
+      return newHead;
     },
     changeCase: function(cm, args, ranges, oldAnchor, newHead) {
       var selections = cm.getSelections();

@@ -1290,6 +1290,12 @@ testVim('s_visual_block', function(cm, vim, helpers) {
   eq('1hello{\n  world\n', cm.getValue());
 }, {value: '1234\n5678\nabcdefg\n'});
 
+testVim('gcc', function(cm, vim, helpers) {
+  helpers.doKeys('g', 'c', 'c');
+  eq('// var line1\nline2\nline3', cm.getValue());
+  helpers.doKeys('2', 'g', 'c', 'c');
+  eq('// // var line1\n// line2\nline3', cm.getValue());
+}, { value: 'var line1\nline2\nline3', mode: ''});
 // Test mode change event. It should only fire once per mode transition.
 testVim('on_mode_change', async function(cm, vim, helpers) {
   var modeHist = [];

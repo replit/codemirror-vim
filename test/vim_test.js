@@ -4216,6 +4216,8 @@ testVim('ex_go_to_line', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doEx('4');
   helpers.assertCursorAt(3, 0);
+  helpers.doEx('4-1');
+  helpers.assertCursorAt(2, 0);
 }, { value: 'a\nb\nc\nd\ne\n'});
 testVim('ex_go_to_mark', function(cm, vim, helpers) {
   cm.setCursor(3, 0);
@@ -4246,6 +4248,22 @@ testVim('ex_go_to_mark_offset', function(cm, vim, helpers) {
   helpers.doEx('\'a+2');
   helpers.assertCursorAt(4, 0);
 }, { value: 'a\nb\nc\nd\ne\n'});
+testVim('ex_advanced_range_syntax', function(cm, vim, helpers) {
+  helpers.doEx('0/m');
+  helpers.assertCursorAt(3, 0);
+  helpers.doKeys('m', 'a');
+  helpers.doEx('/m//m/');
+  helpers.assertCursorAt(8, 0);
+  helpers.doEx("'a,.y x");
+  helpers.doEx('10?m??m?put! x');
+  eq("1\n2\n3\n4m\n5\n6\n4m\n5\n6\n7m\n8\n9m\n7m\n8\n9m\n10\n", cm.getValue()); 
+  helpers.doEx('1+++2+/m/,1/m//m/+2-/m/+2d');
+  eq("1\n2\n3\n4m\n5\n6\n7m\n8\n9m\n10\n", cm.getValue()); 
+  helpers.doKeys('3', ':');
+  eq(cm.getWrapperElement().querySelector("input").value, ".,.+2");
+  helpers.doKeys('d', '\n');
+  eq("1\n2\n3\n4m\n5\n6\n10\n", cm.getValue()); 
+}, {value: "1\n2\n3\n4m\n5\n6\n7m\n8\n9m\n10\n"});
 testVim('ex_write', function(cm, vim, helpers) {
   var tmp = CodeMirror.commands.save;
   var written;
@@ -5180,7 +5198,7 @@ testVim('ex_api_test', function(cm, vim, helpers) {
 // Testing ex-commands with non-alpha names.
 testVim('ex_special_names', function(cm, vim, helpers) {
   var ran,val;
-  var cmds = ['!','!!','#','&','*','<','=','>','@','@@','~','regtest1','RT2'];
+  var cmds = ['!','!!','#','&','<','=','>','@','@@','~','regtest1','RT2'];
   cmds.forEach(function(name){
     CodeMirror.Vim.defineEx(name,'',function(cm,params){
       ran=params.commandName;

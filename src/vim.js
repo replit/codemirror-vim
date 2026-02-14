@@ -297,6 +297,7 @@ export function initVim(CM) {
     { name: 'startinsert', shortName: 'start' },
     { name: 'nohlsearch', shortName: 'noh' },
     { name: 'yank', shortName: 'y' },
+    { name: 'put', shortName: 'pu' },
     { name: 'delmarks', shortName: 'delm' },
     { name: 'marks',  excludeFromCommandHistory: true },
     { name: 'registers', shortName: 'reg', excludeFromCommandHistory: true },
@@ -1983,6 +1984,12 @@ export function initVim(CM) {
         if (vim.visualMode) {
           promptOptions.value = '\'<,\'>';
           promptOptions.selectValueOnOpen = false;
+        } else {
+          var repeat = vim.inputState.getRepeat();
+          if (repeat > 1) {
+            promptOptions.value = '.,.+' + (repeat - 1);
+            promptOptions.selectValueOnOpen = false;
+          }
         }
         showPrompt(cm, promptOptions);
       }
@@ -2901,6 +2908,9 @@ export function initVim(CM) {
       vimGlobalState.registerController.pushText(
           args.registerName, 'yank',
           text, args.linewise, vim.visualBlock);
+      
+      var lineCount = Math.abs(cm.getCursor("end").line - cm.getCursor("start").line) || 1;      
+      showConfirm(cm, lineCount + ' lines yanked' + (args.registerName ? ' into "' + args.registerName : ''), false, 1500);
       return endPos;
     },
     rot13: function(cm, args, ranges, oldAnchor, newHead) {
@@ -3291,7 +3301,7 @@ export function initVim(CM) {
       if (actionArgs.repeat > 1) {
         text = Array(actionArgs.repeat + 1).join(text);
       }
-      var linewise = register.linewise;
+      var linewise = actionArgs.linewise == undefined ? register.linewise : actionArgs.linewise;
       var blockwise = register.blockwise;
       var textLines = blockwise ? text.split('\n') : undefined;
       if (textLines) {
@@ -5288,8 +5298,8 @@ export function initVim(CM) {
     return n;
   }
 
-  /** @arg {CodeMirror} cm  @arg {any} template  @arg {boolean} [long]*/
-  function showConfirm(cm, template, long) {
+  /** @arg {CodeMirror} cm  @arg {any} template  @arg {boolean} [long] @arg {number} [duration]*/
+  function showConfirm(cm, template, long, duration) {
     var pre = dom('div', {$color: 'red', $whiteSpace: 'pre', class: 'cm-vim-message'}, template);
     if (cm.openNotification) {
       if (long) {
@@ -5299,9 +5309,9 @@ export function initVim(CM) {
         }
         cm.state.closeVimNotification = cm.openNotification(pre, {bottom: true, duration: 0});
       } else {
-        cm.openNotification(pre, {bottom: true, duration: 15000});
+        cm.openNotification(pre, {bottom: true, duration: duration || 15000});
       }
-    } else {
+    } else if (!duration) {
       alert(pre.innerText);
     }
   }
@@ -5628,7 +5638,7 @@ export function initVim(CM) {
         this.parseInput_(cm, inputStream, params);
       } catch(e) {
         showConfirm(cm, e + "");
-        throw e;
+        return;
       }
 
       if (vim.visualMode) {
@@ -5689,6 +5699,12 @@ export function initVim(CM) {
       if (inputStream.eat('%')) {
         result.line = cm.firstLine();
         result.lineEnd = cm.lastLine();
+      } else if (inputStream.eat('*')) {
+        var lastSelection = cm.state.vim.lastSelection;
+        var anchor = lastSelection?.anchorMark.find()?.line || 0;
+        var head = lastSelection?.headMark.find()?.line || 0;
+        result.line = Math.max(anchor, head);
+        result.lineEnd = Math.min(anchor, head);
       } else {
         result.line = this.parseLineSpec_(cm, inputStream);
         if (result.line !== undefined && inputStream.eat(',')) {
@@ -5708,6 +5724,7 @@ export function initVim(CM) {
         result.selectionLineEnd = result.lineEnd;
       }
 
+      inputStream.eatSpace();
       // Parse command name.
       var commandMatch = inputStream.match(/^(\w+|!!|@@|[!#&*<=>@~])/);
       if (commandMatch) {
@@ -5723,43 +5740,68 @@ export function initVim(CM) {
      * @param {import("@codemirror/language").StringStream} inputStream
      */
     parseLineSpec_(cm, inputStream) {
-      var numberMatch = inputStream.match(/^(\d+)/);
+      var numberMatch = inputStream.match(/^([\d]+)/);
       if (numberMatch) {
-        // Absolute line number plus offset (N+M or N-M) is probably a typo,
-        // not something the user actually wanted. (NB: vim does allow this.)
-        return parseInt(numberMatch[1], 10) - 1;
+        return this.parseLineSpecOffset_(cm, inputStream, parseInt(numberMatch[1], 10) - 1);
       }
       switch (inputStream.next()) {
         case '.':
-          return this.parseLineSpecOffset_(inputStream, cm.getCursor().line);
+          return this.parseLineSpecOffset_(cm, inputStream, cm.getCursor().line);
         case '$':
-          return this.parseLineSpecOffset_(inputStream, cm.lastLine());
+          return this.parseLineSpecOffset_(cm, inputStream, cm.lastLine());
         case '\'':
           var markName = inputStream.next() || "";
           var markPos = getMarkPos(cm, cm.state.vim, markName);
           if (!markPos) throw new Error('Mark not set');
-          return this.parseLineSpecOffset_(inputStream, markPos.line);
+          return this.parseLineSpecOffset_(cm, inputStream, markPos.line);
         case '-':
         case '+':
+        case '/':
+        case '?':
           inputStream.backUp(1);
           // Offset is relative to current line if not otherwise specified.
-          return this.parseLineSpecOffset_(inputStream, cm.getCursor().line);
+          return this.parseLineSpecOffset_(cm, inputStream, cm.getCursor().line);
         default:
           inputStream.backUp(1);
           return undefined;
       }
     }
     /**
+     * @param {CodeMirrorV} cm
      * @param {string | import("@codemirror/language").StringStream} inputStream
      * @param {number} line
      */
-    parseLineSpecOffset_(inputStream, line) {
-      var offsetMatch = inputStream.match(/^([+-])?(\d+)/);
-      if (offsetMatch) {
-        var offset = parseInt(offsetMatch[2], 10);
-        if (offsetMatch[1] == "-") {
-          line -= offset;
+    parseLineSpecOffset_(cm, inputStream, line) {
+      while (true) {
+        var offsetMatch = inputStream.match(/^([\/\?]|\\[\?\/])|([+-]?)(\d*)/)
+        if (!offsetMatch || !offsetMatch[0])
+          break;
+
+        if (offsetMatch[1]) {
+          var queryString = "";
+          var forward = !offsetMatch[1].endsWith("?");
+          if (offsetMatch[1].length == 1) {
+            var queryMatch = inputStream.match(forward ? /^([^\/\\]|\\\/)*/ : /^([^\/\?]|\\\?)*/);
+            inputStream.match(forward ? /^\/?/ : /^\??/);
+            queryString = queryMatch && queryMatch[0];
+          }
+          if (!queryString) {
+            queryString = vimGlobalState.registerController.getRegister('/')?.toString() || "";
+          }
+          var query = new RegExp(queryString);
+          var cursor = cm.getSearchCursor(query, new Pos(line + (forward ? 1 : 0), 0));
+          if (forward) {
+            cursor.findNext(); 
+          } else {
+            cursor.findPrevious(); 
+          }
+          var nextPos = cursor.from();
+          if (!nextPos) {
+            throw new Error("Pattern not found" + query);
+          }
+          line = nextPos.line;
         } else {
+          var offset = parseInt(offsetMatch[2] + (offsetMatch[3] || '1'), 10);
           line += offset;
         }
       }
@@ -6365,13 +6407,40 @@ export function initVim(CM) {
     nohlsearch: function(cm) {
       clearSearchHighlight(cm);
     },
-    /** @arg {CodeMirrorV} cm */
-    yank: function (cm) {
-      var cur = copyCursor(cm.getCursor());
-      var line = cur.line;
-      var lineText = cm.getLine(line);
+    /** @arg {CodeMirrorV} cm  @arg {ExParams} params */
+    yank: function (cm, params) {
+      var line = params.selectionLine;
+      var lineEnd = isNaN(params.selectionLineEnd) ? line : params.selectionLineEnd;
+      if (lineEnd < line) { 
+        var tmp = lineEnd;
+        lineEnd = line;
+        line = tmp;
+      }
+      var text = cm.getRange(new Pos(line, 0), new Pos(lineEnd + 1, 0));
+      var registerName = params.args && params.args[0] ? params.args[0] : '0';
       vimGlobalState.registerController.pushText(
-        '0', 'yank', lineText, true, true);
+        registerName, 'yank', text, true, false);
+      showConfirm(cm, (lineEnd + 1 - line) + ' lines yanked' + (registerName ? ' into "' + registerName : ''), false, 1500);
+    },
+    /** @arg {CodeMirrorV} cm @arg {ExParams} params @arg {boolean} [matchIndent]*/
+    put: function(cm, params, matchIndent) {
+      var actionArgs = { after: true, isEdit: true, matchIndent: !!matchIndent, repeat: 1, lineWise: true, registerName: '' };
+      var args = params.args || [];
+      if (args[0] == "!") {
+        actionArgs.after = false;
+        args.shift();
+      }
+      if (args[0]) {
+        actionArgs.registerName = args[0];
+      }
+      var line = params.selectionLine; 
+      if (line != undefined)
+        cm.setCursor(new Pos(line, 0));
+      actions.paste(cm, actionArgs, cm.state.vim);
+    },
+    /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
+    iput: function(cm, params) {
+      this.put(cm, params, true);
     },
     /** @arg {CodeMirrorV} cm @arg {ExParams} params*/
     delete: function(cm, params) {

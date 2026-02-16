@@ -3871,6 +3871,23 @@ testVim('vFT', function(cm, vim, helpers) {
   helpers.doKeys('F', '1');
   helpers.assertCursorAt(0, 0);
 }, { value: '1123 123 123'});
+testVim('vf,;', function(cm, vim, helpers) { 
+  helpers.doKeys('0', 'v')
+  helpers.doKeys('f', '.');
+  eq('ab.', cm.getSelection());
+  helpers.doKeys(';');
+  eq('ab.cd.', cm.getSelection());
+  helpers.doKeys(';');
+  eq('ab.cd.ef.', cm.getSelection());
+  helpers.doKeys(',');
+  eq('ab.cd.', cm.getSelection()); 
+  helpers.doKeys(';');
+  eq('ab.cd.ef.', cm.getSelection());
+  helpers.doKeys('2', ',');
+  eq('ab.', cm.getSelection());
+  helpers.doKeys('2', ',');
+  eq('ab.', cm.getSelection());
+}, { value: 'ab.cd.ef.g'});
 testVim('page_motions', function(cm, vim, helpers) {
   var value = "x".repeat(200).split("").map((_, i)=>i).join("\n");
   cm.setValue(value);

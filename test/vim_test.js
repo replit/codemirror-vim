@@ -452,8 +452,12 @@ testVim('gj_gk_clipping', function(cm,vim,helpers){
   cm.setCursor(0, 1);
   helpers.doKeys('g','j','g','j');
   helpers.assertCursorAt(2, 1);
+  helpers.doKeys('g','j');
+  helpers.assertCursorAt(2, 1);
   helpers.doKeys('g','k','g','k');
   helpers.assertCursorAt(0, 1);
+  helpers.doKeys('9','g','j');
+  helpers.assertCursorAt(2, 1);
 },{value: 'line 1\n\nline 2'});
 //testing a mix of j/k and gj/gk
 testVim('j_k_and_gj_gk', function(cm,vim,helpers){

@@ -2443,21 +2443,15 @@ export function initVim(CM) {
         default:
           vim.lastHSPos = cm.charCoords(cur,'div').left;
       }
-      var repeat = motionArgs.repeat;
-      var res=cm.findPosV(cur,(motionArgs.forward ? repeat : -repeat),'line',vim.lastHSPos);
-      if (res.hitSide) {
-        if (motionArgs.forward) {
-          var lastCharCoords = cm.charCoords(res, 'div');
-          var goalCoords = { top: lastCharCoords.top + 8, left: vim.lastHSPos };
-          res = cm.coordsChar(goalCoords, 'div');
-        } else {
-          var resCoords = cm.charCoords(new Pos(cm.firstLine(), 0), 'div');
-          resCoords.left = vim.lastHSPos;
-          res = cm.coordsChar(resCoords, 'div');
-        }
+      var repeat = Math.round(motionArgs.repeat);
+      for (var i = 0; i < repeat; i++) {
+        var res=cm.findPosV(cur,(motionArgs.forward ? 1 : -1),'line',vim.lastHSPos);
+        if (res.hitSide) break;
+        cur = res;
       }
-      vim.lastHPos = res.ch;
-      return res;
+      if (cur != head)
+        vim.lastHPos = cur.ch;
+      return cur;
     },
     moveByPage: function(cm, head, motionArgs) {
       // CodeMirror only exposes functions that move the cursor page down, so

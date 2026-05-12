@@ -1,7 +1,7 @@
 name: Update PR Description
 
 on:
-  pull_request_target: # use this trigger to run on external pull requests too
+  pull_request:
     types: [opened, synchronize]
 
 jobs:

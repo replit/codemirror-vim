@@ -217,6 +217,8 @@ export function initVim(CM) {
     { keys: 'V', type: 'action', action: 'toggleVisualMode', actionArgs: { linewise: true }},
     { keys: '<C-v>', type: 'action', action: 'toggleVisualMode', actionArgs: { blockwise: true }},
     { keys: '<C-q>', type: 'action', action: 'toggleVisualMode', actionArgs: { blockwise: true }},
+    { keys: '<C-g>', type: 'action', action: 'toggleSelectMode', context: 'visual'},
+    { keys: '<C-g>', type: 'action', action: 'toggleSelectMode', context: 'insert'},
     { keys: 'gv', type: 'action', action: 'reselectLastSelection' },
     { keys: 'J', type: 'action', action: 'joinLines', isEdit: true },
     { keys: 'gJ', type: 'action', action: 'joinLines', actionArgs: { keepSpaces: true }, isEdit: true },
@@ -3157,6 +3159,22 @@ export function initVim(CM) {
         updateCmSelection(cm);
       } else {
         exitVisualMode(cm);
+      }
+    },
+    toggleSelectMode: function(cm, actionArgs, vim) {
+      const selections = cm.listSelections();
+      const has_selection = selections.some(
+        (s) => s.anchor.line !== s.head.line || s.anchor.ch !== s.head.ch
+      );
+      if (!has_selection) {
+        return;
+      }
+      if (vim.insertMode) {
+        exitInsertMode(cm);
+        cm.setSelections(selections);
+      } else if (vim.visualMode) {
+          this.enterInsertMode(cm, {repeat: actionArgs.repeat}, vim);
+          cm.setSelections(selections);
       }
     },
     reselectLastSelection: function(cm, _actionArgs, vim) {

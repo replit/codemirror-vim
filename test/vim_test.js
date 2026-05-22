@@ -541,6 +541,24 @@ testVim('g0_g$', function(cm, vim, helpers) {
   is(!/\.$/.test(cm.getValue()));
   
 },{ lineNumbers: false, lineWrapping:true, value: 'This line is long to test movement of g$ and g0 over wrapped lines.' });
+testVim('g_', function(cm, vim, helpers) {
+  // Test basic g_ on line with trailing spaces
+  cm.setCursor(0, 0);
+  helpers.doKeys('g', '_');
+  helpers.assertCursorAt(0, 2);
+  // Test g_ on line without trailing spaces
+  cm.setCursor(1, 0);
+  helpers.doKeys('g', '_');
+  helpers.assertCursorAt(1, 2);
+  // Test g_ with count (2g_ goes to last non-whitespace of next line)
+  cm.setCursor(0, 0);
+  helpers.doKeys('2', 'g', '_');
+  helpers.assertCursorAt(1, 2);
+  // Test dg_ deletes to last non-whitespace (preserving trailing spaces)
+  cm.setCursor(0, 0);
+  helpers.doKeys('d', 'g', '_');
+  eq('   \nfoo', cm.getValue());
+}, { value: 'foo   \nfoo' });
 testVim('}', function(cm, vim, helpers) {
   cm.setCursor(0, 0);
   helpers.doKeys('}');

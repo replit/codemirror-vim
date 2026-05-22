@@ -138,6 +138,7 @@ export function initVim(CM) {
     { keys: "g$", type: "motion", motion: "moveToEndOfDisplayLine" },
     { keys: "g^", type: "motion", motion: "moveToStartOfDisplayLine" },
     { keys: "g0", type: "motion", motion: "moveToStartOfDisplayLine" },
+    { keys: "g_", type: "motion", motion: "moveToLastNonWhiteSpaceCharacter", motionArgs: { inclusive: true }},
     { keys: '0', type: 'motion', motion: 'moveToStartOfLine' },
     { keys: '^', type: 'motion', motion: 'moveToFirstNonWhiteSpaceCharacter' },
     { keys: '+', type: 'motion', motion: 'moveByLines', motionArgs: { forward: true, toFirstChar:true }},
@@ -2537,6 +2538,12 @@ export function initVim(CM) {
       return new Pos(cursor.line,
                   findFirstNonWhiteSpaceCharacter(cm.getLine(cursor.line)));
     },
+    moveToLastNonWhiteSpaceCharacter: function(cm, head, motionArgs) {
+      var line = head.line + motionArgs.repeat - 1;
+      var lineText = cm.getLine(line);
+      var lastNonWS = findLastNonWhiteSpaceCharacter(lineText);
+      return new Pos(line, Math.max(0, lastNonWS));
+    },
     moveToMatchedSymbol: function(cm, head) {
       var cursor = head;
       var line = cursor.line;
@@ -4016,6 +4023,15 @@ export function initVim(CM) {
     }
     var firstNonWS = text.search(/\S/);
     return firstNonWS == -1 ? text.length : firstNonWS;
+  }
+
+  /** @arg {string} [text] */
+  function findLastNonWhiteSpaceCharacter(text) {
+    if (!text) {
+      return 0;
+    }
+    var index = text.search(/\s+$/);
+    return index == -1 ? text.length - 1 : index - 1;
   }
 
   /** 

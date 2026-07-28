@@ -28,7 +28,7 @@
     "@replit/codemirror-vim-core": "workspace:^",
     "@rollup/plugin-node-resolve": "^16.0.0",
     "codemirror": "5.*",
-    "rollup": "^4.36.0"
+    "rollup": "^4.59.0"
   },
   "repository": {
     "type": "git",

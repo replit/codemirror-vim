@@ -1,6 +1,6 @@
 {
   "name": "cm5-vim",
-  "version": "0.0.6",
+  "version": "6.3.0",
   "description": "Vim keybindings for CodeMirror 5",
   "files": [
     "vim.js",
@@ -9,8 +9,8 @@
   "scripts": {
     "test": "cm-runtests .",
     "build": "node bin/build.js",
-    "buildAndTest": "yarn run build && yarn test",
-    "publish": "yarn run build && npm publish"
+    "buildAndTest": "pnpm run build && pnpm test",
+    "publish": "pnpm run build && npm publish"
   },
   "keywords": [
     "editor",
@@ -20,7 +20,9 @@
   "sideEffects": false,
   "license": "MIT",
   "devDependencies": {
-    "codemirror": "5.*"
+    "@codemirror/buildhelper": "^1.0.2",
+    "codemirror": "5.*",
+    "rollup": "^4.36.0"
   },
   "repository": {
     "type": "git",

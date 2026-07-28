@@ -5,9 +5,9 @@ set -euxo pipefail
 cd "$(dirname "$0")/.."
 ROOT="$(pwd)"
 
-# npm pack the repository
+# pnpm pack the repository
 rm -f replit-codemirror-vim-*.tgz
-npm pack
+pnpm pack
 
 # Get the name of the packed file
 PACKAGE_FILE=$(ls replit-codemirror-vim-*.tgz | sort -V | tail -n 1)
@@ -60,25 +60,25 @@ echo '{
     "noImplicitOverride": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-    "module": "commonjs",
+    "module": "node16",
     "target": "es2020",
-    "moduleResolution": "node"
+    "moduleResolution": "node16"
   },
   "include": ["*.ts"],
   "exclude": ["node_modules"]
 }
 ' > tsconfig.json
 
-# Install the ace package from the npm pack result
-npm i "$ROOT"/replit-codemirror-vim-latest.tgz 
-npm i codemirror @codemirror/lang-javascript @codemirror/lang-xml
+# Install the ace package from the pnpm pack result
+pnpm add "$ROOT"/replit-codemirror-vim-latest.tgz
+pnpm add codemirror @codemirror/lang-javascript @codemirror/lang-xml @codemirror/commands @codemirror/state @codemirror/view
 
 # Install TypeScript
-npm i typescript@latest
-rm -f index.js 
-npm run build
+pnpm add typescript@latest
+rm -f index.js
+pnpm run build
 
 # Install old version of TypeScript
-npm i typescript@4
-rm -f index.js 
-npm run build
+pnpm add typescript@4
+rm -f index.js
+pnpm run build

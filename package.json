@@ -10,12 +10,13 @@
     "dev": "vite ./dev",
     "test": "cm-runtests",
     "build-types": "rm -rf out && tsc && dts-bundle-generator out/index.ts -o dist/index.d.ts && cp dist/index.d.ts dist/index.d.cts",
-    "testAll": "yarn run build-test-package && yarn run test && cd dev/cm5 && yarn run buildAndTest",
-    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && npm run build-types",
-    "publish": "yarn run build && npm publish",
+    "testAll": "pnpm run build-test-package && pnpm run test && cd dev/cm5 && pnpm run buildAndTest",
+    "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && pnpm run build-types",
+    "publish": "pnpm run build && npm publish",
     "build-test-package": "bash ./scripts/build-test-package.sh",
-    "prepare": "yarn run build"
+    "prepare": "pnpm run build"
   },
+  "packageManager": "pnpm@11.17.0",
   "keywords": [
     "editor",
     "code"
@@ -42,6 +43,7 @@
     "@codemirror/lang-javascript": "6.x.x",
     "@codemirror/lang-xml": "6.x.x",
     "@codemirror/language": "6.x.x",
+    "@types/mocha": "^9.1.1",
     "codemirror": "6.x.x",
     "dts-bundle-generator": "^9.5.1",
     "typescript": "^5.8.2",

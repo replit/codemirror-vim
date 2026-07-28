@@ -6,4 +6,5 @@ out
 /test/*.d.ts
 /test/*.d.ts.map
 .*
+!.envrc
 .DS_Store

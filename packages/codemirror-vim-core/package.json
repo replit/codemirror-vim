@@ -1,0 +1,45 @@
+{
+  "name": "@replit/codemirror-vim-core",
+  "version": "0.1.0",
+  "description": "Editor-agnostic vim engine shared by @replit/codemirror-vim (CodeMirror 6) and cm5-vim (CodeMirror 5)",
+  "author": {
+    "name": "Yunchi Luo",
+    "url": "https://github.com/mightyguava"
+  },
+  "type": "module",
+  "main": "./vim.js",
+  "types": "./main.d.ts",
+  "exports": {
+    ".": {
+      "types": "./main.d.ts",
+      "default": "./vim.js"
+    },
+    "./test/vim_test.js": "./test/vim_test.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "pnpm run build",
+    "typecheck": "tsc --emitDeclarationOnly false --noEmit"
+  },
+  "keywords": [
+    "editor",
+    "code",
+    "vim"
+  ],
+  "sideEffects": false,
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.8.2"
+  },
+  "files": [
+    "vim.js",
+    "main.d.ts",
+    "dist",
+    "test/vim_test.js"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/replit/codemirror-vim.git",
+    "directory": "packages/codemirror-vim-core"
+  }
+}

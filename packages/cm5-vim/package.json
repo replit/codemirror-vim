@@ -1,7 +1,11 @@
 {
   "name": "cm5-vim",
-  "version": "6.3.0",
+  "version": "0.0.6",
   "description": "Vim keybindings for CodeMirror 5",
+  "author": {
+    "name": "nightwing",
+    "url": "https://github.com/nightwing"
+  },
   "files": [
     "vim.js",
     "vim_test.js"
@@ -21,11 +25,14 @@
   "license": "MIT",
   "devDependencies": {
     "@codemirror/buildhelper": "^1.0.2",
+    "@replit/codemirror-vim-core": "workspace:^",
+    "@rollup/plugin-node-resolve": "^16.0.0",
     "codemirror": "5.*",
     "rollup": "^4.36.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/replit/codemirror-vim.git"
+    "url": "https://github.com/replit/codemirror-vim.git",
+    "directory": "packages/cm5-vim"
   }
 }

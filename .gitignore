@@ -2,9 +2,11 @@ node_modules
 package-lock.json
 dist
 out
-/test/*.js
-/test/*.d.ts
-/test/*.d.ts.map
+/packages/codemirror-vim/test/*.js
+/packages/codemirror-vim/test/*.d.ts
+/packages/codemirror-vim/test/*.d.ts.map
 .*
 !.envrc
+!.github
+!.github/**
 .DS_Store

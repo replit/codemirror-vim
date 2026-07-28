@@ -1,8 +1,10 @@
 var fs = require("fs");
 var { rollup } = require('rollup');
+var { nodeResolve } = require('@rollup/plugin-node-resolve');
 
 rollup({
-  input: "./index"
+  input: "./index",
+  plugins: [nodeResolve()]
 }).then(function(a) {
   return a.write({
     file: "./bin/.bundle.js",
@@ -21,23 +23,19 @@ rollup({
       mod(CodeMirror);
   })(function(CodeMirror) {
     'use strict';
-  ` 
-  + bundle + 
+  `
+  + bundle +
   `
     CodeMirror.Vim = initVim(CodeMirror);
   });
   `;
 
+  bundle = bundle.replace("<DEV>", require("../package.json").version);
+
   fs.writeFileSync("vim.js", bundle, "utf8");
 });
 
 
-var test = fs.readFileSync("../../test/vim_test.js", "utf8");
+var test = fs.readFileSync(require.resolve("@replit/codemirror-vim-core/test/vim_test.js"), "utf8");
 test = test.replace(/export function/, "function") +  "\nvimTests(CodeMirror, test);";
 fs.writeFileSync("vim_test.js", test, "utf8");
-
-// update version
-var version = require("../../../package.json").version;
-var package = require("../package.json");
-package.version = version;
-fs.writeFileSync("./package.json", JSON.stringify(package, null, 2), "utf8");

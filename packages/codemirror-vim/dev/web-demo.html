@@ -611,7 +611,7 @@
     <br>
     <br>
     <a href="#test.html" onclick="runTests()">tests</a><br>
-    <a href="./cm5/index.html">cm5 demo</a>
+    <a href="../../cm5-vim/index.html">cm5 demo</a>
 <script>
     // console.log(ts)
     var currentUrl = require.config.baseUrl;
@@ -640,7 +640,7 @@
             "src/index": currentUrl.replace("dev", "src/index.ts"),
             "src/block-cursor": currentUrl.replace("dev", "src/block-cursor.ts"),
             "src/cm_adapter": currentUrl.replace("dev", "src/cm_adapter.ts"),
-            "src/vim": currentUrl.replace("dev", "src/vim.js"),
+            "@replit/codemirror-vim-core": currentUrl.replace("codemirror-vim/dev", "codemirror-vim-core/vim.js"),
         }
     });
     
@@ -665,7 +665,7 @@
         require.config({
             paths: {
                 "test/webtest-vim": currentUrl.replace("dev", "test/webtest-vim.js"),
-                "test/vim_test.js": currentUrl.replace("dev", "test/vim_test.js"),
+                "@replit/codemirror-vim-core/test/vim_test.js": currentUrl.replace("codemirror-vim/dev", "codemirror-vim-core/test/vim_test.js"),
             }
         });
         define("test/..", function(require, exports, module) {

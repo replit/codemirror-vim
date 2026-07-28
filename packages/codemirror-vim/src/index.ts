@@ -1,4 +1,4 @@
-import { initVim } from "./vim";
+import { initVim } from "@replit/codemirror-vim-core";
 import { CodeMirror } from "./cm_adapter";
 import { BlockCursorPlugin, hideNativeSelection } from "./block-cursor";
 import {

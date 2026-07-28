@@ -1,4 +1,4 @@
-import { vimTests } from "../../../test/vim_test.js"
+import { vimTests } from "@replit/codemirror-vim-core/test/vim_test.js"
 import "codemirror/lib/codemirror.js"
 import "codemirror/addon/dialog/dialog.js"
 import "codemirror/addon/search/searchcursor.js"

@@ -2,7 +2,7 @@ import { EditorView, basicSetup } from "codemirror";
 import { CodeMirror, Vim, vim } from "..";
 import { xml } from "@codemirror/lang-xml";
 import { javascript } from "@codemirror/lang-javascript";
-import {vimTests} from "./vim_test.js"
+import {vimTests} from "@replit/codemirror-vim-core/test/vim_test.js"
 import { indentUnit } from "@codemirror/language";
 import { EditorState, Compartment } from "@codemirror/state";
 import {indentWithTab} from "@codemirror/commands";

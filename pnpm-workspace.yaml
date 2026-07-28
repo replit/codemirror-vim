@@ -1,0 +1,14 @@
+packages:
+  - packages/*
+
+# Only install package versions that have been published for at least 3 days,
+# to reduce exposure to compromised/malicious releases.
+minimumReleaseAge: 4320
+
+# Don't run esbuild's postinstall script; esbuild works without it
+# (the platform binary ships via optionalDependencies).
+allowBuilds:
+  esbuild: false
+
+# Don't re-run install automatically before scripts; CI uses explicit installs.
+verifyDepsBeforeRun: false

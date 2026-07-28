@@ -1,4 +1,4 @@
-import { initVim as initVimInternal } from "../../src/vim.js";
+import { initVim as initVimInternal } from "@replit/codemirror-vim-core";
 
 export function initVim(CodeMirror) {
   var Vim = CodeMirror.Vim = initVimInternal(CodeMirror);

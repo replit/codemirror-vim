@@ -1,0 +1,41 @@
+name: publish
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish @replit/codemirror-vim-core and @replit/codemirror-vim
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Core is published first: @replit/codemirror-vim depends on it, so the
+      # version its workspace:^ range resolves to must exist on the registry.
+      - name: Publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for dir in packages/codemirror-vim-core packages/codemirror-vim; do
+            name=$(node -p "require('./$dir/package.json').name")
+            version=$(node -p "require('./$dir/package.json').version")
+            if [ "$(npm view "$name@$version" version 2>/dev/null)" = "$version" ]; then
+              echo "$name@$version is already published, skipping"
+            else
+              echo "Publishing $name@$version"
+              (cd "$dir" && pnpm publish --access public --no-git-checks)
+            fi
+          done

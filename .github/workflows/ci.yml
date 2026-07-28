@@ -13,13 +13,17 @@ jobs:
         with:
           access_token: ${{ github.token }}
 
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v2
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
-      - run: yarn install
-      - run: cd ./dev/cm5 && yarn install
-      - run: yarn run build
-      - run: yarn run testAll
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm run testAll

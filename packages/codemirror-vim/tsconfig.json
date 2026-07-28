@@ -21,7 +21,6 @@
         "moduleResolution": "node",
     },
     "include": [
-        "src/*.ts",
-        "src/*.js"
+        "src/*.ts"
     ]
 }

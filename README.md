@@ -1,75 +1,21 @@
-# Vim keybindings for CM6
+# codemirror-vim
 
-<span><a href="https://replit.com/@util/codemirror-vim" title="Run on Replit badge"><img src="https://replit.com/badge/github/replit/codemirror-vim" alt="Run on Replit badge" /></a></span>
-<span><a href="https://www.npmjs.com/package/@replit/codemirror-vim" title="NPM version badge"><img src="https://img.shields.io/npm/v/@replit/codemirror-vim?color=blue" alt="NPM version badge" /></a></span>
+Vim keybindings for CodeMirror.
 
-## Installation
+This is a pnpm workspace containing three packages:
+
+- [`@replit/codemirror-vim`](packages/codemirror-vim) — Vim keybindings for CodeMirror 6 (the main package)
+- [`cm5-vim`](packages/cm5-vim) — the same vim engine bundled for CodeMirror 5
+- [`@replit/codemirror-vim-core`](packages/codemirror-vim-core) — the editor-agnostic vim engine and shared test suite used by both, originally authored by [@mightyguava](https://github.com/mightyguava) (Yunchi Luo)
+
+## Development
 
 ```sh
-npm i @replit/codemirror-vim
+pnpm install
+pnpm run dev      # start the CodeMirror 6 demo
+pnpm run test     # run the CodeMirror 6 test suite
+pnpm run testAll  # run all tests, including cm5 and packaging checks
 ```
 
-## Usage
-
-```js
-import { basicSetup, EditorView } from 'codemirror';
-import { vim } from "@replit/codemirror-vim"
-
-let view = new EditorView({
-  doc: "",
-  extensions: [
-    // make sure vim is included before other keymaps
-    vim(), 
-    // include the default keymap and all other keymaps you want to use in insert mode
-    basicSetup, 
-  ],
-  parent: document.querySelector('#editor'),
-})
-```
-> **Note**:
-> if you are not using `basicSetup`, make sure you include the [drawSelection](https://codemirror.net/docs/ref/#view.drawSelection) plugin to correctly render the selection in visual mode.
-
-## Usage of cm5 vim extension api
-
-The same api that could be used in previous version of codemirror https://codemirror.net/doc/manual.html#vimapi, can be used with this plugin too, just replace the old editor instance with `view.cm` in your code
-
-```js
-import {Vim, getCM} from "@replit/codemirror-vim"
-
-let cm = getCM(view)
-// use cm to access the old cm5 api
-Vim.exitInsertMode(cm)
-Vim.handleKey(cm, "<Esc>")
-```
-
-### Define additional ex commands
-```js
-Vim.defineEx('write', 'w', function() {
-    // save the file
-});
-```
-
-### Map keys
-```js
-Vim.map("jj", "<Esc>", "insert"); // in insert mode
-Vim.map("Y", "y$"); // in normal mode
-```
-
-### Unmap keys
-
-```js
-Vim.unmap("jj", "insert");
-```
-
-### Add custom key
-
-```js
-  defaultKeymap.push({ keys: 'gq', type: 'operator', operator: 'hardWrap' });
-  Vim.defineOperator("hardWrap", function(cm, operatorArgs, ranges, oldAnchor, newHead) {
-    // make changes and return new cursor position
-  });
-```
-
-## Credits
-
-This plugin was originally authored by [@mightyguava](https://github.com/mightyguava) (Yunchi Luo) as part of [CodeMirror](https://github.com/codemirror/dev), before being extracted and maintained here.
+The repo ships a nix dev shell via direnv: `direnv allow` provides node, pnpm,
+and the browsers needed for tests.

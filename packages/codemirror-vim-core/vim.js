@@ -37,11 +37,11 @@
  */
 
 
-/** @arg {typeof import("./cm_adapter").CodeMirror} CM */
+/** @arg {import("./types").CodeMirrorConstructor} CM */
 export function initVim(CM) {
 
 /**
- * @typedef { import("./cm_adapter").CodeMirror } CodeMirror
+ * @typedef { import("./types").CM5EditorInterface } CodeMirror
  * @typedef { import("./types").CodeMirrorV} CodeMirrorV
  * @typedef { import("./types").Pos } Pos
  * @typedef { import("./types").vimState } vimState 
@@ -5687,7 +5687,7 @@ export function initVim(CM) {
     }
     /**
      * @param {CodeMirrorV} cm
-     * @param {import("@codemirror/language").StringStream} inputStream
+     * @param {import("./types").StringStream} inputStream
      * @param {{ callback?: (() => void) | undefined; input?: string | undefined; line?: any; commandName?: any; lineEnd?: any; selectionLine?: any; selectionLineEnd?: any; }} result
      */
     parseInput_(cm, inputStream, result) {
@@ -5734,7 +5734,7 @@ export function initVim(CM) {
     }
     /**
      * @param {CodeMirrorV} cm
-     * @param {import("@codemirror/language").StringStream} inputStream
+     * @param {import("./types").StringStream} inputStream
      */
     parseLineSpec_(cm, inputStream) {
       var numberMatch = inputStream.match(/^([\d]+)/);
@@ -5765,7 +5765,7 @@ export function initVim(CM) {
     }
     /**
      * @param {CodeMirrorV} cm
-     * @param {string | import("@codemirror/language").StringStream} inputStream
+     * @param {string | import("./types").StringStream} inputStream
      * @param {number} line
      */
     parseLineSpecOffset_(cm, inputStream, line) {
@@ -5805,7 +5805,7 @@ export function initVim(CM) {
       return line;
     }
     /**
-     * @param {import("@codemirror/language").StringStream} inputStream
+     * @param {import("./types").StringStream} inputStream
      * @param {import("./types").exCommandArgs} params
      * @param {import("./types").exCommandDefinition} command
      */

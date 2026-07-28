@@ -7,7 +7,7 @@ import {
   undo, redo, cursorLineBoundaryBackward, cursorLineBoundaryForward, cursorCharBackward, 
   toggleLineComment
 } from "@codemirror/commands"
-import {vimState, CM5RangeInterface} from "./types"
+import type {vimState, CM5RangeInterface} from "@replit/codemirror-vim-core"
 
 function indexFromPos(doc: Text, pos: Pos): number {
   var ch = pos.ch;
@@ -1114,3 +1114,7 @@ function hardWrap(cm: CodeMirror, options: hardWrapOptions) {
   }
 }
 
+
+// Compile-time check that the adapter satisfies the editor contract the
+// vim engine is typed against (see @replit/codemirror-vim-core types).
+CodeMirror satisfies import("@replit/codemirror-vim-core").CodeMirrorConstructor

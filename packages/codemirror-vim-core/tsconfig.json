@@ -1,0 +1,19 @@
+{
+    "compilerOptions": {
+        "noImplicitAny": false,
+        "declaration": true,
+        "emitDeclarationOnly": true,
+        "outDir": "dist",
+        "allowJs": true,
+        "checkJs": true,
+        "lib": ["es6", "dom", "scripthost"],
+        "stripInternal": true,
+        "noUnusedLocals": true,
+        "strict": true,
+        "target": "es6",
+        "module": "es2020",
+        "newLine": "lf",
+        "moduleResolution": "node",
+    },
+    "files": ["vim.js", "types.ts"]
+}

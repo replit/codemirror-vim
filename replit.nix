@@ -1,7 +1,7 @@
 { pkgs }: {
 	deps = [
-		pkgs.nodejs-16_x
-    pkgs.nodePackages.yarn
+		pkgs.nodejs_20
+    pkgs.nodePackages.pnpm
     pkgs.nodePackages.typescript-language-server
     pkgs.chromedriver
     pkgs.chromium

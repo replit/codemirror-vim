@@ -12,3 +12,18 @@ allowBuilds:
 
 # Don't re-run install automatically before scripts; CI uses explicit installs.
 verifyDepsBeforeRun: false
+
+# Force patched versions of vulnerable transitive dev dependencies
+# (mostly via @marijn/testtool's selenium-webdriver/mocha, which are at
+# their latest released versions). See `pnpm audit`.
+overrides:
+  "brace-expansion": "^5.0.8"
+  "diff@5": "^5.2.2"
+  "js-yaml@4": "^4.3.0"
+  "minimatch@5": "^5.1.8"
+  "picomatch@2": "^2.3.2"
+  "postcss@8": "^8.5.18"
+  "rollup@4": "^4.59.0"
+  "serialize-javascript": "^7.0.5"
+  "tmp": "^0.2.6"
+  "ws@8": "^8.21.0"

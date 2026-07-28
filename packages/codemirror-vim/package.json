@@ -46,7 +46,7 @@
     "codemirror": "6.x.x",
     "dts-bundle-generator": "^9.5.1",
     "typescript": "^5.8.2",
-    "vite": "^6.2.2"
+    "vite": "^6.4.3"
   },
   "files": [
     "dist",

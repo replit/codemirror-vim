@@ -1,0 +1,3 @@
+# Only install package versions that have been published for at least 3 days,
+# to reduce exposure to compromised/malicious releases.
+minimumReleaseAge: 4320

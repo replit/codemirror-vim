@@ -8,7 +8,6 @@
     "build-types": "rm -rf out && tsc && dts-bundle-generator out/index.ts -o dist/index.d.ts --external-imports @replit/codemirror-vim-core @codemirror/view @codemirror/state @codemirror/search @codemirror/language && cp dist/index.d.ts dist/index.d.cts",
     "testAll": "pnpm run build-test-package && pnpm run test",
     "build": "cm-buildhelper src/index.ts && node scripts/addVersion.cjs && pnpm run build-types",
-    "publish": "pnpm run build && npm publish",
     "build-test-package": "bash ./scripts/build-test-package.sh",
     "prepare": "pnpm run build",
     "typecheck": "tsc --emitDeclarationOnly false --noEmit"
@@ -54,7 +53,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/replit/codemirror-vim.git",
+    "url": "git+https://github.com/replit/codemirror-vim.git",
     "directory": "packages/codemirror-vim"
   }
 }

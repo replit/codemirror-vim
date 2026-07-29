@@ -4,11 +4,16 @@ on:
 
 permissions:
   contents: read
+  # Required for npm trusted publishing (OIDC).
+  id-token: write
 
 jobs:
   publish:
     name: Publish @replit/codemirror-vim-core and @replit/codemirror-vim
     runs-on: ubuntu-latest
+    # Must match the environment configured in the npm trusted publisher
+    # settings for both packages.
+    environment: cm6 publish
     steps:
       - uses: actions/checkout@v4
 
@@ -19,15 +24,14 @@ jobs:
           node-version: 22
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
-          registry-url: https://registry.npmjs.org
 
       - run: pnpm install --frozen-lockfile
 
       # Core is published first: @replit/codemirror-vim depends on it, so the
       # version its workspace:^ range resolves to must exist on the registry.
+      # Auth is npm trusted publishing (OIDC) — both packages must have this
+      # repo + workflow configured as a trusted publisher on npmjs.com.
       - name: Publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
           for dir in packages/codemirror-vim-core packages/codemirror-vim; do
             name=$(node -p "require('./$dir/package.json').name")

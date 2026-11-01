@@ -2693,6 +2693,18 @@ testVim('reselect_visual_line', function(cm, vim, helpers) {
   helpers.doKeys('V', 'p' , 'g', 'v', 'd');
   eq('foo\nand', cm.getValue());
 }, { value: 'hello\nthis\nis\nfoo\nand\nbar' });
+testVim('reselect_visual_line_after_esc', function(cm, vim, helpers) {
+  helpers.doKeys('l', 'V', 'j', '<Esc>', 'g', 'v');
+  eq(vim.visualLine, true);
+  helpers.doKeys('d');
+  eq('is\nfoo', cm.getValue());
+}, { value: 'hello\nthis\nis\nfoo' });
+testVim('reselect_visual_block_after_esc', function(cm, vim, helpers) {
+  cm.setCursor(0, 1);
+  helpers.doKeys('<C-v>', 'j', 'l', '<Esc>', 'g', 'v');
+  eq(vim.visualBlock, true);
+  eq(cm.getSelections().join(''), '23oo');
+}, { value: '123456\nfoo\nbar' });
 testVim('reselect_visual_block', function(cm, vim, helpers) {
   cm.setCursor(1, 2);
   helpers.doKeys('<C-v>', 'k', 'h', '<C-v>');

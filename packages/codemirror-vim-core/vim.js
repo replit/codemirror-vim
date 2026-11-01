@@ -3961,6 +3961,12 @@ export function initVim(CM) {
     if (moveHead !== false) {
       cm.setCursor(clipCursorToContent(cm, vim.sel.head));
     }
+    // Outside a vim operation (a typed <Esc> exits from handleEsc in findKey),
+    // the cursor move above reports cursor activity, and
+    // handleExternalSelection exits visual mode itself, recording the last
+    // selection with its linewise/blockwise flags. Recording it again here,
+    // after those flags were cleared, would make `gv` reselect charwise.
+    if (!vim.visualMode) return;
     updateLastSelection(cm, vim);
     vim.visualMode = false;
     vim.visualLine = false;

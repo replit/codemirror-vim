@@ -920,7 +920,10 @@ export function initVim(CM) {
       function handleMacroRecording() {
         var macroModeState = vimGlobalState.macroModeState;
         if (macroModeState.isRecording) {
-          if (key == 'q') {
+          // A `q` ends the recording only as a command of its own, not as the
+          // character a pending key is waiting for (`fq`, `"qp`, `@q`, `iq`).
+          // A count before it changes nothing.
+          if (key == 'q' && !/\D/.test(vim.inputState.keyBuffer.join(''))) {
             macroModeState.exitMacroRecordMode();
             clearInputState(cm);
             return true;

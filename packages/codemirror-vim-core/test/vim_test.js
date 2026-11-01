@@ -2655,6 +2655,13 @@ testVim('visual_blank', function(cm, vim, helpers) {
   helpers.doKeys('v', 'k');
   eq(vim.visualMode, true);
 }, { value: '\n' });
+testVim('macro_q_as_argument_does_not_end_recording', function(cm, vim, helpers) {
+  cm.setCursor(0, 0);
+  helpers.doKeys('q', 'a', 'f', 'q', 'x', 'q');
+  eq('abqc', cm.getValue());
+  helpers.doKeys('@', 'a');
+  eq('abc', cm.getValue());
+}, { value: 'aqbqc' });
 testVim('reselect_visual', function(cm, vim, helpers) {
   helpers.doKeys('l', 'v', 'l', 'l', 'l', 'y', 'g', 'v');
   helpers.assertCursorAt(0, 5);

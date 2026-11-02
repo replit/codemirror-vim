@@ -47,11 +47,15 @@ const vimStyle = EditorView.baseTheme({
 });
 type EditorViewExtended = EditorView & { cm: CodeMirror };
 
+import type { VimMode, VimSubMode, VimModeChangeEvent } from "@replit/codemirror-vim-core";
+export type { VimMode, VimSubMode, VimModeChangeEvent };
+
 const vimPlugin = ViewPlugin.fromClass(
   class implements PluginValue {
     private dom: HTMLElement;
     private statusButton: HTMLElement;
     private spacer: HTMLElement;
+    private inCommandMode = false;
     public view: EditorViewExtended;
     public cm: CodeMirror;
     public status = "";
@@ -72,11 +76,16 @@ const vimPlugin = ViewPlugin.fromClass(
         this.blockCursor.scheduleRedraw();
         this.updateStatus();
       });
-      this.cm.on("vim-mode-change", (e: any) => {
+      this.cm.on("vim-mode-change", (e: VimModeChangeEvent) => {
         if (!cm.state.vim) return;
+        if (e.mode !== "command") {
+          this.inCommandMode = false;
+        }
         cm.state.vim.mode = e.mode;
-        if (e.subMode) {
-          cm.state.vim.mode += e.subMode === "linewise" ? " line" : " block";
+        if (e.subMode === "linewise") {
+          cm.state.vim.mode += " line";
+        } else if (e.subMode === "blockwise") {
+          cm.state.vim.mode += " block";
         }
         cm.state.vim.status = "";
         this.blockCursor.scheduleRedraw();
@@ -91,6 +100,23 @@ const vimPlugin = ViewPlugin.fromClass(
           view.dispatch({
             effects: showVimPanel.of(!!this.cm.state.dialog),
           });
+        }
+        // Emit mode change for interactive command/search prompt enter/exit
+        const isPrompt = !!this.cm.state.dialog?.querySelector("input");
+        if (isPrompt) {
+          if (!this.inCommandMode) {
+            this.inCommandMode = true;
+            CodeMirror.signal(cm, "vim-mode-change", { mode: "command" });
+          }
+        } else if (this.inCommandMode) {
+          this.inCommandMode = false;
+          const vim = cm.state.vim;
+          if (vim) {
+            CodeMirror.signal(cm, "vim-mode-change", {
+              mode: vim.insertMode ? "insert" : vim.visualMode ? "visual" : "normal",
+              subMode: vim.visualLine ? "linewise" : vim.visualBlock ? "blockwise" : undefined,
+            });
+          }
         }
       });
 

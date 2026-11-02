@@ -403,6 +403,13 @@ export type ExParams = {
     callback?: () => void,
 }
 
+export type VimMode = 'normal' | 'insert' | 'visual' | 'replace' | 'command';
+export type VimSubMode = 'linewise' | 'blockwise' | '';
+
+export type VimModeChangeEvent =
+  | { mode: 'visual'; subMode?: VimSubMode }
+  | { mode: 'normal' | 'insert' | 'replace' | 'command'; subMode?: undefined };
+
 export type PromptOptions = {
     onClose?: Function; 
     prefix: string|HTMLElement;

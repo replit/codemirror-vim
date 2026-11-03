@@ -168,7 +168,7 @@ export type vimMotions = {
     moveToOtherHighlightedEnd(cm: CodeMirrorV, _head: Pos, motionArgs: MotionArgs, vim: vimState): [Pos,Pos]
     jumpToMark(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim: vimState):Pos
     moveByCharacters(_cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs): Pos
-    moveByLines(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim: vimState): Pos
+    moveByLines(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim: vimState): Pos | null
     moveByDisplayLines(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs, vim: vimState): Pos
     moveByPage(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs): Pos
     moveByParagraph(cm: CodeMirrorV, head: Pos, motionArgs: MotionArgs): Pos

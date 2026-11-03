@@ -2428,12 +2428,11 @@ export function initVim(CM) {
         line = posV.line;
         endCh = posV.ch;
       }
-      // Vim go to line begin or line end when cursor at first/last line and
-      // move to previous/next line is triggered.
-      if (line < first && cur.line == first){
-        return this.moveToStartOfLine(cm, head, motionArgs, vim);
-      } else if (line > last && cur.line == last){
-          return moveToEol(cm, head, motionArgs, vim, true);
+      // Motions beyond the document boundary fail without moving the cursor.
+      if (!motionArgs.linewise &&
+          ((line < first && cur.line == first) ||
+           (line > last && cur.line == last))) {
+        return null;
       }
       if (motionArgs.toFirstChar){
         endCh=findFirstNonWhiteSpaceCharacter(cm.getLine(line));

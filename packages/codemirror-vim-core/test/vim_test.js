@@ -336,6 +336,14 @@ testMotion('j_repeat_clip', ['1000', 'j'], endOfDocument);
 testMotion('k', 'k', offsetCursor(word3.end, -1, 0), word3.end);
 testMotion('k_repeat', ['2', 'k'], makeCursor(0, 4), makeCursor(2, 4));
 testMotion('k_repeat_clip', ['1000', 'k'], makeCursor(0, 4), makeCursor(2, 4));
+testVim('j_k_at_document_boundary', function(cm, vim, helpers) {
+  cm.setCursor(0, 3);
+  helpers.doKeys('k');
+  helpers.assertCursorAt(0, 3);
+  cm.setCursor(cm.lastLine(), 1);
+  helpers.doKeys('j');
+  helpers.assertCursorAt(cm.lastLine(), 1);
+}, {value: 'abcdef\nxyz'});
 testMotion('w', 'w', word1.start);
 testMotion('keepHPos', ['5', 'j', 'j', '7', 'k'], makeCursor(8, 12), makeCursor(12, 12));
 testMotion('keepHPosEol', ['$', '2', 'j'], makeCursor(2, 18));

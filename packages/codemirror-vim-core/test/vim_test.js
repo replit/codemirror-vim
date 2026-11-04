@@ -1623,6 +1623,14 @@ testEdit('da{_middle_spc', 'a{\n\tbar\n}b', /r/, 'da{', 'ab');
 testEdit('da}_middle_spc', 'a{\n\tbar\n}b', /r/, 'da}', 'ab');
 testEdit('daB_middle_spc', 'a{\n\tbar\n}b', /r/, 'daB', 'ab');
 
+// Cursor before any block: the closing-bracket forms must behave like the
+// opening-bracket forms and pick the first block opened ahead of the cursor,
+// not the first closing bracket in the document (replit/codemirror-vim#264).
+var outsideBlockDoc = 'f(a) {\n  while (x) {\n    y;\n  }\n  z;\n}';
+testEdit('da{_before_block_selects_first_opened_block', outsideBlockDoc, /f/, 'da{', 'f(a) ');
+testEdit('da}_before_block_selects_first_opened_block', outsideBlockDoc, /f/, 'da}', 'f(a) ');
+testEdit('da)_before_block_selects_first_opened_pair', 'x f(a(b)) y', /x/, 'da)', 'x f y');
+
 // open and close on diff lines, open indented less than close
 testEdit('di{_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'di{', 'a{}b');
 testEdit('di}_middle_spc', 'a{\n\tbar\n\t}b', /r/, 'di}', 'a{}b');

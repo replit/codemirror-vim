@@ -2617,7 +2617,9 @@ export function initVim(CM) {
         move = true;
         tmp = selectCompanionObject(cm, head, character, inclusive);
         if (!tmp) {
-          var sc = cm.getSearchCursor(new RegExp("\\" + character, "g"), head)
+          // Look ahead for the opening bracket, whichever form was typed.
+          var openChar = ')}]>'.indexOf(character) >= 0 ? mirroredPairs[character] : character;
+          var sc = cm.getSearchCursor(new RegExp("\\" + openChar, "g"), head)
           if (sc.find()) {
             // @ts-ignore
             tmp = selectCompanionObject(cm, sc.from(), character, inclusive);

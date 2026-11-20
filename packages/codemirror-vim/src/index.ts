@@ -256,7 +256,7 @@ const vimPlugin = ViewPlugin.fromClass(
       return !!result;
     }
     lastKeydown = ''
-    useNextTextInput = false
+    imeTextInput: "idle" | "pending" | "handled" = "idle"
     compositionText = ''
   },
   {
@@ -279,7 +279,7 @@ const vimPlugin = ViewPlugin.fromClass(
         });
       },
       compositionstart: function(e: Event, view: EditorView) {
-        this.useNextTextInput = true;
+        this.imeTextInput = "pending";
         CodeMirror.signal(this.cm, 'inputEvent', e);
       },
       compositionupdate: function(e: Event, view: EditorView) {
@@ -301,9 +301,9 @@ const vimPlugin = ViewPlugin.fromClass(
           || this.lastKeydown == "Process"
           || this.lastKeydown == "Dead"
         ) {
-          this.useNextTextInput = true;
+          this.imeTextInput = "pending";
         } else {
-          this.useNextTextInput = false;
+          this.imeTextInput = "idle";
           this.handleKey(e, view);
         }
       },
@@ -326,7 +326,9 @@ const vimPlugin = ViewPlugin.fromClass(
               from, 
               to,              
             });
-            if (text.length == 1 && vimPlugin.useNextTextInput) {
+            if (text.length == 1 && vimPlugin.imeTextInput !== "idle") {
+              // Ending composition can deliver another text update for the same key.
+              if (vimPlugin.imeTextInput === "handled") return true;
               if (vim.expectLiteralNext && view.composing) {
                 vimPlugin.compositionText = text;
                 return false
@@ -341,6 +343,7 @@ const vimPlugin = ViewPlugin.fromClass(
                   cm.replaceRange('', cm.posFromIndex(head - toRemove.length), pos);
                 }
               }
+              vimPlugin.imeTextInput = "handled";
               vimPlugin.handleKey({
                 key: text,
                 preventDefault: ()=>{},

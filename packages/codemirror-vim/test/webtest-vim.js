@@ -124,6 +124,39 @@ describe("Vim extension", () => {
   }
   vimTests(CM, transformTest);
 
+  it("runs a Normal-mode motion once when IME text arrives twice for one key", function() {
+    const text = "alpha bravo charlie";
+    const cm = CM(root, {value: text});
+    const view = lastView;
+    const [handleInput] = view.state.facet(EditorView.inputHandler);
+
+    function pressImeKey() {
+      view.contentDOM.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "Process",
+        code: "KeyE",
+        bubbles: true,
+      }));
+    }
+    function receiveText() {
+      const head = view.state.selection.main.head;
+      is(handleInput(view, head, head, "e", () =>
+        view.state.update({changes: {from: head, insert: "e"}})));
+    }
+
+    pressImeKey();
+    receiveText();
+    eq(cm.getCursor().ch, 4);
+    receiveText();
+    eq(cm.getCursor().ch, 4);
+
+    pressImeKey();
+    receiveText();
+    eq(cm.getCursor().ch, 10);
+    eq(view.state.doc.toString(), text);
+    view.destroy();
+    lastView = null;
+  });
+
   // extra tests 
   it("should update cursor blinkrate", function() {
 
